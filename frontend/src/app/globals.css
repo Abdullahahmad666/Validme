@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/* ValidMe design tokens — source of truth: docs/design/design-system.md */
+:root {
+  --background: #f8fafc;
+  --card: #ffffff;
+  --foreground: #172033;
+  --muted-foreground: #64748b;
+  --border: #e2e8f0;
+  --primary: #315eaa;
+  --primary-foreground: #ffffff;
+  --success: #15803d;
+  --warning: #d97706;
+  --destructive: #dc2626;
+  --ai: #7c3aed;
+  --radius: 10px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-ai: var(--ai);
+  --radius-control: var(--radius);
+  --radius-card: 14px;
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-feature-settings: "tnum";
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

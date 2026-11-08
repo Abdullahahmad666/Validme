@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "validme": {
+      "command": "python",
+      "args": ["-m", "validme_mcp"],
+      "env": {
+        "VALIDME_API_URL": "${VALIDME_API_URL:-http://localhost:8000/api}",
+        "VALIDME_API_KEY": "${VALIDME_API_KEY:-}",
+        "VALIDME_MOCK": "${VALIDME_MOCK:-1}"
+      }
+    }
+  }
+}
