@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AuthGuard } from "@/components/layout/AuthGuard";
 import { MobileNav } from "@/components/layout/MobileNav";
+
+// The signed-in app is private: keep it out of search results.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (

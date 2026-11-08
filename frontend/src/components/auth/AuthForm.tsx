@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { sessionKey, useSession } from "@/hooks/useSession";
+import { track } from "@/lib/analytics";
 import { safeNext } from "@/lib/safe-next";
 import { loginSchema, signupSchema, type LoginForm } from "@/lib/validation";
 import { auth, AuthError } from "@/services/auth";
@@ -61,18 +62,21 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   async function onSubmit(values: LoginForm) {
     setFormError(null);
+    if (mode === "signup") track("signup_started", { method: "email" });
     try {
       const result: Session =
         mode === "login" ? await auth.login(values.email, values.password) : await auth.signup(values.email, values.password);
       qc.setQueryData(sessionKey, result);
       if (result.isAuthenticated) {
         if (mode === "signup") {
+          track("signup_completed", { method: "email" });
           toast.info("Confirm your email to unlock your free report", {
             description: `We sent a link to ${values.email}.`,
           });
         }
         router.replace(next);
       } else if (result.pendingFlow === "verify_email") {
+        if (mode === "signup") track("signup_completed", { method: "email", verification: "pending" });
         setPendingVerification(true);
       } else {
         setFormError("We couldn't sign you in. Please try again.");
@@ -111,7 +115,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         )}
       </div>
 
-      <GoogleButton next={next} />
+      <GoogleButton next={next} mode={mode} />
 
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         {formError && (

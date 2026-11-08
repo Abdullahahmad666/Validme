@@ -2,10 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { useAuthConfig } from "@/hooks/useSession";
+import { track } from "@/lib/analytics";
 import { auth } from "@/services/auth";
 
 /** Rendered only when the backend has Google OAuth configured (GOOGLE_CLIENT_ID/SECRET). */
-export function GoogleButton({ next }: { next: string }) {
+export function GoogleButton({ next, mode }: { next: string; mode: "login" | "signup" }) {
   const { data } = useAuthConfig();
   const google = data?.data.socialaccount?.providers.find((p) => p.id === "google");
   if (!google) return null;
@@ -17,7 +18,10 @@ export function GoogleButton({ next }: { next: string }) {
         variant="outline"
         size="lg"
         className="w-full"
-        onClick={() => auth.redirectToProvider("google", `${window.location.origin}${next}`)}
+        onClick={() => {
+          if (mode === "signup") track("signup_started", { method: "google" });
+          auth.redirectToProvider("google", `${window.location.origin}${next}`);
+        }}
       >
         <svg viewBox="0 0 24 24" aria-hidden className="size-4">
           <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5a5.5 5.5 0 0 1-2.4 3.6v3h3.9c2.3-2.1 3.5-5.2 3.5-8.8Z" />
