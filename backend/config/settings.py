@@ -12,6 +12,8 @@ VALIDME_BRAND = "ValidMe"
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-only-insecure-key-change-me")
 DEBUG = env("DEBUG", default=True)
+if not DEBUG and SECRET_KEY.startswith("dev-only"):
+    raise RuntimeError("Set DJANGO_SECRET_KEY when DEBUG is off.")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 INSTALLED_APPS = [
@@ -22,6 +24,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "allauth.headless",
     "accounts",
     "projects",
     "research",
@@ -38,6 +45,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -60,6 +68,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
 
 AUTH_USER_MODEL = "accounts.User"
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
@@ -82,6 +94,47 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 25,
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
 }
+
+# Frontend + cookies. The Next.js app proxies /api and /_allauth to Django, so the browser
+# sees a single origin and uses Django session cookies + CSRF (no tokens in localStorage).
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:3000")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[FRONTEND_URL])
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
+CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST", default=False)
+
+# Email
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=f"{VALIDME_BRAND} <no-reply@localhost>")
+
+# Auth (django-allauth, headless API for the Next.js frontend)
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = env("ACCOUNT_EMAIL_VERIFICATION", default="optional")  # none | optional | mandatory
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+HEADLESS_ONLY = True
+HEADLESS_CLIENTS = ("browser",)
+HEADLESS_FRONTEND_URLS = {
+    "account_confirm_email": f"{FRONTEND_URL}/verify-email/{{key}}",
+    "account_reset_password_from_key": f"{FRONTEND_URL}/reset-password/{{key}}",
+    "account_signup": f"{FRONTEND_URL}/signup",
+    "socialaccount_login_error": f"{FRONTEND_URL}/login?error=social",
+}
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+GOOGLE_CLIENT_ID = env("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env("GOOGLE_CLIENT_SECRET", default="")
+SOCIALACCOUNT_PROVIDERS: dict = {}
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    SOCIALACCOUNT_PROVIDERS["google"] = {
+        "APPS": [{"client_id": GOOGLE_CLIENT_ID, "secret": GOOGLE_CLIENT_SECRET}],
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+        "EMAIL_AUTHENTICATION": True,
+    }
 
 # Celery
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")

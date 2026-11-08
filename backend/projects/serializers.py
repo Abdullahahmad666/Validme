@@ -1,3 +1,4 @@
+from django.core.validators import URLValidator
 from django.db import transaction
 from rest_framework import serializers
 
@@ -17,8 +18,15 @@ OBJECTIVES = [
 class ProjectSerializer(serializers.ModelSerializer):
     name = serializers.CharField(min_length=3, max_length=80)
     description = serializers.CharField(source="idea.original_description", min_length=30, max_length=2000)
-    objectives = serializers.ListField(child=serializers.ChoiceField(choices=OBJECTIVES), source="idea.objectives", required=False)
-    existing_product_url = serializers.URLField(source="idea.existing_product_url", required=False, allow_blank=True)
+    objectives = serializers.ListField(
+        child=serializers.ChoiceField(choices=OBJECTIVES), source="idea.objectives", required=False, min_length=1
+    )
+    existing_product_url = serializers.URLField(
+        source="idea.existing_product_url",
+        required=False,
+        allow_blank=True,
+        validators=[URLValidator(schemes=["http", "https"])],
+    )
     additional_context = serializers.CharField(source="idea.additional_context", required=False, allow_blank=True, max_length=1000)
     audiences = serializers.ListField(child=serializers.CharField(max_length=120), source="market.audiences", required=False)
     geographies = serializers.ListField(child=serializers.CharField(max_length=80), source="market.geographies", required=False)
@@ -58,8 +66,13 @@ class ProjectSerializer(serializers.ModelSerializer):
         for k, v in validated.items():
             setattr(project, k, v)
         project.save()
-        if idea:
-            IdeaDefinition.objects.update_or_create(project=project, defaults=idea)
-        if market:
-            MarketProfile.objects.update_or_create(project=project, defaults=market)
+        # Update the cached related instances (not update_or_create) so the response reflects the save.
+        for model, attr, values in ((IdeaDefinition, "idea", idea), (MarketProfile, "market", market)):
+            if not values:
+                continue
+            related = getattr(project, attr, None) or model(project=project)
+            for k, v in values.items():
+                setattr(related, k, v)
+            related.save()
+            setattr(project, attr, related)
         return project

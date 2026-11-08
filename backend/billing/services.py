@@ -22,3 +22,15 @@ def spend_credits(user: User, amount: int, operation: str, job=None) -> None:
     locked.save(update_fields=["credits"])
     UsageTransaction.objects.create(user=locked, operation=operation, credits=-amount, job=job)
     user.credits = locked.credits
+
+
+@transaction.atomic
+def grant_credits(user: User, amount: int, operation: str) -> None:
+    """Add credits and record the grant in the ledger (signup_grant, purchase, refund)."""
+    if amount <= 0:
+        return
+    locked = User.objects.select_for_update().get(pk=user.pk)
+    locked.credits += amount
+    locked.save(update_fields=["credits"])
+    UsageTransaction.objects.create(user=locked, operation=operation, credits=amount)
+    user.credits = locked.credits
