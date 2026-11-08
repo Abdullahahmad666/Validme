@@ -2,6 +2,16 @@
 
 Priority: **P0** = initial build, **P1** = MVP completion, **P2** = post-launch.
 
+## P0 — Marketing site (`/`, route group `(marketing)`)
+Public, fully static (prerendered). Copy and sample data live in `frontend/src/content/marketing.ts`; components in `frontend/src/components/marketing/`.
+- **Home sections, in order:** Hero (animated product preview) · Research sources (Supported / Limited / Not included) · Problem · How it works (sticky visual on lg+) · Product walkthrough slot (`DEMO_VIDEO` in content; placeholder until a video exists) · 4 feature rows · Evidence vs generic AI · TAM/SAM/SOM · Use cases · Pricing · FAQ · Final CTA.
+- **Other pages:** `/pricing`, `/sample-report` (illustrative, labelled), `/about`, `/contact`, `/glossary`, `/privacy`, `/terms`, `/cookies` (legal pages are drafts), `/blog`, `/guides`, `/feedback` (coming soon, noindex).
+- **CTAs:** "Validate my idea" / "Get started" → `/signup`; "Log in" → `/login`; "Explore a sample report" → `/sample-report`.
+- **Honesty rules:** every mock is labelled "Sample data"; sources must match `docs/data-sources.md`; no prices until set (Pro/Advanced show "Price TBA"); FAQ states what isn't searched.
+- **Motion:** CSS only. Entrance (`vm-in`) for the hero, scroll-driven reveals (`vm-reveal`) under `@supports (animation-timeline: view())`, all inside `prefers-reduced-motion: no-preference`; content is visible without JS or animation support.
+- **SEO:** `pageMetadata()` in `src/lib/seo.ts` (canonical, OG image, large card), `sitemap.ts`, `robots.ts`, `opengraph-image.tsx`, JSON-LD (Organization, SoftwareApplication, FAQPage, DefinedTermSet), no ratings or prices in structured data.
+- **Analytics:** `track()` in `src/lib/analytics.ts`; no vendor wired yet.
+
 ## P0 — Dashboard home (`/dashboard`)
 Answers: how many ideas researched, what's in progress, what looks promising, what next.
 - Greeting + plan badge; KPI row: Research projects · Reports generated · Evidence records · Active jobs.

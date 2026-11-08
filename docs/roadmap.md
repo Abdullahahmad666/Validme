@@ -46,6 +46,15 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [ ] Error handling, job recovery, security review, analytics
 - [ ] Deploy (Vercel + Render or Railway)
 
+## Marketing site
+- [x] Landing page (hero with animated preview, sources, problem, how it works, features, evidence-first, TAM/SAM/SOM, use cases, pricing, FAQ, final CTA)
+- [x] Pricing, sample report, about, contact, glossary, privacy/terms/cookies (drafts), coming-soon blog/guides/feedback
+- [x] SEO: metadata, OG image, sitemap, robots, JSON-LD; analytics abstraction (no vendor)
+- [ ] Product walkthrough video/animation for the demo slot (`DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
+- [ ] Final plan prices + allowances; decide subscriptions vs credit packs (PRD §9 favours packs)
+- [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
+- [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`
+
 ## Weeks 7–8 — Private beta
 - [ ] 20-idea quality test set reviewed by a human
 - [ ] 10–20 founders; survey "hours saved" + "would pay for another report"
