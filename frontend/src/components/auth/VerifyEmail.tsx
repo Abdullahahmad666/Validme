@@ -29,7 +29,7 @@ export function VerifyEmail() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Confirm your email</h1>
+      <h1 className="text-3xl font-semibold tracking-tight">Confirm your email</h1>
       {state === "failed" ? (
         <p role="alert" className="text-sm text-destructive">
           This link is invalid or has expired. <Link href="/login" className="underline">Log in</Link> to request a new

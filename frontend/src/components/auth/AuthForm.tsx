@@ -97,7 +97,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   if (pendingVerification) {
     return (
       <div className="flex flex-col gap-3">
-        <h1 className="text-xl font-semibold">Check your inbox</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Check your inbox</h1>
         <p className="text-sm text-muted-foreground">
           We sent a verification link to <strong className="text-foreground">{form.getValues("email")}</strong>. Open it
           to finish signing in.
@@ -109,10 +109,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-semibold">{copy.title}</h1>
-        {mode === "signup" && (
-          <p className="mt-1 text-sm text-muted-foreground">Your first research report is on us.</p>
-        )}
+        <h1 className="text-3xl font-semibold tracking-tight">{copy.title}</h1>
+        <p className="mt-2 text-muted-foreground">
+          {mode === "signup"
+            ? "Your first Quick report is free once you verify your email. No card required."
+            : "Welcome back. Pick up your research where you left off."}
+        </p>
       </div>
 
       <GoogleButton next={next} mode={mode} />
@@ -150,6 +152,19 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           {isSubmitting && <Loader2 className="animate-spin" aria-hidden />}
           {copy.submit}
         </Button>
+        {mode === "signup" && (
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
+            By creating an account you agree to the{" "}
+            <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              Privacy policy
+            </Link>
+            .
+          </p>
+        )}
       </form>
 
       <p className="text-center text-sm text-muted-foreground">

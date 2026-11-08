@@ -144,6 +144,9 @@
 @keyframes vm-blink {
   50% { opacity: 0; }
 }
+@keyframes vm-ring {
+  from { stroke-dashoffset: var(--vm-ring-from, 226); }
+}
 @keyframes vm-pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
@@ -165,6 +168,8 @@ html { scroll-padding-top: 5.5rem; }
   .vm-type { animation: vm-type 1200ms steps(40, end) var(--d, 0ms) both; }
   .vm-caret { animation: vm-blink 1s step-end 4; }
   .vm-live { animation: vm-pulse-dot 1.6s ease-in-out 4; }
+  /* SVG progress ring: rests at its final value; animates in only when motion is allowed. */
+  .vm-ring { animation: vm-ring 1600ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) both; }
 
   /* Gentle float, desktop only (no continuous motion on small screens). */
   @media (min-width: 1024px) {

@@ -1,14 +1,20 @@
-import Link from "next/link";
-import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
+import { AuthFooter } from "@/components/auth/AuthFooter";
+import { AuthHeader } from "@/components/auth/AuthHeader";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
-      <Link href="/" className="mb-2 text-xl font-semibold">
-        {BRAND_NAME}
-      </Link>
-      <p className="mb-8 max-w-sm text-center text-sm text-muted-foreground">{BRAND_TAGLINE}</p>
-      <div className="w-full max-w-sm rounded-card border border-border bg-card p-6 shadow-sm">{children}</div>
-    </main>
+    <div className="flex min-h-screen flex-col bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:shadow"
+      >
+        Skip to content
+      </a>
+      <AuthHeader />
+      <main id="main" className="flex flex-1 flex-col">
+        {children}
+      </main>
+      <AuthFooter />
+    </div>
   );
 }
