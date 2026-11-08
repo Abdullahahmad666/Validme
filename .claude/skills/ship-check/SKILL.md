@@ -12,6 +12,7 @@ Run each and report pass/fail with the output:
 4. Search the diff for secrets (`sk-`, `api_key=`, `.env`) and for `TODO: fake` or hardcoded sample numbers outside `src/mocks/`.
 5. Owner-isolation: confirm new querysets filter by owner and a cross-user test exists.
 6. Evidence rule: any new user-facing finding has an evidence link or is labelled hypothesis/unavailable.
-7. `.env.example` updated for new env vars; `docs/roadmap.md` boxes ticked; `docs/architecture.md` API table current.
-8. Delegate a final review to the `security-reviewer` subagent for auth, billing, or provider changes.
+7. SEO: new public pages are in `frontend/src/content/seo.ts` and `npm test` passes the SEO guard; spot-check `/og/<key>/og.png` renders and `/sitemap.xml`, `/llms.txt` list the page.
+8. `.env.example` updated for new env vars; `docs/roadmap.md` boxes ticked; `docs/architecture.md` API table current.
+9. Delegate a final review to the `security-reviewer` subagent for auth, billing, or provider changes.
 Summarize what's blocking, if anything.

@@ -46,6 +46,12 @@ docs/        product + design source of truth
 - Frontend: server components for static report content, client components for filters/charts/tabs; data via typed services in `src/services/`; no research logic in components.
 - Tests with every feature (pytest for backend, Vitest for frontend, Playwright for the wizard flow).
 - Brand name lives only in `frontend/src/lib/brand.ts` and `backend/config/settings.py` (`VALIDME_BRAND`).
+- **SEO / AEO / GEO for every public page (required, every time):**
+  1. Add an entry to `frontend/src/content/seo.ts` (title ≤ 60 chars with suffix, description 70–160, answer-first; social headline ≤ 70; `index`/`sitemap`).
+  2. In the page: `export const metadata = pageMetadata("<key>")` and render `<PageJsonLd page="<key>" />` (add `extra` entities such as `faqPageEntity(...)` when the page has Q&A, HowTo or terms).
+  3. That automatically gives: canonical, robots, Open Graph image 1200×630 (`/og/<key>/og.png`) and X card 1200×600 (`/og/<key>/x.png`), sitemap entry, breadcrumbs and `llms.txt` listing.
+  4. Facts only in copy and structured data: no ratings, reviews, invented prices or unsearched platforms.
+  `npm test` (src/content/seo.test.ts) fails if a public page is missing from the registry.
 
 ## Workflow
 Use the project skills in `.claude/skills/` (`/new-screen`, `/add-provider`, `/api-endpoint`, `/evidence-pipeline`, `/ship-check`, `/validate-idea`). After a feature, run the `research-quality-reviewer` or `ui-reviewer` subagent as relevant, then update `docs/roadmap.md`.
