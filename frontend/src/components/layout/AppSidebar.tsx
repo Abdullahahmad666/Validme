@@ -48,14 +48,20 @@ const NAV: { section: string; items: NavItem[] }[] = [
 export function AppSidebar() {
   const pathname = usePathname();
   return (
-    <aside className="hidden w-[250px] shrink-0 flex-col border-r border-border bg-card px-3 py-5 lg:flex">
-      <Link href="/dashboard" className="mb-6 px-3 text-lg font-semibold">
-        {BRAND_NAME}
+    // Tablet (md): 64px icon rail. Desktop (lg+): full 250px sidebar. Mobile uses MobileNav.
+    <aside className="sticky top-0 hidden h-screen w-16 shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-2 py-5 md:flex lg:w-[250px] lg:px-3">
+      <Link href="/dashboard" className="mb-6 flex h-10 items-center justify-center text-lg font-semibold lg:justify-start lg:px-3">
+        <span className="lg:hidden" aria-hidden>
+          {BRAND_NAME[0]}
+        </span>
+        <span className="sr-only lg:not-sr-only">{BRAND_NAME}</span>
       </Link>
       <nav aria-label="Main" className="flex flex-col gap-6">
         {NAV.map((group) => (
           <div key={group.section}>
-            <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{group.section}</p>
+            <p className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground lg:block">
+              {group.section}
+            </p>
             <ul className="flex flex-col gap-0.5">
               {group.items.map(({ href, label, icon: Icon }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
@@ -64,12 +70,13 @@ export function AppSidebar() {
                     <Link
                       href={href}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-2.5 rounded-control px-3 py-2 text-sm ${
+                      title={label}
+                      className={`flex min-h-11 items-center justify-center gap-2.5 rounded-control px-3 py-2 text-sm lg:justify-start ${
                         active ? "bg-primary/10 font-medium text-primary" : "text-foreground hover:bg-background"
                       }`}
                     >
-                      <Icon size={16} aria-hidden />
-                      {label}
+                      <Icon size={16} aria-hidden className="shrink-0" />
+                      <span className="sr-only lg:not-sr-only">{label}</span>
                     </Link>
                   </li>
                 );

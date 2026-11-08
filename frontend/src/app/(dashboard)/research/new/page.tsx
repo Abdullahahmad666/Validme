@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { IdeaStepForm } from "@/components/research/IdeaStepForm";
 
 export const metadata: Metadata = { title: "New research" };
 
 const STEPS = ["Describe your idea", "Define your market", "Configure research", "Review and launch"];
 
-// Week 2: build the 4-step wizard per docs/design/screens.md (use the /new-screen skill).
+// Week 2: steps 2–4, AI interpretation and autosave per docs/design/screens.md.
 export default function NewResearchPage() {
   return (
     <div className="grid gap-8 lg:grid-cols-[230px_minmax(0,700px)]">
@@ -27,6 +29,9 @@ export default function NewResearchPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Tell us what you&apos;re thinking of building. It doesn&apos;t need to be perfectly defined.
         </p>
+        <Suspense>
+          <IdeaStepForm />
+        </Suspense>
       </section>
     </div>
   );
