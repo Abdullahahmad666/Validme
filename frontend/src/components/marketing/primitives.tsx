@@ -14,9 +14,18 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
-export function Logo({ className, inverted = false }: { className?: string; inverted?: boolean }) {
+export function Logo({
+  className,
+  inverted = false,
+  ...rest
+}: { className?: string; inverted?: boolean } & Omit<React.ComponentProps<typeof Link>, "href" | "className">) {
   return (
-    <Link href="/" className={cn("inline-flex min-h-11 items-center gap-2.5 font-semibold tracking-tight", className)}>
+    <Link
+      {...rest}
+      href="/"
+      aria-label={`${BRAND_NAME} home`}
+      className={cn("inline-flex min-h-11 items-center gap-2.5 font-semibold tracking-tight", className)}
+    >
       <LogoMark />
       <span className={cn("text-[1.05rem]", inverted ? "text-white" : "text-foreground")}>{BRAND_NAME}</span>
     </Link>

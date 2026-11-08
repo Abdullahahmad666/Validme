@@ -2,6 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Light-only site: `dark:` utilities apply only under an explicit .dark class, never from the OS setting.
+   (Without this, shadcn's dark: styles leak in for visitors whose OS is in dark mode.) */
+@custom-variant dark (&:is(.dark *));
+
 /* ValidMe design tokens — source of truth: docs/design/design-system.md.
    shadcn/ui variable names are mapped onto the same palette so primitives match the brand.
    Light theme only for the MVP (no dark tokens are specified in the design system). */
