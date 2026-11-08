@@ -122,7 +122,7 @@ export default function SampleReportPage() {
         </Container>
       </header>
       {/* Tabs (anchor navigation, horizontal scroll on mobile) */}
-      <nav aria-label="Report sections" className="sticky top-16 z-30 border-b border-border bg-card/95 backdrop-blur">
+      <nav aria-label="Report sections" className="sticky top-[72px] z-30 border-b border-border bg-card/95 backdrop-blur">
         <Container>
           <div className="flex items-center gap-3">
           <ul className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto py-2 [scrollbar-width:none]">

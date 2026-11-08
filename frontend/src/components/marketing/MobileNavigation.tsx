@@ -12,7 +12,7 @@ export function MobileNavigation() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+        <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/60 lg:hidden" aria-label="Open menu">
           <Menu aria-hidden />
         </Button>
       </SheetTrigger>
