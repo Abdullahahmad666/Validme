@@ -1,4 +1,4 @@
-import { Gauge, AlertTriangle, ArrowRight, Ban, CheckCircle2, ExternalLink, Info, Link2, Sparkles } from "lucide-react";
+import { Gauge, AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Info, Link2, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { Bar, Pill } from "@/components/marketing/DashboardMockup";
 import { FinalCTASection } from "@/components/marketing/FinalCTASection";
@@ -339,7 +339,7 @@ export default function SampleReportPage() {
               <h3 className="font-semibold">What would change the score</h3>
               <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                 <li>Pricing evidence from 5+ owners → willingness to pay.</li>
-                <li>Evidence from licensed review data (not searched).</li>
+                <li>More buying-intent evidence from owner communities.</li>
                 <li>Churn reasons from competitor customers.</li>
               </ul>
             </Card>
@@ -360,12 +360,11 @@ export default function SampleReportPage() {
 
         <section aria-labelledby="limits-title" className="rounded-2xl border border-border bg-card p-6">
           <h2 id="limits-title" className="flex items-center gap-2 font-semibold">
-            <Ban className="size-4 text-muted-foreground" aria-hidden /> Research limitations
+            <Info className="size-4 text-muted-foreground" aria-hidden /> Research coverage
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Not searched: Reddit (requires a commercial agreement), review sites such as G2, Capterra and Trustpilot
-            (licensed data only), and X, Instagram and TikTok (access restrictions). Findings may under-represent
-            conversations on those platforms.
+            This report used web search, Hacker News, competitor pages and links you added. Findings reflect only
+            those sources: conversations in private groups or closed communities aren&apos;t represented.
           </p>
         </section>
       </Container>

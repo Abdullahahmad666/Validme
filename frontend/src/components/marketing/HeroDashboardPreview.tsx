@@ -1,4 +1,4 @@
-import { Ban, Check, Gauge, Globe, Link2, MessagesSquare, Quote, TrendingUp } from "lucide-react";
+import { Check, FileText, Gauge, Globe, Link2, MessagesSquare, Quote, TrendingUp } from "lucide-react";
 import { Bar, DashboardMockup, MockCard, MockLabel, Pill } from "@/components/marketing/DashboardMockup";
 import { cn } from "@/lib/utils";
 
@@ -6,10 +6,10 @@ const d = (ms: number) => ({ "--d": `${ms}ms` }) as React.CSSProperties;
 
 // Illustrative sample data only (labelled in the window chrome). No real sources or URLs.
 const SOURCES = [
-  { label: "Web search", icon: Globe, ok: true },
-  { label: "Hacker News", icon: MessagesSquare, ok: true },
-  { label: "Competitor sites", icon: Link2, ok: true },
-  { label: "Reddit", icon: Ban, ok: false },
+  { label: "Web search", icon: Globe },
+  { label: "Hacker News", icon: MessagesSquare },
+  { label: "Competitor sites", icon: Link2 },
+  { label: "Your links", icon: FileText },
 ];
 
 const EVIDENCE = [
@@ -63,22 +63,13 @@ export function HeroDashboardPreview() {
           {SOURCES.map((s, i) => (
             <li
               key={s.label}
-              className={cn(
-                "vm-in inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium",
-                s.ok ? "border-border bg-card text-foreground" : "border-dashed border-border bg-muted/50 text-muted-foreground",
-              )}
+              className="vm-in inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[11px] font-medium text-foreground"
               style={d(1700 + i * 120)}
             >
               <s.icon className="size-3" aria-hidden />
               {s.label}
-              {s.ok ? (
-                <>
-                  <Check className="size-3 text-success" aria-hidden />
-                  <span className="sr-only">searched</span>
-                </>
-              ) : (
-                <span className="text-[10px]">· not included</span>
-              )}
+              <Check className="size-3 text-success" aria-hidden />
+              <span className="sr-only">searched</span>
             </li>
           ))}
         </ul>

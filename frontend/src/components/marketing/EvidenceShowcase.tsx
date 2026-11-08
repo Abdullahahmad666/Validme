@@ -66,7 +66,7 @@ export function EvidenceShowcase() {
                 for something simpler than chain-focused tools.
               </p>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Supported by 9 records from 3 sources · 2 duplicates merged · Reddit not searched
+                Supported by 9 records from 3 sources · 2 duplicates merged · sources listed in the report
               </p>
             </div>
             <p className="mt-5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Original evidence</p>

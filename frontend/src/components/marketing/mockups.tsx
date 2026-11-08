@@ -4,12 +4,12 @@
  */
 import {
   AlertTriangle,
-  Ban,
   CheckCircle2,
   CircleHelp,
   Clock,
   Gauge,
   ExternalLink,
+  FileText,
   Globe,
   Link2,
   Loader2,
@@ -98,7 +98,7 @@ export function DiscoverStepMockup() {
             { icon: Globe, label: "Web search", note: "38 results", ok: true },
             { icon: MessagesSquare, label: "Hacker News", note: "12 threads", ok: true },
             { icon: Link2, label: "Competitor pages", note: "6 pages", ok: true },
-            { icon: Ban, label: "Reddit", note: "Not included", ok: false },
+            { icon: FileText, label: "Links you added", note: "3 links", ok: true },
           ].map((c) => (
             <li key={c.label} className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5">

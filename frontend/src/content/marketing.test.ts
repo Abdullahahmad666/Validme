@@ -1,15 +1,35 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CREDIT_EXPLAINER, FAQS, FOOTER_COLUMNS, PLANS, SOURCES } from "@/content/marketing";
+import { CREDIT_EXPLAINER, FOOTER_COLUMNS, PLANS, SOURCES } from "@/content/marketing";
 
-// Guards for CLAUDE.md rules: no fabricated prices or platform coverage on the marketing site.
+const SRC = path.resolve(__dirname, "..");
+
+function filesUnder(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = path.join(dir, name);
+    return statSync(full).isDirectory() ? filesUnder(full) : /\.(ts|tsx)$/.test(name) ? [full] : [];
+  });
+}
+
+// Platforms we don't search must not appear anywhere on the public site, even as "not included".
+const EXCLUDED = /\b(reddit|instagram|tiktok|trustpilot|capterra|twitter)\b|\bG2\b|\bX, |\bX \(|\bX\/Twitter\b/i;
+
 describe("marketing content honesty", () => {
-  it("never lists disallowed platforms as supported", () => {
-    const supported = SOURCES.filter((s) => s.status !== "unavailable").map((s) => s.name.toLowerCase());
-    for (const banned of ["reddit", "g2", "capterra", "trustpilot", "x,", "instagram", "tiktok"]) {
-      expect(supported.some((n) => n.includes(banned))).toBe(false);
-    }
-    const unavailable = SOURCES.filter((s) => s.status === "unavailable").map((s) => s.name);
-    expect(unavailable.join(" ")).toMatch(/Reddit/);
+  it("never names platforms we don't search", () => {
+    const files = [
+      ...filesUnder(path.join(SRC, "components", "marketing")),
+      ...filesUnder(path.join(SRC, "app", "(marketing)")),
+      ...filesUnder(path.join(SRC, "app", "(auth)")),
+      ...filesUnder(path.join(SRC, "components", "auth")),
+      path.join(SRC, "content", "marketing.ts"),
+    ];
+    const hits = files.filter((f) => EXCLUDED.test(readFileSync(f, "utf8"))).map((f) => path.relative(SRC, f));
+    expect(hits).toEqual([]);
+  });
+
+  it("lists only supported or rolling-out sources", () => {
+    for (const s of SOURCES) expect(["supported", "limited"]).toContain(s.status);
   });
 
   it("only shows a price for the free plan until real prices exist", () => {
@@ -23,11 +43,6 @@ describe("marketing content honesty", () => {
 
   it("credit costs match backend CREDITS_PER_DEPTH (quick 1, standard 2, deep 4)", () => {
     expect(Object.fromEntries(CREDIT_EXPLAINER.map((c) => [c.depth, c.credits]))).toEqual({ Quick: 1, Standard: 2, Deep: 4 });
-  });
-
-  it("answers the Reddit/X FAQ with an explicit no", () => {
-    const faq = FAQS.find((f) => /Reddit/.test(f.q));
-    expect(faq?.a.startsWith("No.")).toBe(true);
   });
 
   it("footer links point at internal routes", () => {

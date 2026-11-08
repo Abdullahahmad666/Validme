@@ -23,7 +23,8 @@ export const CTA = {
 // ---------------------------------------------------------------------------
 // Sources — must match docs/data-sources.md and backend/research/providers/registry.py
 // ---------------------------------------------------------------------------
-export type SourceStatus = "supported" | "limited" | "unavailable";
+// Only sources we search (or are rolling out) are named on the marketing site.
+export type SourceStatus = "supported" | "limited";
 
 export const SOURCES: { name: string; detail: string; status: SourceStatus }[] = [
   { name: "Web search", detail: "Search results via a licensed search API.", status: "supported" },
@@ -32,9 +33,6 @@ export const SOURCES: { name: string; detail: string; status: SourceStatus }[] =
   { name: "Links you add", detail: "Threads, reviews or articles you found yourself. Rolling out.", status: "limited" },
   { name: "Stack Exchange", detail: "Public Q&A with attribution. Rolling out.", status: "limited" },
   { name: "GitHub issues", detail: "Public issues on competitor or open-source repos. Planned.", status: "limited" },
-  { name: "Reddit", detail: "Needs a commercial data agreement. Not searched.", status: "unavailable" },
-  { name: "Review sites (G2, Capterra, Trustpilot)", detail: "Licensed data only. Not searched.", status: "unavailable" },
-  { name: "X, Instagram, TikTok", detail: "Access restrictions. Not searched.", status: "unavailable" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -220,8 +218,8 @@ export const FAQS = [
     a: "It generates focused search queries from your idea, collects results from supported sources, removes duplicates, classifies each record (for example pain point, buying intent or feature request) and groups them into themes. Scores and recommendations are computed from that evidence, and each finding links back to it.",
   },
   {
-    q: `Does ${BRAND_NAME} search Reddit, X, Instagram and TikTok?`,
-    a: "No. Reddit requires a commercial data agreement, and X, Instagram and TikTok restrict access, so they aren't searched. Every report lists which sources were and weren't used. If you've found a relevant thread yourself, you can add its link as evidence.",
+    q: `Which sources does ${BRAND_NAME} search?`,
+    a: "Web search and Hacker News today, with competitor websites, links you add, Stack Exchange and GitHub issues rolling out. We only use sources we're permitted to use, and every report lists exactly which sources it searched, so you always know the coverage behind a finding. If you've found a relevant discussion yourself, you can add its link as evidence.",
   },
   {
     q: "Are the research findings based on real data?",

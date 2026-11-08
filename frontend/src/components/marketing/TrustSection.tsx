@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDashed, MinusCircle } from "lucide-react";
+import { CheckCircle2, CircleDashed } from "lucide-react";
 import { Container, Reveal, Section, SectionHeading } from "@/components/marketing/primitives";
 import { SOURCES, type SourceStatus } from "@/content/marketing";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 const GROUPS: { status: SourceStatus; title: string; icon: typeof CheckCircle2; tone: string }[] = [
   { status: "supported", title: "Supported", icon: CheckCircle2, tone: "text-success-text" },
   { status: "limited", title: "Limited / rolling out", icon: CircleDashed, tone: "text-warning-text" },
-  { status: "unavailable", title: "Not included", icon: MinusCircle, tone: "text-muted-foreground" },
 ];
 
 export function TrustSection() {
@@ -17,9 +16,9 @@ export function TrustSection() {
           id="sources-title"
           eyebrow="Research sources"
           title="Turn market conversations into actionable intelligence."
-          body="We only search sources we're allowed to use, and every report tells you exactly which ones it covered. No claims of “searching the entire internet”."
+          body="We only search sources we're allowed to use, and every report tells you exactly which ones it covered."
         />
-        <div className="mt-14 grid gap-4 md:grid-cols-3">
+        <div className="mx-auto mt-14 grid max-w-4xl gap-4 md:grid-cols-2">
           {GROUPS.map((g, gi) => (
             <Reveal key={g.status} index={gi} className="rounded-2xl border border-border bg-background/60 p-5">
               <h3 className={cn("flex items-center gap-2 text-sm font-semibold", g.tone)}>
