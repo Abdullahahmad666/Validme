@@ -16,7 +16,7 @@ describe("safeNext", () => {
   it("allows relative app paths", () => {
     expect(safeNext("/projects?x=1")).toBe("/projects?x=1");
   });
-  it.each([null, "", "https://evil.com", "//evil.com", "/\\evil.com", "javascript:alert(1)"])(
+  it.each([null, "", "https://evil.com", "//evil.com", "/\\evil.com", "/\t/evil.com", "/\n/evil.com", "javascript:alert(1)"])(
     "rejects %s",
     (raw) => expect(safeNext(raw)).toBe("/dashboard"),
   );

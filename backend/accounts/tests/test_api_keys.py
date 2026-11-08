@@ -47,3 +47,13 @@ def test_active_key_limit(api, user):
     r = api.post("/api/api-keys", {"name": "one more"}, format="json")
     assert r.status_code == 409
     assert r.json()["error"]["code"] == "api_key_limit"
+
+
+def test_api_key_cannot_manage_keys_or_account(api):
+    raw = api.post("/api/api-keys", {"name": "mcp"}, format="json").json()["key"]
+    mcp = APIClient()
+    assert mcp.get("/api/me", **auth(raw)).status_code == 200  # reading is fine
+    assert mcp.post("/api/api-keys", {"name": "attacker"}, format="json", **auth(raw)).status_code == 403
+    assert mcp.get("/api/api-keys", **auth(raw)).status_code == 403
+    assert mcp.patch("/api/me", {"first_name": "x"}, format="json", **auth(raw)).status_code == 403
+    assert ApiKey.objects.count() == 1

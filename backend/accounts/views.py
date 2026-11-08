@@ -1,4 +1,4 @@
-from rest_framework import generics, mixins, status, viewsets
+from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
@@ -13,8 +13,22 @@ class ApiKeyLimit(APIException):
     default_detail = "API key limit reached."
 
 
+class NoApiKeyForAccountChanges(permissions.BasePermission):
+    """API keys (MCP) may read, but never manage keys or change the account.
+    Otherwise a leaked key could mint replacement keys and survive revocation."""
+
+    message = "Sign in to the web app to manage your account and API keys."
+
+    def has_permission(self, request, view) -> bool:
+        if isinstance(request.auth, ApiKey):
+            return request.method in permissions.SAFE_METHODS and getattr(view, "api_key_can_read", False)
+        return True
+
+
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = MeSerializer
+    permission_classes = [permissions.IsAuthenticated, NoApiKeyForAccountChanges]
+    api_key_can_read = True
 
     def get_object(self):
         return self.request.user
@@ -24,6 +38,7 @@ class ApiKeyViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.Destr
     """Keys for the MCP server. The raw key is returned once, on create; only its hash is stored."""
 
     serializer_class = ApiKeySerializer
+    permission_classes = [permissions.IsAuthenticated, NoApiKeyForAccountChanges]
 
     def get_queryset(self):
         # Owner isolation: never remove this filter.

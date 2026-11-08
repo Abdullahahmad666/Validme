@@ -10,4 +10,6 @@ class UsageTransaction(models.Model):
     credits = models.IntegerField()
     cost_usd = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     job = models.ForeignKey("research.ResearchJob", on_delete=models.SET_NULL, null=True, blank=True)
+    # Set for grants that must happen at most once (e.g. "signup_grant:<user id>").
+    idempotency_key = models.CharField(max_length=80, null=True, blank=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)

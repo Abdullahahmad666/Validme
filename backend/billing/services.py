@@ -25,12 +25,15 @@ def spend_credits(user: User, amount: int, operation: str, job=None) -> None:
 
 
 @transaction.atomic
-def grant_credits(user: User, amount: int, operation: str) -> None:
-    """Add credits and record the grant in the ledger (signup_grant, purchase, refund)."""
+def grant_credits(user: User, amount: int, operation: str, idempotency_key: str | None = None) -> bool:
+    """Add credits and record the grant in the ledger. Returns False if this key was already granted."""
     if amount <= 0:
-        return
+        return False
     locked = User.objects.select_for_update().get(pk=user.pk)
+    if idempotency_key and UsageTransaction.objects.filter(idempotency_key=idempotency_key).exists():
+        return False
     locked.credits += amount
     locked.save(update_fields=["credits"])
-    UsageTransaction.objects.create(user=locked, operation=operation, credits=amount)
+    UsageTransaction.objects.create(user=locked, operation=operation, credits=amount, idempotency_key=idempotency_key)
     user.credits = locked.credits
+    return True

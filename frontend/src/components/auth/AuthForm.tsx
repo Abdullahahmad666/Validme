@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { fieldA11y, FormField } from "@/components/auth/FormField";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -65,6 +66,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         mode === "login" ? await auth.login(values.email, values.password) : await auth.signup(values.email, values.password);
       qc.setQueryData(sessionKey, result);
       if (result.isAuthenticated) {
+        if (mode === "signup") {
+          toast.info("Confirm your email to unlock your free report", {
+            description: `We sent a link to ${values.email}.`,
+          });
+        }
         router.replace(next);
       } else if (result.pendingFlow === "verify_email") {
         setPendingVerification(true);

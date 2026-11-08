@@ -11,7 +11,7 @@ environ.Env.read_env(BASE_DIR.parent / ".env")
 VALIDME_BRAND = "ValidMe"
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-only-insecure-key-change-me")
-DEBUG = env("DEBUG", default=True)
+DEBUG = env.bool("DEBUG", default=False)  # dev sets DEBUG=True in .env; tests use config.test_settings
 if not DEBUG and SECRET_KEY.startswith("dev-only"):
     raise RuntimeError("Set DJANGO_SECRET_KEY when DEBUG is off.")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
@@ -92,6 +92,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env("THROTTLE_ANON", default="60/min"),
+        "user": env("THROTTLE_USER", default="600/min"),
+    },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
 }
 
@@ -103,7 +111,11 @@ SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
-USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST", default=False)
+# Next.js forwards the browser host as X-Forwarded-Host, so URLs Django builds (the Google OAuth
+# redirect URI) point at the frontend origin. Django must only be reachable through that proxy.
+USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST", default=True)
+if env.bool("BEHIND_TLS_PROXY", default=False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Email
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
@@ -135,6 +147,9 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
         "AUTH_PARAMS": {"access_type": "online"},
         "EMAIL_AUTHENTICATION": True,
     }
+
+# Cache (throttling + allauth rate limits). Use Redis in production so limits are shared across workers.
+CACHES = {"default": env.cache("CACHE_URL", default="locmemcache://")}
 
 # Celery
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")

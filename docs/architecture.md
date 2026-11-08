@@ -63,8 +63,10 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 - **Browser:** django-allauth headless (`/_allauth/browser/v1/...`): email + password signup/login, Google OAuth, email verification. Session cookie + CSRF (`X-CSRFToken`).
 - The Next.js app proxies `/api/*` and `/_allauth/*` to Django (`BACKEND_URL`), so cookies are first-party and no tokens live in JS storage.
 - **MCP / scripts:** `Authorization: Api-Key vm_...` (keys managed at `/api/api-keys`).
-- Signup grants `FREE_SIGNUP_CREDITS` once via the `user_signed_up` signal, recorded as a `signup_grant` `UsageTransaction`.
-- Google redirect URI: `{BACKEND_ORIGIN}/accounts/google/login/callback/`. "Continue with Google" only shows when `GOOGLE_CLIENT_ID`/`SECRET` are set.
+- Signup grants `FREE_SIGNUP_CREDITS` once, only after the email is verified (`email_confirmed`, or a Google signup with a verified email). The `signup_grant:<user id>` idempotency key on `UsageTransaction` prevents double grants.
+- API keys can read but cannot manage keys or change the account (a leaked key can't mint replacements).
+- DRF throttling (`THROTTLE_ANON`/`THROTTLE_USER`) on the `CACHE_URL` cache. **Deploy note:** Next's rewrite proxy does not send `X-Forwarded-For`, so put a real reverse proxy in front that does and set `ALLAUTH_TRUSTED_PROXY_COUNT` before relying on per-IP auth rate limits.
+- Google redirect URI: `{FRONTEND_ORIGIN}/accounts/google/login/callback/` (proxied; Django builds it from `X-Forwarded-Host`). "Continue with Google" only shows when `GOOGLE_CLIENT_ID`/`SECRET` are set.
 
 ## MCP server (`mcp-server/`)
 Thin client over the REST API, authenticated with a user API key (`VALIDME_API_KEY`). Tools:
