@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
 import { DraftNotice, PageHeader, Prose } from "@/components/marketing/PageShell";
 import { Container, Section } from "@/components/marketing/primitives";
-import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Cookie policy",
-  description: `The cookies ${BRAND_NAME} uses and why.`,
-  path: "/cookies",
-});
+export const metadata: Metadata = pageMetadata("cookies");
 
 // Must match the cookies the backend actually sets (Django session + CSRF).
 const COOKIES = [
@@ -19,6 +15,7 @@ const COOKIES = [
 export default function CookiesPage() {
   return (
     <>
+      <PageJsonLd page="cookies" />
       <PageHeader eyebrow="Legal" title="Cookie policy" lead="Short version: only essential cookies. No advertising or tracking cookies." />
       <Section className="pt-12">
         <Container className="max-w-3xl">

@@ -5,17 +5,10 @@ import { FinalCTASection } from "@/components/marketing/FinalCTASection";
 import { AudienceFeatureMockup, CompetitorFeatureMockup, PlanStepMockup } from "@/components/marketing/mockups";
 import { Container, Reveal, SampleDataBadge } from "@/components/marketing/primitives";
 import { TrackView } from "@/components/marketing/TrackView";
-import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-const DESCRIPTION = `An illustrative ${BRAND_NAME} opportunity report: demand signals, pain points, competitors, market gaps, TAM/SAM/SOM and a first-10-customers plan, all linked to evidence.`;
-
-export const metadata: Metadata = pageMetadata({
-  title: "Sample report",
-  socialTitle: `Sample opportunity report · ${BRAND_NAME}`,
-  description: DESCRIPTION,
-  path: "/sample-report",
-});
+export const metadata: Metadata = pageMetadata("sampleReport");
 
 const TABS = [
   { id: "overview", label: "Overview" },
@@ -91,6 +84,7 @@ export default function SampleReportPage() {
   const total = BY_SOURCE.reduce((a, b) => a + b.n, 0);
   return (
     <>
+      <PageJsonLd page="sampleReport" />
       <TrackView event="sample_report_opened" />
       {/* Report header */}
       <header className="border-b border-border bg-card">

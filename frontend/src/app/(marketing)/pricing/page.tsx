@@ -7,18 +7,16 @@ import { Container, Section, SectionHeading } from "@/components/marketing/primi
 import { TrackView } from "@/components/marketing/TrackView";
 import { FAQS } from "@/content/marketing";
 import { pageMetadata } from "@/lib/seo";
+import { faqPageEntity, PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-const TITLE = "Pricing";
-const DESCRIPTION =
-  "Start free with one Quick report. Compare Free, Pro and Advanced plans for evidence-backed startup idea validation and market research.";
-
-export const metadata: Metadata = pageMetadata({ title: TITLE, description: DESCRIPTION, path: "/pricing" });
+export const metadata: Metadata = pageMetadata("pricing");
 
 const PRICING_FAQ = FAQS.filter((f) => /cost|cancel|real data|private/i.test(f.q));
 
 export default function PricingPage() {
   return (
     <>
+      <PageJsonLd page="pricing" extra={[faqPageEntity(PRICING_FAQ)]} />
       <TrackView event="pricing_viewed" props={{ source: "pricing_page" }} />
       <PageHeader
         eyebrow="Pricing"

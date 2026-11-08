@@ -5,15 +5,9 @@ import { PageHeader } from "@/components/marketing/PageShell";
 import { Container, Reveal, Section } from "@/components/marketing/primitives";
 import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-const DESCRIPTION = `${BRAND_NAME} helps indie founders validate startup ideas with source-linked market evidence and plan their first customers.`;
-
-export const metadata: Metadata = pageMetadata({
-  title: "About",
-  socialTitle: `About ${BRAND_NAME}`,
-  description: DESCRIPTION,
-  path: "/about",
-});
+export const metadata: Metadata = pageMetadata("about");
 
 const PRINCIPLES = [
   {
@@ -46,6 +40,7 @@ const PRINCIPLES = [
 export default function AboutPage() {
   return (
     <>
+      <PageJsonLd page="about" />
       <PageHeader
         eyebrow="About"
         title="We built the research step we kept skipping."

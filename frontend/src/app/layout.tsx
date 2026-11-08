@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/app/providers";
@@ -11,6 +11,14 @@ export const metadata: Metadata = {
   title: { default: BRAND_NAME, template: `%s · ${BRAND_NAME}` },
   description: BRAND_TAGLINE,
   applicationName: BRAND_NAME,
+  formatDetection: { telephone: false, email: false, address: false },
+  appleWebApp: { title: BRAND_NAME, capable: true, statusBarStyle: "default" },
+};
+
+// Browser chrome + Discord/Slack embed accent colour.
+export const viewport: Viewport = {
+  themeColor: "#172D4D",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

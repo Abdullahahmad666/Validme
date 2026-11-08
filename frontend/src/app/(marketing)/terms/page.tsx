@@ -4,16 +4,14 @@ import { DraftNotice, PageHeader, Prose } from "@/components/marketing/PageShell
 import { Container, Section } from "@/components/marketing/primitives";
 import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Terms of service",
-  description: `The terms for using ${BRAND_NAME}.`,
-  path: "/terms",
-});
+export const metadata: Metadata = pageMetadata("terms");
 
 export default function TermsPage() {
   return (
     <>
+      <PageJsonLd page="terms" />
       <PageHeader eyebrow="Legal" title="Terms of service" lead={`The rules for using ${BRAND_NAME}, written to be read.`} />
       <Section className="pt-12">
         <Container className="max-w-3xl">

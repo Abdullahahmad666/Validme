@@ -3,18 +3,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader } from "@/components/marketing/PageShell";
 import { Container, Section } from "@/components/marketing/primitives";
-import { BRAND_NAME, CONTACT_EMAIL } from "@/lib/brand";
+import { CONTACT_EMAIL } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Contact",
-  description: `How to reach the ${BRAND_NAME} team.`,
-  path: "/contact",
-});
+export const metadata: Metadata = pageMetadata("contact");
 
 export default function ContactPage() {
   return (
     <>
+      <PageJsonLd page="contact" />
       <PageHeader eyebrow="Contact" title="Get in touch" lead="Questions about research, your account or privacy? Here's how to reach us." />
       <Section className="pt-16">
         <Container className="grid max-w-4xl gap-4 md:grid-cols-3">

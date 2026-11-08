@@ -1,24 +1,19 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL } from "@/lib/brand";
+import { PAGE_KEYS, PAGES } from "@/content/seo";
+import { absoluteUrl } from "@/lib/seo";
 
-// Public, indexable pages only. "Coming soon" pages are noindex and left out on purpose.
-const ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
-  { path: "/", priority: 1, changeFrequency: "weekly" },
-  { path: "/pricing", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/sample-report", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/glossary", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/about", priority: 0.5, changeFrequency: "yearly" },
-  { path: "/contact", priority: 0.4, changeFrequency: "yearly" },
-  { path: "/signup", priority: 0.5, changeFrequency: "yearly" },
-  { path: "/privacy", priority: 0.2, changeFrequency: "yearly" },
-  { path: "/terms", priority: 0.2, changeFrequency: "yearly" },
-  { path: "/cookies", priority: 0.2, changeFrequency: "yearly" },
-];
-
+// Generated from the SEO registry: every indexable page with a sitemap entry, plus its social image.
 export default function sitemap(): MetadataRoute.Sitemap {
-  return ROUTES.map((r) => ({
-    url: `${SITE_URL}${r.path === "/" ? "" : r.path}`,
-    changeFrequency: r.changeFrequency,
-    priority: r.priority,
-  }));
+  return PAGE_KEYS.flatMap((key) => {
+    const p = PAGES[key];
+    if (!p.index || !("sitemap" in p)) return [];
+    return [
+      {
+        url: absoluteUrl(p.path),
+        changeFrequency: p.sitemap.changeFrequency,
+        priority: p.sitemap.priority,
+        images: [absoluteUrl(`/og/${key}/og.png`)],
+      },
+    ];
+  });
 }

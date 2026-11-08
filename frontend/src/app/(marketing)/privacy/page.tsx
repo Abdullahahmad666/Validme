@@ -2,18 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DraftNotice, PageHeader, Prose } from "@/components/marketing/PageShell";
 import { Container, Section } from "@/components/marketing/primitives";
-import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
+import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Privacy policy",
-  description: `How ${BRAND_NAME} collects, uses and protects your data.`,
-  path: "/privacy",
-});
+export const metadata: Metadata = pageMetadata("privacy");
 
 export default function PrivacyPage() {
   return (
     <>
+      <PageJsonLd page="privacy" />
       <PageHeader eyebrow="Legal" title="Privacy policy" lead="What we collect, why, and who it's shared with, in plain language." />
       <Section className="pt-12">
         <Container className="max-w-3xl">

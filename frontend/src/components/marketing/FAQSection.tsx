@@ -1,8 +1,8 @@
 import { FaqAccordion } from "@/components/marketing/FaqAccordion";
-import { JsonLd } from "@/components/marketing/JsonLd";
 import { Container, Section, SectionHeading } from "@/components/marketing/primitives";
 import { FAQS } from "@/content/marketing";
 
+/** FAQ list. Its FAQPage structured data is emitted by the page (see PageJsonLd). */
 export function FAQSection() {
   return (
     <Section id="faq" labelledBy="faq-title" className="bg-card">
@@ -16,17 +16,6 @@ export function FAQSection() {
         />
         <FaqAccordion items={FAQS.map((f) => ({ q: f.q, a: f.a }))} />
       </Container>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: FAQS.map((f) => ({
-            "@type": "Question",
-            name: f.q,
-            acceptedAnswer: { "@type": "Answer", text: f.a },
-          })),
-        }}
-      />
     </Section>
   );
 }
