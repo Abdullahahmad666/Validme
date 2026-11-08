@@ -27,6 +27,7 @@
   --warning: #d97706;
   --destructive: #dc2626;
   --ai: #7c3aed;
+  --navy: #172d4d;
   --radius: 10px;
 
   --sidebar: #ffffff;
@@ -61,6 +62,7 @@
   --color-warning: var(--warning);
   --color-destructive: var(--destructive);
   --color-ai: var(--ai);
+  --color-navy: var(--navy);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -102,4 +104,81 @@
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Marketing motion system. Only opacity/transform are animated. Content is
+   visible without JS; reduced-motion users get static content.
+   --------------------------------------------------------------------------- */
+@keyframes vm-fade-up {
+  from { opacity: 0; transform: translateY(var(--vm-shift, 14px)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vm-fade-left {
+  from { opacity: 0; transform: translateX(calc(var(--vm-shift, 14px) * -1)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vm-grow-x {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes vm-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes vm-type {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes vm-blink {
+  50% { opacity: 0; }
+}
+@keyframes vm-pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (max-width: 639px) {
+  :root { --vm-shift: 8px; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+
+  /* One-shot entrance sequence (hero). Delay via style={{ "--d": "300ms" }}. */
+  .vm-in { animation: vm-fade-up 700ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) both; }
+  .vm-in-left { animation: vm-fade-left 700ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) both; }
+  .vm-grow { transform-origin: left; animation: vm-grow-x 900ms cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms) both; }
+  .vm-type { animation: vm-type 1200ms steps(40, end) var(--d, 0ms) both; }
+  .vm-caret { animation: vm-blink 1s step-end infinite; }
+  .vm-live { animation: vm-pulse-dot 1.6s ease-in-out infinite; }
+
+  /* Gentle float, desktop only (no continuous motion on small screens). */
+  @media (min-width: 1024px) {
+    .vm-float { animation: vm-float 7s ease-in-out var(--d, 0ms) infinite; }
+  }
+
+  /* Scroll reveals: CSS scroll-driven animations where supported (no JS, never hides
+     content when unsupported). Stagger with style={{ "--i": 2 }}. */
+  @supports (animation-timeline: view()) {
+    .vm-reveal,
+    .vm-reveal-left {
+      animation: vm-fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 6%) entry calc(45% + var(--i, 0) * 6%);
+    }
+    .vm-reveal-left { animation-name: vm-fade-left; }
+  }
+}
+
+/* Global safety net for reduced motion (covers shadcn/Radix accordion + sheet animations too). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
