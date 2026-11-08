@@ -43,6 +43,11 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 ## API (v1, all under `/api/`)
 | Method | Path | Purpose |
 |---|---|---|
+| GET/PATCH | `/me` | profile + credit balance (credits read-only) |
+| GET | `/dashboard/summary` | KPI counts (projects, reports, evidence, active jobs) — own data only |
+| GET/POST | `/api-keys` | list / issue MCP API key (raw key returned once; only SHA-256 stored) |
+| DELETE | `/api-keys/{id}` | revoke key |
+| GET | `/projects?status=` | list own projects (paginated) |
 | POST | `/projects` | create draft |
 | PATCH | `/projects/{id}` | update draft (autosave) |
 | POST | `/projects/{id}/interpret` | AI interpretation of idea |
@@ -53,6 +58,13 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/research/jobs/{id}` | status + stages |
 | GET | `/reports/{project_id}` | full report |
 | GET | `/evidence?project=&category=&q=` | evidence explorer |
+
+## Auth
+- **Browser:** django-allauth headless (`/_allauth/browser/v1/...`): email + password signup/login, Google OAuth, email verification. Session cookie + CSRF (`X-CSRFToken`).
+- The Next.js app proxies `/api/*` and `/_allauth/*` to Django (`BACKEND_URL`), so cookies are first-party and no tokens live in JS storage.
+- **MCP / scripts:** `Authorization: Api-Key vm_...` (keys managed at `/api/api-keys`).
+- Signup grants `FREE_SIGNUP_CREDITS` once via the `user_signed_up` signal, recorded as a `signup_grant` `UsageTransaction`.
+- Google redirect URI: `{BACKEND_ORIGIN}/accounts/google/login/callback/`. "Continue with Google" only shows when `GOOGLE_CLIENT_ID`/`SECRET` are set.
 
 ## MCP server (`mcp-server/`)
 Thin client over the REST API, authenticated with a user API key (`VALIDME_API_KEY`). Tools:

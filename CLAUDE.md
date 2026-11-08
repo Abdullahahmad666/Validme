@@ -27,7 +27,7 @@ docs/        product + design source of truth
 | Backend tests | `cd backend && pytest` |
 | Worker | `cd backend && celery -A config worker -l info` |
 | Frontend | `cd frontend && npm install && npm run dev` |
-| Frontend checks | `cd frontend && npm run lint && npm run typecheck` |
+| Frontend checks | `cd frontend && npm run lint && npm run typecheck && npm test` |
 | MCP server tests | `cd mcp-server && pip install -e . && pytest` |
 
 ## Non-negotiable rules

@@ -10,14 +10,15 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] MCP server with mock mode
 
 ## Week 1 — Foundation
-- [ ] `npx shadcn@latest init` in frontend/ and add base components (button, card, tabs, input, textarea, badge, sheet, skeleton)
-- [ ] docker compose up: Postgres + Redis; Django settings from env
-- [ ] Auth: email + Google (django-allauth), JWT/session for frontend, API keys for MCP
-- [ ] Projects CRUD API + permissions (owner-only) + tests
-- [ ] Frontend: auth pages, app shell responsive, dashboard wired to API
-- Milestone: user signs up and creates a draft project
+- [x] `npx shadcn@latest init` in frontend/ and add base components (button, card, tabs, input, textarea, badge, sheet, skeleton)
+- [x] docker compose up: Postgres + Redis (healthchecks); Django settings from env — *verify `migrate` on Postgres once Docker runs locally*
+- [x] Auth: email + Google (django-allauth headless), session + CSRF via Next proxy, API keys for MCP — *Google needs real OAuth creds to test*
+- [x] Projects CRUD API + permissions (owner-only) + tests
+- [x] Frontend: auth pages, app shell responsive (mobile bar / tablet rail / desktop sidebar), dashboard wired to API, wizard step 1 saves a draft
+- Milestone: user signs up and creates a draft project ✅ (verified in browser on SQLite)
 
 ## Week 2 — Idea analysis & providers
+- [ ] Dashboard: plan badge, recent activity, recommended next actions, stages covered on project cards; project detail route (cards link to it)
 - [ ] `research/ai` LLM client with JSON-schema validation
 - [ ] Interpret idea + generate queries endpoints
 - [ ] Providers: Brave/Exa web search, HN Algolia, Stack Exchange, user URLs, competitor page fetcher
