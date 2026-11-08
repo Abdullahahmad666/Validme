@@ -57,7 +57,9 @@ export function EvidenceShowcase() {
                 <Pill className="bg-ai/10 text-ai">
                   <Sparkles className="size-3" aria-hidden /> AI interpretation
                 </Pill>
-                <Pill tone="warning">Medium confidence</Pill>
+                <Pill tone="warning">
+                  <Gauge className="size-3" aria-hidden /> Medium confidence
+                </Pill>
               </div>
               <p className="mt-2.5 font-medium leading-snug">
                 Single-location owners describe weekly stock counts as slow and wasteful, and several say they&apos;d pay

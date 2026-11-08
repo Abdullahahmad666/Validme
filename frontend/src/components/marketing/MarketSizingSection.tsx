@@ -66,11 +66,11 @@ export function MarketSizingSection() {
             <div className="absolute bottom-0 left-1/2 aspect-square w-[34%] -translate-x-1/2 rounded-full border border-primary/40 bg-primary" />
             <p className="absolute inset-x-[14%] top-[9%] text-center">
               <span className="block text-sm font-bold text-primary">TAM</span>
-              <span className="text-xs text-muted-foreground">{LAYERS[0].example}</span>
+              <span className="text-xs text-foreground/80">{LAYERS[0].example}</span>
             </p>
             <p className="absolute inset-x-[24%] top-[41%] text-center">
               <span className="block text-sm font-bold text-primary">SAM</span>
-              <span className="text-xs text-muted-foreground">{LAYERS[1].example}</span>
+              <span className="text-xs text-foreground/80">{LAYERS[1].example}</span>
             </p>
             <p className="absolute inset-x-[33%] top-[78%] text-center text-white">
               <span className="block text-sm font-bold">SOM</span>

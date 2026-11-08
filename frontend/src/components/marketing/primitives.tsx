@@ -7,9 +7,9 @@ import { BRAND_NAME } from "@/lib/brand";
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden className={cn("size-8", className)}>
-      <rect width="32" height="32" rx="8" fill="#172D4D" />
+      <rect width="32" height="32" rx="8" className="fill-navy" />
       <path d="M9 16.5l4.2 4.2L23 11" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="23" cy="11" r="2.2" fill="#7FA6E6" />
+      <circle cx="23" cy="11" r="2.2" className="fill-accent-soft" />
     </svg>
   );
 }
@@ -84,7 +84,7 @@ export function SampleDataBadge({ className, tone = "light" }: { className?: str
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-        tone === "light" ? "bg-warning/10 text-warning" : "bg-white/10 text-white/80",
+        tone === "light" ? "bg-warning/10 text-warning-text" : "bg-white/10 text-white/80",
         className,
       )}
     >

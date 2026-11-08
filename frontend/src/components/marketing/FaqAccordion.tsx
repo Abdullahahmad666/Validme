@@ -1,19 +1,24 @@
-"use client";
+import { ChevronDown } from "lucide-react";
 
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
-/** Radix accordion: keyboard accessible (Tab, Enter/Space, Arrow keys, Home/End). */
+/**
+ * Native <details>/<summary> disclosure: keyboard accessible by default, answers are in the
+ * server-rendered HTML (works without JS, findable with Ctrl+F, crawlable for FAQ rich results).
+ */
 export function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
   return (
-    <Accordion type="single" collapsible className="rounded-2xl border border-border bg-background px-5 sm:px-6">
-      {items.map((item, i) => (
-        <AccordionItem key={item.q} value={`faq-${i}`} className="border-border">
-          <AccordionTrigger className="min-h-14 py-4 text-left text-base font-medium hover:no-underline">
+    <div className="divide-y divide-border rounded-2xl border border-border bg-background px-5 sm:px-6">
+      {items.map((item) => (
+        <details key={item.q} className="group">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 rounded-md py-4 text-left text-base font-medium [&::-webkit-details-marker]:hidden">
             {item.q}
-          </AccordionTrigger>
-          <AccordionContent className="pb-5 text-[0.95rem] leading-relaxed text-muted-foreground">{item.a}</AccordionContent>
-        </AccordionItem>
+            <ChevronDown
+              aria-hidden
+              className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+            />
+          </summary>
+          <p className="pb-5 text-[0.95rem] leading-relaxed text-muted-foreground">{item.a}</p>
+        </details>
       ))}
-    </Accordion>
+    </div>
   );
 }

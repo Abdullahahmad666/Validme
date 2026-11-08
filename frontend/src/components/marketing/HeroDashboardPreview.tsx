@@ -1,4 +1,4 @@
-import { Ban, Check, Globe, Link2, MessagesSquare, Quote, TrendingUp } from "lucide-react";
+import { Ban, Check, Gauge, Globe, Link2, MessagesSquare, Quote, TrendingUp } from "lucide-react";
 import { Bar, DashboardMockup, MockCard, MockLabel, Pill } from "@/components/marketing/DashboardMockup";
 import { cn } from "@/lib/utils";
 
@@ -59,9 +59,9 @@ export function HeroDashboardPreview() {
         </div>
 
         {/* 2. Sources */}
-        <div className="flex flex-wrap gap-1.5" aria-label="Sources">
+        <ul className="flex flex-wrap gap-1.5" aria-label="Sources">
           {SOURCES.map((s, i) => (
-            <span
+            <li
               key={s.label}
               className={cn(
                 "vm-in inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium",
@@ -72,13 +72,16 @@ export function HeroDashboardPreview() {
               <s.icon className="size-3" aria-hidden />
               {s.label}
               {s.ok ? (
-                <Check className="size-3 text-success" aria-label="searched" />
+                <>
+                  <Check className="size-3 text-success" aria-hidden />
+                  <span className="sr-only">searched</span>
+                </>
               ) : (
                 <span className="text-[10px]">· not included</span>
               )}
-            </span>
+            </li>
           ))}
-        </div>
+        </ul>
 
         <div className="grid gap-3.5 sm:grid-cols-[1.15fr_1fr]">
           {/* 3. Evidence */}
@@ -127,7 +130,9 @@ export function HeroDashboardPreview() {
                     72<span className="text-sm font-normal text-muted-foreground">/100</span>
                   </p>
                 </div>
-                <Pill tone="warning">Medium confidence</Pill>
+                <Pill tone="warning">
+                  <Gauge className="size-3" aria-hidden /> Medium confidence
+                </Pill>
               </div>
               <p className="mt-1.5 flex items-start gap-1.5 text-[12px] leading-snug text-muted-foreground">
                 <TrendingUp className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />

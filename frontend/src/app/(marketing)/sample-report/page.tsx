@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Ban, CheckCircle2, ExternalLink, Info, Link2, Sparkles } from "lucide-react";
+import { Gauge, AlertTriangle, ArrowRight, Ban, CheckCircle2, ExternalLink, Info, Link2, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import { Bar, Pill } from "@/components/marketing/DashboardMockup";
 import { FinalCTASection } from "@/components/marketing/FinalCTASection";
@@ -124,18 +124,21 @@ export default function SampleReportPage() {
       {/* Tabs (anchor navigation, horizontal scroll on mobile) */}
       <nav aria-label="Report sections" className="sticky top-16 z-30 border-b border-border bg-card/95 backdrop-blur">
         <Container>
-          <ul className="-mx-1 flex gap-1 overflow-x-auto py-2 [scrollbar-width:none]">
+          <div className="flex items-center gap-3">
+          <ul className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto py-2 [scrollbar-width:none]">
             {TABS.map((t) => (
               <li key={t.id}>
                 <a
                   href={`#${t.id}`}
-                  className="inline-flex min-h-10 items-center whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                   {t.label}
                 </a>
               </li>
             ))}
           </ul>
+          <SampleDataBadge className="hidden sm:inline-flex" />
+          </div>
         </Container>
       </nav>
 
@@ -148,7 +151,9 @@ export default function SampleReportPage() {
                 72<span className="text-xl font-normal text-muted-foreground">/100</span>
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <Pill tone="warning">Medium confidence</Pill>
+                <Pill tone="warning">
+                  <Gauge className="size-3" aria-hidden /> Medium confidence
+                </Pill>
               </div>
               <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div>
@@ -347,8 +352,8 @@ export default function SampleReportPage() {
 
         <ReportSection id="distribution" title="Distribution & first 10 customers">
           <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-            Channels are labelled <strong className="text-success">Researched</strong> when evidence supports them and{" "}
-            <strong className="text-warning">Hypothesis</strong> when they&apos;re reasonable but untested.
+            Channels are labelled <strong className="text-success-text">Researched</strong> when evidence supports them and{" "}
+            <strong className="text-warning-text">Hypothesis</strong> when they&apos;re reasonable but untested.
           </p>
           <PlanStepMockup />
         </ReportSection>

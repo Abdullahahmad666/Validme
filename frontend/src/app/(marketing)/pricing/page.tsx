@@ -27,6 +27,7 @@ export default function PricingPage() {
       />
       <Section className="pt-16 sm:pt-20">
         <Container>
+          <h2 className="sr-only">Plans</h2>
           <PricingCards source="pricing_page" />
           <div className="mt-12">
             <CreditExplainer />

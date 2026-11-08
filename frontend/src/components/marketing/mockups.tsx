@@ -6,7 +6,9 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle2,
+  CircleHelp,
   Clock,
+  Gauge,
   ExternalLink,
   Globe,
   Link2,
@@ -77,7 +79,7 @@ export function DiscoverStepMockup() {
               )}
               {s.state === "running" && (
                 <Pill tone="primary">
-                  <Loader2 className="size-3 motion-safe:animate-spin" aria-hidden /> Processing
+                  <Loader2 className="size-3" aria-hidden /> Processing
                 </Pill>
               )}
               {s.state === "queued" && (
@@ -132,7 +134,9 @@ export function ValidateStepMockup() {
           </p>
         </div>
         <div className="text-right">
-          <Pill tone="warning">Medium confidence</Pill>
+          <Pill tone="warning">
+            <Gauge className="size-3" aria-hidden /> Medium confidence
+          </Pill>
           <p className="mt-1 text-[11px] text-muted-foreground">31 evidence records</p>
         </div>
       </div>
@@ -172,7 +176,10 @@ export function PlanStepMockup() {
             {i + 1}
           </span>
           <p className="flex-1 text-[12.5px] leading-snug">{a.t}</p>
-          <Pill tone={a.tone}>{a.tag}</Pill>
+          <Pill tone={a.tone}>
+            {a.tag === "Researched" ? <CheckCircle2 className="size-3" aria-hidden /> : <CircleHelp className="size-3" aria-hidden />}
+            {a.tag}
+          </Pill>
         </MockCard>
       ))}
     </DashboardMockup>
@@ -367,7 +374,10 @@ export function DistributionFeatureMockup() {
           <MockCard key={c.t} className="p-3">
             <div className="flex items-center justify-between gap-2">
               <c.icon className="size-4 text-primary" aria-hidden />
-              <Pill tone={c.tone}>{c.tag}</Pill>
+              <Pill tone={c.tone}>
+                {c.tag === "Researched" ? <CheckCircle2 className="size-3" aria-hidden /> : <CircleHelp className="size-3" aria-hidden />}
+                {c.tag}
+              </Pill>
             </div>
             <p className="mt-2 text-[13px] font-medium">{c.t}</p>
             <p className="text-[11.5px] text-muted-foreground">{c.d}</p>

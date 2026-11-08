@@ -52,10 +52,10 @@ export function MockLabel({ className, ...props }: React.ComponentProps<"p">) {
 type Tone = "primary" | "success" | "warning" | "destructive" | "muted";
 const TONES: Record<Tone, string> = {
   primary: "bg-primary/10 text-primary",
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
-  destructive: "bg-destructive/10 text-destructive",
-  muted: "bg-muted text-muted-foreground",
+  success: "bg-success/10 text-success-text",
+  warning: "bg-warning/10 text-warning-text",
+  destructive: "bg-destructive/10 text-destructive-text",
+  muted: "bg-muted text-muted-strong",
 };
 
 export function Pill({ children, tone = "muted", className }: { children: React.ReactNode; tone?: Tone; className?: string }) {

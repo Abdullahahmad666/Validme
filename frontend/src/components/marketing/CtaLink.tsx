@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 type Variant = "primary" | "secondary" | "inverted" | "ghost-inverted";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-primary text-primary-foreground hover:bg-[#284f92] shadow-sm shadow-primary/20",
+  primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20",
   secondary: "border-border bg-card text-foreground hover:border-primary/40 hover:bg-card",
-  inverted: "bg-white text-navy hover:bg-white/90",
-  "ghost-inverted": "border-white/25 bg-transparent text-white hover:bg-white/10",
+  inverted: "bg-white text-navy hover:bg-white/90 focus-visible:outline-white",
+  "ghost-inverted": "border-white/25 bg-transparent text-white hover:bg-white/10 focus-visible:outline-white",
 };
 
 /** Link styled as a button, optionally firing an analytics event on click. */

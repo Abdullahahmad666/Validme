@@ -4,8 +4,8 @@ import { SOURCES, type SourceStatus } from "@/content/marketing";
 import { cn } from "@/lib/utils";
 
 const GROUPS: { status: SourceStatus; title: string; icon: typeof CheckCircle2; tone: string }[] = [
-  { status: "supported", title: "Supported", icon: CheckCircle2, tone: "text-success" },
-  { status: "limited", title: "Limited / rolling out", icon: CircleDashed, tone: "text-warning" },
+  { status: "supported", title: "Supported", icon: CheckCircle2, tone: "text-success-text" },
+  { status: "limited", title: "Limited / rolling out", icon: CircleDashed, tone: "text-warning-text" },
   { status: "unavailable", title: "Not included", icon: MinusCircle, tone: "text-muted-foreground" },
 ];
 

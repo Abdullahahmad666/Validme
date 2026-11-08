@@ -28,8 +28,8 @@ export type SourceStatus = "supported" | "limited" | "unavailable";
 export const SOURCES: { name: string; detail: string; status: SourceStatus }[] = [
   { name: "Web search", detail: "Search results via a licensed search API.", status: "supported" },
   { name: "Hacker News", detail: "Founder and developer discussions via the public API.", status: "supported" },
-  { name: "Competitor websites", detail: "Public pricing and feature pages, with the date we read them.", status: "supported" },
-  { name: "Links you add", detail: "Threads, reviews or articles you found yourself.", status: "supported" },
+  { name: "Competitor websites", detail: "Public pricing and feature pages, with the date we read them. Rolling out.", status: "limited" },
+  { name: "Links you add", detail: "Threads, reviews or articles you found yourself. Rolling out.", status: "limited" },
   { name: "Stack Exchange", detail: "Public Q&A with attribution. Rolling out.", status: "limited" },
   { name: "GitHub issues", detail: "Public issues on competitor or open-source repos. Planned.", status: "limited" },
   { name: "Reddit", detail: "Needs a commercial data agreement. Not searched.", status: "unavailable" },

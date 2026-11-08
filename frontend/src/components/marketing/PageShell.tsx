@@ -67,7 +67,7 @@ export function Prose({ children, className }: { children: React.ReactNode; clas
 export function DraftNotice({ updated }: { updated: string }) {
   return (
     <p className="flex flex-wrap items-center gap-2 rounded-xl border border-warning/30 bg-warning/[0.06] px-4 py-3 text-sm">
-      <span className="font-medium text-warning">Draft</span>
+      <span className="font-medium text-warning-text">Draft</span>
       <span className="text-foreground/80">
         This document describes how the product works today and hasn&apos;t yet been reviewed by legal counsel. Last
         updated {updated}.
