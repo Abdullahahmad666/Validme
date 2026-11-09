@@ -70,15 +70,29 @@ def report(project_id: str) -> dict:
             {"name": "No POS sync", "distinct_sources": 1, "evidence_ids": ["ev_2"]},
         ],
         "competitors": [],
-        "channels": [
-            {"channel": "Founder and operator forums", "is_hypothesis": True, "evidence_ids": []},
-        ],
-        "first_ten_plan": [
-            "List 15 owners from the channels above",
-            "Interview them about their current workflow",
-            "Offer a paid pilot",
-        ],
+        # Same shape as the live API's report.distribution.
+        "distribution": {
+            "channels": [
+                {
+                    "name": "Founder and operator forums",
+                    "is_hypothesis": True,
+                    "evidence_count": 0,
+                    "recommendation": "Not searched: test before relying on it.",
+                    "evidence_ids": [],
+                },
+            ],
+            "threads": [],
+            "first_ten_plan": [
+                {"title": "List 15 owners from the channels above", "detail": "", "evidence_ids": [], "ai": False},
+                {"title": "Interview them about their current workflow", "detail": "", "evidence_ids": [], "ai": False},
+                {"title": "Offer a paid pilot", "detail": "", "evidence_ids": [], "ai": False},
+            ],
+        },
     }
+
+
+def history(project_id: str) -> dict:
+    return {"sample": True, "note": SAMPLE_NOTE, "count": 1, "results": [{"id": 1, "score": 64, "confidence": "low"}]}
 
 
 def evidence(project_id: str, query: str, category: str) -> dict:

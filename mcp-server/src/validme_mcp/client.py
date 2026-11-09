@@ -49,27 +49,45 @@ class ValidMeClient:
     def start_research(self, idea: str, audience: str, geography: str, depth: str) -> dict[str, Any]:
         if self.use_mock:
             return mock.start_research(idea, audience, geography, depth)
+        name = " ".join(idea.split())[:80]
         project = self._request(
             "POST",
             "/projects",
-            json={"name": idea[:80], "description": idea, "audiences": [audience], "geographies": [geography]},
+            json={"name": name, "description": idea, "audiences": [audience], "geographies": [geography]},
         )
-        return self._request(
+        try:
+            # Search queries in the customer's words. Optional: without AI the job searches the idea text itself.
+            self._request("POST", f"/projects/{project['id']}/keywords/generate", json={})
+        except ValidMeError:
+            pass
+        job = self._request(
             "POST",
             "/research/jobs",
             json={"project": project["id"], "depth": depth},
             headers={"Idempotency-Key": str(uuid.uuid4())},
         )
+        return {
+            "job_id": job["id"],
+            "project_id": project["id"],
+            "status": job.get("status"),
+            "credits_charged": job.get("credits_charged"),
+            "next": "Poll get_research_status(job_id) until it is COMPLETED or PARTIALLY_COMPLETED, then get_report(project_id).",
+        }
 
     def job_status(self, job_id: str) -> dict[str, Any]:
         if self.use_mock:
             return mock.job_status(job_id)
         return self._request("GET", f"/research/jobs/{job_id}")
 
-    def report(self, project_id: str) -> dict[str, Any]:
+    def report(self, project_id: str, report_id: int | None = None) -> dict[str, Any]:
         if self.use_mock:
             return mock.report(project_id)
-        return self._request("GET", f"/reports/{project_id}")
+        return self._request("GET", f"/reports/{project_id}", params={"report": report_id} if report_id else None)
+
+    def history(self, project_id: str) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.history(project_id)
+        return self._request("GET", f"/reports/{project_id}/history")
 
     def evidence(self, project_id: str, query: str = "", category: str = "") -> dict[str, Any]:
         if self.use_mock:

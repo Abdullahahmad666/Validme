@@ -54,9 +54,16 @@ def get_research_status(job_id: str) -> dict[str, Any]:
 
 
 @server.tool()
-def get_report(project_id: str) -> dict[str, Any]:
-    """Get the opportunity report: score + confidence, pain points, competitors, channels, first-10 plan."""
-    return _safe(client().report, project_id)
+def get_report(project_id: str, report_id: int | None = None) -> dict[str, Any]:
+    """Get the opportunity report (latest, or a version from list_reports): score + confidence, demand, pain points,
+    competitors, market gaps, audience segments and distribution. Cited records are in evidence_index."""
+    return _safe(client().report, project_id, report_id)
+
+
+@server.tool()
+def list_reports(project_id: str) -> dict[str, Any]:
+    """List every report version for a project, newest first, with score and confidence."""
+    return _safe(client().history, project_id)
 
 
 @server.tool()
@@ -81,10 +88,13 @@ def suggest_channels(project_id: str) -> dict[str, Any]:
     data = _safe(client().report, project_id)
     if "error" in data:
         return data
+    dist = data.get("distribution") or {}
     return {
         "project_id": project_id,
-        "channels": data.get("channels", []),
-        "first_ten_plan": data.get("first_ten_plan", []),
+        "channels": dist.get("channels", []),
+        "threads": dist.get("threads", []),
+        "first_ten_plan": dist.get("first_ten_plan", []),
+        "audience_segments": (data.get("audience") or {}).get("segments", []),
         "sample": data.get("sample", False),
     }
 

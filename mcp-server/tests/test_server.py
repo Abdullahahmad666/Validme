@@ -43,5 +43,15 @@ async def test_tools_are_registered():
     names = {t.name for t in await server.server.list_tools()}
     assert names == {
         "validate_idea", "get_research_status", "get_report",
-        "search_evidence", "list_competitors", "suggest_channels",
+        "search_evidence", "list_competitors", "suggest_channels", "list_reports",
     }
+
+
+def test_channels_come_from_report_distribution():
+    res = server.suggest_channels("prj_sample")
+    assert res["channels"] and res["first_ten_plan"][0]["title"]
+    assert all(c["is_hypothesis"] is False or c["evidence_count"] == 0 for c in res["channels"])
+
+
+def test_list_reports_mock():
+    assert server.list_reports("prj_sample")["count"] == 1
