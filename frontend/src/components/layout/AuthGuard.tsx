@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/useSession";
@@ -11,19 +11,28 @@ import { useSession } from "@/hooks/useSession";
  * Children are always rendered (hidden until the session is confirmed) so the route stays
  * prerenderable for instant navigation and page queries start in parallel with the session check.
  */
-export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data, isPending, isError, refetch } = useSession();
+/** Reads the URL, so it lives in its own Suspense boundary to keep dynamic routes prerenderable. */
+function RedirectToLogin() {
   const router = useRouter();
   const pathname = usePathname();
+  useEffect(() => {
+    router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [pathname, router]);
+  return null;
+}
+
+export function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { data, isPending, isError, refetch } = useSession();
   const anonymous = data !== undefined && !data.isAuthenticated;
   const authenticated = data?.isAuthenticated === true;
 
-  useEffect(() => {
-    if (anonymous) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [anonymous, pathname, router]);
-
   return (
     <>
+      {anonymous && (
+        <Suspense>
+          <RedirectToLogin />
+        </Suspense>
+      )}
       {isError ? (
         <div className="mx-auto max-w-lg p-8">
           <ErrorState

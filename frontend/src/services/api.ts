@@ -2,11 +2,18 @@ import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type {
   ApiKey,
   DashboardSummary,
+  Depth,
+  Estimate,
+  Interpretation,
   Me,
   Paginated,
   Project,
   ProjectInput,
+  ProjectPatch,
   ProjectStatus,
+  QueryIntent,
+  ResearchJob,
+  ResearchQuery,
   ResearchSource,
 } from "@/types/api";
 
@@ -58,8 +65,34 @@ export const api = {
   },
   getProject: (id: string) => request<Project>(`/projects/${id}`),
   createProject: (input: ProjectInput) => request<Project>("/projects", { method: "POST", body: json(input) }),
-  updateProject: (id: string, input: Partial<ProjectInput>) =>
+  updateProject: (id: string, input: ProjectPatch) =>
     request<Project>(`/projects/${id}`, { method: "PATCH", body: json(input) }),
+  interpretProject: (id: string) =>
+    request<{ ai_interpretation: Interpretation }>(`/projects/${id}/interpret`, { method: "POST" }),
+  generateQueries: (id: string, intent?: QueryIntent) =>
+    request<{ results: ResearchQuery[] }>(`/projects/${id}/keywords/generate`, {
+      method: "POST",
+      body: json(intent ? { intent } : {}),
+    }),
+
+  listQueries: (projectId: string) => request<ResearchQuery[]>(`/projects/${projectId}/queries`),
+  createQuery: (projectId: string, input: Pick<ResearchQuery, "text" | "intent">) =>
+    request<ResearchQuery>(`/projects/${projectId}/queries`, { method: "POST", body: json(input) }),
+  updateQuery: (projectId: string, id: number, input: Partial<Pick<ResearchQuery, "text" | "enabled">>) =>
+    request<ResearchQuery>(`/projects/${projectId}/queries/${id}`, { method: "PATCH", body: json(input) }),
+  deleteQuery: (projectId: string, id: number) =>
+    request<void>(`/projects/${projectId}/queries/${id}`, { method: "DELETE" }),
+
+  getEstimate: (projectId: string, depth: Depth) =>
+    request<Estimate>(`/research/estimate?project=${encodeURIComponent(projectId)}&depth=${depth}`),
+  createJob: (projectId: string, idempotencyKey: string) =>
+    request<ResearchJob>("/research/jobs", {
+      method: "POST",
+      body: json({ project: projectId }),
+      headers: { "Idempotency-Key": idempotencyKey },
+    }),
+  listJobs: (projectId: string) => request<Paginated<ResearchJob>>(`/research/jobs?project=${encodeURIComponent(projectId)}`),
+  getJob: (id: string) => request<ResearchJob>(`/research/jobs/${id}`),
   deleteProject: (id: string) => request<void>(`/projects/${id}`, { method: "DELETE" }),
 
   listApiKeys: () => request<Paginated<ApiKey>>("/api-keys"),

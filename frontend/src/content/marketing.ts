@@ -29,9 +29,9 @@ export type SourceStatus = "supported" | "limited";
 export const SOURCES: { name: string; detail: string; status: SourceStatus }[] = [
   { name: "Web search", detail: "Search results via a licensed search API.", status: "supported" },
   { name: "Hacker News", detail: "Founder and developer discussions via the public API.", status: "supported" },
-  { name: "Competitor websites", detail: "Public pricing and feature pages, with the date we read them. Rolling out.", status: "limited" },
-  { name: "Links you add", detail: "Threads, reviews or articles you found yourself. Rolling out.", status: "limited" },
-  { name: "Stack Exchange", detail: "Public Q&A with attribution. Rolling out.", status: "limited" },
+  { name: "Competitor websites", detail: "Public pricing and feature pages you list, with the date we read them.", status: "supported" },
+  { name: "Links you add", detail: "Threads, reviews or articles you found yourself.", status: "supported" },
+  { name: "Stack Exchange", detail: "Public Q&A, with attribution links kept.", status: "supported" },
   { name: "GitHub issues", detail: "Public issues on competitor or open-source repos. Planned.", status: "limited" },
 ];
 
@@ -219,7 +219,7 @@ export const FAQS = [
   },
   {
     q: `Which sources does ${BRAND_NAME} search?`,
-    a: "Web search and Hacker News today, with competitor websites, links you add, Stack Exchange and GitHub issues rolling out. We only use sources we're permitted to use, and every report lists exactly which sources it searched, so you always know the coverage behind a finding. If you've found a relevant discussion yourself, you can add its link as evidence.",
+    a: "Web search, Hacker News, Stack Exchange, competitor websites you list and links you add, with GitHub issues planned. We only use sources we're permitted to use, and every report lists exactly which sources it searched, so you always know the coverage behind a finding. If you've found a relevant discussion yourself, you can add its link as evidence.",
   },
   {
     q: "Are the research findings based on real data?",

@@ -5,7 +5,7 @@
       "name": "backend",
       "runtimeExecutable": "backend/.venv/Scripts/python",
       "runtimeArgs": ["backend/manage.py", "runserver", "8000", "--noreload"],
-      "env": { "DEBUG": "True" },
+      "env": { "DEBUG": "True", "CELERY_TASK_ALWAYS_EAGER": "True" },
       "port": 8000
     },
     {
