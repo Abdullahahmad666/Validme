@@ -1,18 +1,11 @@
 import { FlaskConical } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { LogoMark } from "@/components/shared/BrandLogo";
 import { BRAND_NAME } from "@/lib/brand";
 
-/** Brand mark: navy tile with an evidence check. */
-export function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden className={cn("size-8", className)}>
-      <rect width="32" height="32" rx="8" className="fill-navy" />
-      <path d="M9 16.5l4.2 4.2L23 11" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="23" cy="11" r="2.2" className="fill-accent-soft" />
-    </svg>
-  );
-}
+// One brand mark for the whole app (marketing, auth, dashboard).
+export { LogoMark };
 
 export function Logo({
   className,

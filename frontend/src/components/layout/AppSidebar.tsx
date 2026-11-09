@@ -14,6 +14,7 @@ import {
   Swords,
   type LucideIcon,
 } from "lucide-react";
+import { BrandLink } from "@/components/shared/BrandLogo";
 import { BRAND_NAME } from "@/lib/brand";
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
@@ -50,12 +51,13 @@ export function AppSidebar() {
   return (
     // Tablet (md): 64px icon rail. Desktop (lg+): full 250px sidebar. Mobile uses MobileNav.
     <aside className="sticky top-0 hidden h-screen w-16 shrink-0 flex-col overflow-y-auto border-r border-border bg-card px-2 py-5 md:flex lg:w-[250px] lg:px-3">
-      <Link href="/dashboard" className="mb-6 flex h-10 items-center justify-center text-lg font-semibold lg:justify-start lg:px-3">
-        <span className="lg:hidden" aria-hidden>
-          {BRAND_NAME[0]}
-        </span>
-        <span className="sr-only lg:not-sr-only">{BRAND_NAME}</span>
-      </Link>
+      {/* Rail (md): mark only. Full sidebar (lg+): mark + name. */}
+      <BrandLink
+        href="/dashboard"
+        label={`${BRAND_NAME} dashboard`}
+        className="mb-6 justify-center lg:justify-start lg:px-3"
+        nameClassName="hidden lg:inline"
+      />
       <nav aria-label="Main" className="flex flex-col gap-6">
         {NAV.map((group) => (
           <div key={group.section}>
