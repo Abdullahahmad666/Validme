@@ -99,6 +99,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("THROTTLE_ANON", default="60/min"),
         "user": env("THROTTLE_USER", default="600/min"),
+        # LLM-backed drafting endpoints cost real money and are free to the user.
+        "ai": env("THROTTLE_AI", default="30/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
 }
@@ -162,7 +164,9 @@ EXA_API_KEY = env("EXA_API_KEY", default="")
 STACKEXCHANGE_API_KEY = env("STACKEXCHANGE_API_KEY", default="")
 
 # LLM
-LLM_PROVIDER = env("LLM_PROVIDER", default="anthropic")  # anthropic | openai
+LLM_PROVIDER = env("LLM_PROVIDER", default="anthropic")  # only "anthropic" is implemented
+LLM_MODEL = env("LLM_MODEL", default="claude-opus-5-5")
+LLM_EFFORT = env("LLM_EFFORT", default="medium")  # low | medium | high | xhigh | max
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 
