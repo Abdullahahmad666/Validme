@@ -19,12 +19,14 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 
 ## Week 2 — Idea analysis & providers
 - [ ] Dashboard: plan badge, recent activity, recommended next actions, stages covered on project cards; project detail route (cards link to it)
-- [ ] `research/ai` LLM client with JSON-schema validation
-- [ ] Interpret idea + generate queries endpoints
-- [ ] Providers: Brave/Exa web search, HN Algolia, Stack Exchange, user URLs, competitor page fetcher
-- [ ] Celery job orchestration + JobStage tracking + search cache
-- [ ] Wizard steps 1–4 (RHF + Zod, autosave)
-- Milestone: submit idea → real results stored
+- [x] `research/ai` LLM client with JSON-schema validation (Anthropic SDK, structured outputs, jsonschema check + one retry, refusal fallback, cost on the ledger)
+- [x] Interpret idea + generate queries endpoints (versioned prompts; query CRUD; AI throttle) — *needs `ANTHROPIC_API_KEY` to run live*
+- [x] Providers: Brave web search, HN Algolia, Stack Exchange, user URLs, competitor page fetcher (SSRF-safe, robots.txt) — *Exa not added; Brave needs `BRAVE_SEARCH_API_KEY`*
+- [x] Celery job orchestration + JobStage tracking + 7-day search cache
+- [x] Wizard steps 1–4 (RHF + Zod, 800ms autosave, idempotent launch) + research progress page
+- Milestone: submit idea → real results stored ✅ (verified in browser: HN + Stack Exchange evidence stored, 1 credit charged once)
+- [ ] Playwright test for the wizard flow (CLAUDE.md convention)
+- [ ] Verify migrations on local Postgres
 
 ## Week 3 — Evidence intelligence
 - [ ] Normalize, dedupe (URL + simhash), classify (7 categories), cluster

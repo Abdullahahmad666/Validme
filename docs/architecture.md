@@ -36,6 +36,12 @@ class ResearchProvider(Protocol):
 ```
 One provider failing marks the job `PARTIALLY_COMPLETED`, never `FAILED`, unless all fail.
 
+## Research pipeline (Week 2)
+- **Drafting (free, 0 credits):** `POST /projects/{id}/interpret` and `/keywords/generate` call `research/ai/client.py::complete_json` (Anthropic SDK, structured outputs, jsonschema-validated, one retry). Output is stored apart from the founder's input (`IdeaDefinition.ai_interpretation`, `ResearchQuery.ai_generated`); cost goes on `UsageTransaction` with 0 credits. Throttle scope `ai`.
+- **Launch:** `POST /research/jobs` snapshots `ResearchConfig` (sources, depth, queries, exclude terms, evidence/competitor URLs) onto the job; credits are spent in the same transaction.
+- **Run:** stages `idea_analysis → web_research → community_research → evidence_analysis → competitor_analysis → report`. Providers declare a `stage`; URL providers (`user_urls`, `competitor_pages`) read the snapshot's URL lists through `providers/fetch.py` (public IPs only, robots.txt, 2 MB, 10 s). Query providers go through a 7-day `SearchCache`. Coverage per provider: `COMPLETED | FAILED | UNAVAILABLE | SKIPPED` (SKIPPED = nothing to read, doesn't make a job partial).
+- Dev without Redis: `CELERY_TASK_ALWAYS_EAGER=True` runs the job inline.
+
 ## Job states
 `DRAFT → PENDING → RUNNING → COMPLETED | PARTIALLY_COMPLETED | FAILED | CANCELLED`
 Each stage writes a `JobStage` row so the progress screen shows real status (no fake percentages).
@@ -51,9 +57,12 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | POST | `/projects` | create draft |
 | PATCH | `/projects/{id}` | update draft (autosave) |
 | POST | `/projects/{id}/interpret` | AI interpretation of idea |
-| POST | `/projects/{id}/keywords/generate` | generate queries |
-| GET | `/research/sources` | providers + availability |
-| GET | `/research/estimate?project={id}&depth=` | credit estimate |
+| POST | `/projects/{id}/keywords/generate` | generate queries (all intents, or `{"intent"}` to regenerate one group) |
+| GET/POST | `/projects/{id}/queries` | list / add queries (founder-written queries are kept on regenerate) |
+| PATCH/DELETE | `/projects/{id}/queries/{qid}` | edit text, enable/disable, remove |
+| GET | `/research/sources` | providers + availability + stage + uses_queries |
+| GET | `/research/estimate?project={id}&depth=` | credit estimate (balance before/after, budget) |
+| GET | `/research/jobs?project={id}` | jobs for a project (latest first) |
 | POST | `/research/jobs` | submit (requires `Idempotency-Key`) |
 | GET | `/research/jobs/{id}` | status + stages |
 | GET | `/reports/{project_id}` | full report |

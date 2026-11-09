@@ -8,7 +8,7 @@ Rule: **only integrate sources whose terms allow commercial use.** Never show a 
 | Competitor websites (pricing/features pages) | ✅ Priority 1 | Fetch only public pages the user or search surfaced; respect robots.txt; store excerpt + retrieved date. |
 | Hacker News (Algolia HN Search API) | ✅ Priority 1 | Public API, founder-heavy audience. |
 | Stack Exchange API | ✅ Priority 1 | Public API with key; content CC BY-SA — keep attribution links. |
-| User-submitted URLs | ✅ Priority 1 | User pastes threads/reviews they found. |
+| User-submitted URLs | ✅ Priority 1 | User pastes threads/reviews they found. Fetched once each via the SSRF-safe fetcher; robots.txt respected. |
 | GitHub issues (public repos of competitors / OSS alternatives) | 🟡 Should have | Good for developer-tool ideas. |
 | Reddit | ⛔ Conditional | Commercial use requires explicit written approval / contract from Reddit. GummySearch shut down over this. Only via a licensed provider once we have one. |
 | Review platforms (G2, Capterra, Trustpilot) | ⛔ Licensed only | Do not scrape. |
