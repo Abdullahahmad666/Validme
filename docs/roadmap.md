@@ -39,9 +39,9 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Report tabs: Overview, Demand, Pain points, Competitors, Market gaps
 
 ## Week 5 — Distribution & reports
-- [ ] Audience segments, channel recommendations (researched vs hypothesis), first-10 plan
-- [ ] Report history, Markdown/PDF export
-- [ ] MCP server against live API; publish install instructions
+- [x] Audience segments, channel recommendations (researched vs hypothesis), first-10 plan
+- [x] Report history, Markdown/PDF export (PDF via the browser's print → Save as PDF)
+- [x] MCP server against live API; install instructions in Settings and `mcp-server/README.md` (a public install page waits for a published package)
 
 ## Week 6 — Billing, hardening, deploy
 - [ ] Credits, packs, server-side limits, payment provider (merchant of record)

@@ -65,7 +65,9 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/research/jobs?project={id}` | jobs for a project (latest first) |
 | POST | `/research/jobs` | submit (requires `Idempotency-Key`) |
 | GET | `/research/jobs/{id}` | status + stages |
-| GET | `/reports/{project_id}` | latest report snapshot (owner only; 404 until built): overview, demand, pain_points, competitors, opportunity, evidence_index, notes |
+| GET | `/reports/{project_id}?report=` | report snapshot (owner only; 404 until built; latest unless `report` id given): overview, demand, pain_points, competitors, opportunity, audience, distribution, evidence_index, notes |
+| GET | `/reports/{project_id}/history` | report versions, newest first (score, confidence, depth) |
+| GET | `/reports/{project_id}/export?report=` | Markdown download of a report |
 | GET | `/evidence?project=&category=a,b&provider=&cluster=&q=&saved=1&duplicates=1` | evidence explorer (originals only by default, `duplicates` count) |
 | PATCH | `/evidence/{id}` | `saved_by_user` only; source text is never editable |
 | GET | `/evidence/facets?project=` | counts by category / provider / saved / duplicates |
@@ -96,3 +98,11 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 - **Competitors** (`reports/competitors.py`): listed ones are profiled from the fetched page (`SourceSnapshot`); a price is kept only if it appears verbatim on that page, with its URL and retrieval date, otherwise pricing is "unavailable". Competitors mentioned in evidence must be named in the cited excerpts.
 - **Scoring** (`reports/scoring.py`): deterministic, from evidence counts. A dimension without evidence is "not scored", its weight is excluded and `scored_weight` says how much of the model was scored. Confidence = min(volume, diversity, recency); low confidence never recommends "build".
 - Market size stays "unavailable" until a sourced calculation exists. Unclassified evidence is never presented as a finding.
+
+## Audience, distribution and history (Week 5)
+- `reports/distribution.py` is deterministic. A channel is **Researched** only when classified evidence (pain, workaround, feature request, alternative seeking, pricing objection, buying intent) was published there; competitor pages never count. Other channels are **Hypothesis** with no evidence count.
+- Audience segments are the founder's (or AI-suggested, labelled) segments matched to that evidence by word; needs come from AI themes that share records.
+- Audience accessibility (10%) is now scored from researched channels: distinct places and threads. No places → not scored.
+- The first-10 plan is a checklist the founder runs by hand. Nothing is sent for them (rule 8).
+- A completed project can re-run (`POST /research/jobs`, new idempotency key); each run adds a `Report`, so history is the list of snapshots. A failed re-run keeps the project `COMPLETED` so earlier reports stay reachable.
+- PDF export is the browser's print dialog on a print layout of all sections; Markdown export is server-side (`reports/export.py`).
