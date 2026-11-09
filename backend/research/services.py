@@ -16,7 +16,7 @@ from datetime import timedelta
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from evidence.models import Evidence
+from evidence.models import Evidence, SourceSnapshot
 from research.budgets import DEPTH_BUDGETS, budget_for
 from research.models import JobStage, ResearchJob, SearchCache
 from research.providers import registry
@@ -24,9 +24,7 @@ from research.providers.base import Availability, Budget, EvidenceIn, ProviderEr
 
 STAGES = ["idea_analysis", "web_research", "community_research", "evidence_analysis", "competitor_analysis", "report"]
 PROVIDER_STAGES = ["web_research", "community_research", "competitor_analysis"]
-NOT_YET_AVAILABLE = {
-    "report": "The opportunity report arrives in a later release.",
-}
+NOT_YET_AVAILABLE: dict[str, str] = {}
 CACHE_TTL = timedelta(days=7)
 MAX_NOTES = 10
 
@@ -84,7 +82,7 @@ def cached_search(provider, query: QueryIn, budget: Budget) -> tuple[list[RawRes
 def _store(job: ResearchJob, item: EvidenceIn) -> bool:
     try:
         with transaction.atomic():
-            Evidence.objects.create(
+            evidence = Evidence.objects.create(
                 project=job.project,
                 job=job,
                 provider=item.provider,
@@ -99,6 +97,8 @@ def _store(job: ResearchJob, item: EvidenceIn) -> bool:
                 author_url=item.author_url[:500],
                 content_hash=item.content_hash,
             )
+            if item.extra.get("page_text"):
+                SourceSnapshot.objects.create(evidence=evidence, text=item.extra["page_text"], retrieved_at=item.retrieved_at)
         return True
     except IntegrityError:  # already stored for this project (same url + same text) — counted once
         return False
@@ -248,6 +248,30 @@ def run_analysis(job: ResearchJob):
     return result.cost_usd
 
 
+def run_report(job: ResearchJob):
+    """Competitor profiles, score and report snapshot. Returns the LLM cost."""
+    from reports.services import build_report
+
+    set_stage(job, "report", JobStage.Status.PROCESSING, "Profiling competitors and scoring the opportunity")
+    try:
+        report, cost, notes = build_report(job)
+    except Exception:
+        set_stage(job, "report", JobStage.Status.FAILED, "The report couldn't be built")
+        raise
+    o = report.content["overview"]
+    comp = JobStage.objects.filter(job=job, name="competitor_analysis").first()
+    if comp is not None:
+        extra = f"{o['competitor_count']} competitor profile{'s' if o['competitor_count'] != 1 else ''} built"
+        if notes:
+            extra += f" ({'; '.join(notes)})"
+        detail = f"{comp.detail} · {extra}" if comp.status == JobStage.Status.COMPLETED else extra
+        status = JobStage.Status.COMPLETED if o["competitor_count"] or comp.status == JobStage.Status.COMPLETED else comp.status
+        set_stage(job, "competitor_analysis", status, detail)
+    score = f"score {o['score']}/100" if o["score"] is not None else "not enough evidence to score"
+    set_stage(job, "report", JobStage.Status.COMPLETED, f"Report ready: {score}, {o['confidence']} confidence")
+    return cost
+
+
 def collect_evidence(job: ResearchJob) -> ResearchJob:
     snapshot = job.config_snapshot
     queries = [QueryIn(q["text"], q["intent"]) for q in snapshot.get("queries", [])]
@@ -284,6 +308,7 @@ def collect_evidence(job: ResearchJob) -> ResearchJob:
         _save_coverage(job, coverage, detail, spent)  # survives a crash in a later stage
 
     spent += float(run_analysis(job))
+    spent += float(run_report(job))
 
     for stage, reason in NOT_YET_AVAILABLE.items():
         set_stage(job, stage, JobStage.Status.SKIPPED, reason)

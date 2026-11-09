@@ -62,3 +62,12 @@ class EvidenceCluster(models.Model):
 
     def distinct_sources(self) -> int:
         return self.evidence.filter(duplicate_of__isnull=True).values("source_url").distinct().count()
+
+
+class SourceSnapshot(models.Model):
+    """Visible text of a fetched page (competitor pages), kept so extracted facts can be checked
+    against the page itself. Never shown as evidence on its own."""
+
+    evidence = models.OneToOneField(Evidence, on_delete=models.CASCADE, related_name="snapshot")
+    text = models.TextField(max_length=20000)
+    retrieved_at = models.DateTimeField()

@@ -60,6 +60,7 @@ class _UrlPageProvider:
             title=d["title"] or d["url"],
             excerpt=clip(excerpt),
             retrieved_at=datetime.now(UTC),
+            extra={"page_text": d["text"][:20000]},
         )
 
 
