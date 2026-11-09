@@ -65,7 +65,7 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/research/jobs?project={id}` | jobs for a project (latest first) |
 | POST | `/research/jobs` | submit (requires `Idempotency-Key`) |
 | GET | `/research/jobs/{id}` | status + stages |
-| GET | `/reports/{project_id}` | full report |
+| GET | `/reports/{project_id}` | latest report snapshot (owner only; 404 until built): overview, demand, pain_points, competitors, opportunity, evidence_index, notes |
 | GET | `/evidence?project=&category=a,b&provider=&cluster=&q=&saved=1&duplicates=1` | evidence explorer (originals only by default, `duplicates` count) |
 | PATCH | `/evidence/{id}` | `saved_by_user` only; source text is never editable |
 | GET | `/evidence/facets?project=` | counts by category / provider / saved / duplicates |
@@ -90,3 +90,9 @@ LLM calls live only in `backend/research/ai/` behind one interface (`complete_js
 
 ## Cost control
 Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTransaction`. Cache search results 7 days by `(provider, normalized_query)`. Depth = hard budget of queries/results/tokens.
+
+## Report (Week 4)
+- Built by `reports/services.py::build_report` as the last job stage and stored as a `Report.content` snapshot, so a report never changes after it's generated.
+- **Competitors** (`reports/competitors.py`): listed ones are profiled from the fetched page (`SourceSnapshot`); a price is kept only if it appears verbatim on that page, with its URL and retrieval date, otherwise pricing is "unavailable". Competitors mentioned in evidence must be named in the cited excerpts.
+- **Scoring** (`reports/scoring.py`): deterministic, from evidence counts. A dimension without evidence is "not scored", its weight is excluded and `scored_weight` says how much of the model was scored. Confidence = min(volume, diversity, recency); low confidence never recommends "build".
+- Market size stays "unavailable" until a sourced calculation exists. Unclassified evidence is never presented as a finding.

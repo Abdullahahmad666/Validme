@@ -34,9 +34,9 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - Milestone: traceable evidence ✅ (verified on Postgres with live Hacker News results)
 
 ## Week 4 — Competitors & opportunity
-- [ ] Competitor profiles + pricing extraction with dates
-- [ ] Scoring model + confidence + "what would change the score"
-- [ ] Report tabs: Overview, Demand, Pain points, Competitors, Market gaps
+- [x] Competitor profiles + pricing extraction with dates
+- [x] Scoring model + confidence + "what would change the score"
+- [x] Report tabs: Overview, Demand, Pain points, Competitors, Market gaps
 
 ## Week 5 — Distribution & reports
 - [ ] Audience segments, channel recommendations (researched vs hypothesis), first-10 plan
