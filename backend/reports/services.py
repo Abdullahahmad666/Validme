@@ -1,4 +1,5 @@
-"""Builds the report snapshot for a finished job: overview, demand, pain points, competitors, market gaps.
+"""Builds the report snapshot for a finished job: overview, demand, pain points, competitors, market gaps,
+audience and distribution.
 
 All numbers are counts over stored evidence; every finding carries the evidence ids behind it.
 Text written by AI (theme summaries, competitor gaps) is labelled as such in the payload.
@@ -12,8 +13,9 @@ from decimal import Decimal
 from django.db import transaction
 
 from evidence.models import Category, Evidence, EvidenceCluster
+from reports import distribution as dist
 from reports.competitors import build_competitors
-from reports.models import Competitor, Opportunity, Report
+from reports.models import ChannelRecommendation, Competitor, Opportunity, Report
 from reports.scoring import SCORING_VERSION, score_project
 from research.models import ResearchJob
 
@@ -134,6 +136,17 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
             for e in sorted((e for e in relevant if e.classifier_version), key=lambda e: -(e.relevance or 0))[:3]
         ]
 
+    # Audience + distribution tabs
+    researched = dist.researched_channels(items)
+    channels = researched + dist.hypothesis_channels(project, [c.name for c in competitors])
+    segments = dist.audience_segments(project, items, clusters, researched)
+    plan = dist.first_ten_plan(project, channels, themes, competitors)
+    by_id = {e.id: e for e in items}
+    threads = sorted(
+        {e.source_url: e for c in researched for i in c["evidence_ids"] if (e := by_id.get(i))}.values(),
+        key=lambda e: -(e.relevance or 0),
+    )[:15]
+
     providers = sorted(by_source)
     summary = (
         f"{len(items)} evidence records from {len({e.source_url for e in items})} distinct sources across "
@@ -181,8 +194,16 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
             },
             "what_would_change": scoring["what_would_change"],
         },
+        "audience": {"segments": segments},
+        "distribution": {
+            "channels": channels,
+            "threads": [_evidence_card(e) for e in threads],
+            "first_ten_plan": plan,
+        },
         "evidence_index": {
-            str(e.id): _evidence_card(e) for e in items if e.id in _cited_ids(themes, findings, competitors, scoring, intent)
+            str(e.id): _evidence_card(e)
+            for e in items
+            if e.id in _cited_ids(themes, findings, competitors, scoring, intent) | _dist_ids(channels, segments, plan)
         },
         "notes": notes,
         "scoring_version": SCORING_VERSION,
@@ -204,7 +225,29 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
             },
         )
         report, _ = Report.objects.update_or_create(job=job, defaults={"project": project, "content": content})
+        ChannelRecommendation.objects.filter(project=project).delete()
+        for c in channels:
+            rec = ChannelRecommendation.objects.create(
+                project=project,
+                channel=c["name"][:160],
+                audience=", ".join(s["name"] for s in segments if c["name"] in s["channels"])[:160],
+                recommendation=c["recommendation"],
+                relevance=c["relevance"],
+                is_hypothesis=c["is_hypothesis"],
+            )
+            rec.evidence.set(c["evidence_ids"])
     return report, cost, notes
+
+
+def _dist_ids(channels, segments, plan) -> set[int]:
+    ids: set[int] = set()
+    for group in (channels, segments, plan):
+        for x in group:
+            ids.update(x["evidence_ids"])
+    for seg in segments:
+        for n in seg["needs"]:
+            ids.update(n["evidence_ids"])
+    return ids
 
 
 def _cited_ids(themes, findings, competitors, scoring, intent) -> set[int]:

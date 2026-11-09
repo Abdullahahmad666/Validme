@@ -110,9 +110,10 @@ class ResearchJobViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mix
             with transaction.atomic():
                 # Lock the project so two launches with different keys can't both pass the draft check.
                 locked = Project.objects.select_for_update().get(pk=project.pk)
-                if locked.status != Project.Status.DRAFT:
+                # Draft = first run; completed = re-run (new report in the history). Never two at once.
+                if locked.status not in (Project.Status.DRAFT, Project.Status.COMPLETED):
                     return Response(
-                        {"error": {"code": "not_draft", "message": "This project already has research running or finished."}},
+                        {"error": {"code": "not_draft", "message": "This project already has research running."}},
                         status=status.HTTP_409_CONFLICT,
                     )
                 job = ResearchJob.objects.create(

@@ -169,6 +169,31 @@ def competitive_gap(competitors: list[Competitor], items_by_id: dict[int, Eviden
     )
 
 
+def audience_accessibility(items: list[Evidence]) -> Dimension:
+    """Reachability = distinct places where classified evidence shows the audience discussing the problem."""
+    from reports.distribution import researched_channels  # local: distribution imports evidence models only
+
+    channels = researched_channels(items)
+    if not channels:
+        return Dimension(
+            "audience_accessibility",
+            None,
+            "low",
+            "No searched community showed your audience discussing the problem, so how reachable they are is unknown.",
+        )
+    threads = sum(c["threads"] for c in channels)
+    score = round(0.5 * _saturating(len(channels), 2) + 0.5 * _saturating(threads, 5))
+    names = ", ".join(c["name"] for c in channels[:3])
+    return Dimension(
+        "audience_accessibility",
+        score,
+        _volume_conf(threads, 15, 5),
+        f"{threads} thread{'s' if threads != 1 else ''} in {len(channels)} place{'s' if len(channels) != 1 else ''} "
+        f"({names}) where people discuss the problem.",
+        [i for c in channels for i in c["evidence_ids"]][:10],
+    )
+
+
 def overall_confidence(items: list[Evidence], dims: list[Dimension]) -> str:
     n = _distinct(items)
     providers = {e.provider for e in items}
@@ -196,7 +221,9 @@ def what_would_change(dims: list[Dimension], items: list[Evidence]) -> list[str]
         tips.append("Clear pain descriptions: queries in the customer's own words (“how do I…”, “tired of…”) surface them.")
     if len({e.provider for e in items}) < 2:
         tips.append("A second kind of source, so findings aren't all from one community.")
-    tips.append("Audience accessibility and product feasibility aren't scored from research yet; customer interviews fill both.")
+    if d["audience_accessibility"].score is None:
+        tips.append("Places where your audience talks: add links to threads from communities they use.")
+    tips.append("Product feasibility isn't scored from research: it's your call, and customer interviews inform it.")
     return tips
 
 
@@ -207,7 +234,7 @@ def score_project(items: list[Evidence], clusters: list[EvidenceCluster], compet
         pain(items, clusters),
         willingness_to_pay(items, competitors),
         competitive_gap(competitors, by_id),
-        Dimension("audience_accessibility", None, "low", "Assessed with the distribution analysis (next release)."),
+        audience_accessibility(items),
         Dimension("product_feasibility", None, "low", "Your judgement: market research can't measure how hard this is to build."),
     ]
     available = [x for x in dims if x.score is not None]

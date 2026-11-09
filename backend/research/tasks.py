@@ -4,6 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 
 from projects.models import Project
+from reports.models import Report
 from research.models import JobStage, ResearchJob
 from research.services import collect_evidence
 
@@ -34,5 +35,9 @@ def run_research_job(self, job_id: str) -> str:
     finally:
         # A failed job returns the project to draft so it can be edited and run again.
         done = job.status in (ResearchJob.Status.COMPLETED, ResearchJob.Status.PARTIALLY_COMPLETED)
-        Project.objects.filter(pk=job.project_id).update(status=Project.Status.COMPLETED if done else Project.Status.DRAFT)
+        # A failed re-run keeps the project's earlier reports reachable.
+        has_report = Report.objects.filter(project_id=job.project_id).exists()
+        Project.objects.filter(pk=job.project_id).update(
+            status=Project.Status.COMPLETED if done or has_report else Project.Status.DRAFT
+        )
     return job.status

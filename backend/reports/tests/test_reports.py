@@ -8,7 +8,7 @@ import pytest
 from evidence.models import Evidence, EvidenceCluster, SourceSnapshot
 from projects.models import IdeaDefinition, MarketProfile, Project
 from reports import competitors as comp_mod
-from reports.models import Competitor, Opportunity, Report
+from reports.models import ChannelRecommendation, Competitor, Opportunity, Report
 from reports.scoring import score_project
 from reports.services import build_report
 from research.ai.client import LLMResult
@@ -142,7 +142,7 @@ def test_scoring_marks_unscorable_dimensions_unavailable(setup):
     dims = {d["key"]: d for d in result["dimensions"]}
     assert dims["competitive_gap"]["score"] is None and dims["product_feasibility"]["score"] is None
     assert dims["demand_evidence"]["score"] > 0 and dims["demand_evidence"]["evidence_ids"]
-    assert result["scored_weight"] == 45  # demand 25 + pain 20; the rest can't be scored from this evidence
+    assert result["scored_weight"] == 55  # demand 25 + pain 20 + audience 10 (one place found); gap, wtp, feasibility unscored
     assert result["confidence"] == "low" and result["recommendation"] == "research_more"
     assert result["what_would_change"]
 
@@ -191,3 +191,83 @@ def test_unclassified_evidence_is_not_a_key_finding(setup):
     ev(project, job, "https://a.test/2", "Unrelated launch post")
     report, _, _ = build_report(job)
     assert report.content["overview"]["key_findings"] == []
+
+
+def test_channels_are_researched_only_with_classified_evidence(setup):
+    project, job = setup
+    project.market.audiences = ["restaurant owners"]
+    project.market.save()
+    ev(
+        project,
+        job,
+        "https://news.ycombinator.com/item?id=1",
+        "As restaurant owners we count stock by hand",
+        category="pain_point",
+        relevance=0.9,
+        classifier_version="v",
+    )
+    ev(
+        project,
+        job,
+        "https://cooking.stackexchange.com/q/2",
+        "Restaurant owner here, inventory takes hours",
+        provider="stackexchange",
+        category="workaround",
+        relevance=0.7,
+        classifier_version="v",
+    )
+    ev(project, job, "https://news.ycombinator.com/item?id=3", "Unrelated launch post")  # unclassified: ignored
+    report, _, _ = build_report(job)
+    d = report.content["distribution"]
+    researched = [c for c in d["channels"] if not c["is_hypothesis"]]
+    assert {c["name"] for c in researched} == {"Hacker News", "Stack Exchange: cooking"}
+    assert all(c["evidence_ids"] for c in researched)
+    hyp = [c for c in d["channels"] if c["is_hypothesis"]]
+    assert hyp and all(c["evidence_count"] == 0 and not c["evidence_ids"] for c in hyp)
+    seg = report.content["audience"]["segments"][0]
+    assert seg["name"] == "restaurant owners" and seg["evidence_count"] == 2 and seg["source"] == "founder"
+    dims = {x["key"]: x for x in report.content["opportunity"]["dimensions"]}
+    assert dims["audience_accessibility"]["available"] and dims["audience_accessibility"]["evidence_ids"]
+    assert d["first_ten_plan"][0]["evidence_ids"]  # step 1 points at the cited threads
+    assert ChannelRecommendation.objects.filter(project=project, is_hypothesis=False).count() == 2
+
+
+def test_no_signal_means_audience_not_scored_and_no_researched_channels(setup):
+    project, job = setup
+    ev(project, job, "https://news.ycombinator.com/item?id=9", "Unrelated")
+    report, _, _ = build_report(job)
+    assert all(c["is_hypothesis"] for c in report.content["distribution"]["channels"])
+    dims = {x["key"]: x for x in report.content["opportunity"]["dimensions"]}
+    assert dims["audience_accessibility"]["score"] is None
+
+
+def test_history_export_and_isolation(api, other_api, other, setup):
+    project, job = setup
+    ev(project, job, "https://a.test/1", "Counting [stock] takes hours", category="pain_point", relevance=0.9, classifier_version="v")
+    first, _, _ = build_report(job)
+    job2 = ResearchJob.objects.create(
+        project=project, idempotency_key="k2", status="COMPLETED", completed_at=datetime.now(UTC), config_snapshot={}
+    )
+    second, _, _ = build_report(job2)
+    hist = api.get(f"/api/reports/{project.id}/history").json()
+    assert [h["id"] for h in hist["results"]] == [second.id, first.id]
+    assert api.get(f"/api/reports/{project.id}?report={first.id}").json()["id"] == first.id
+    assert api.get(f"/api/reports/{project.id}?report=abc").status_code == 404
+    md = api.get(f"/api/reports/{project.id}/export?report={first.id}")
+    assert md.status_code == 200 and md["Content-Type"].startswith("text/markdown")
+    body = md.content.decode()
+    assert "TAM, SAM and SOM unavailable" in body and "https://a.test/1" in body
+    assert other_api.get(f"/api/reports/{project.id}/history").status_code == 404
+    assert other_api.get(f"/api/reports/{project.id}/export").status_code == 404
+    other_report = Report.objects.create(project=Project.objects.create(owner=other, name="Other"), content={})
+    assert api.get(f"/api/reports/{project.id}?report={other_report.id}").status_code == 404
+
+
+def test_completed_project_can_rerun_but_not_while_running(api, setup):
+    project, _ = setup
+    r = api.post("/api/research/jobs", {"project": str(project.id), "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="rerun-1")
+    assert r.status_code == 201
+    project.refresh_from_db()
+    assert project.status == "RESEARCHING"
+    r = api.post("/api/research/jobs", {"project": str(project.id), "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="rerun-2")
+    assert r.status_code == 409

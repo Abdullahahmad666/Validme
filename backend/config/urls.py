@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from accounts.views import ApiKeyViewSet, MeView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
 from projects.views import DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
-from reports.views import ReportView
+from reports.views import ReportExportView, ReportHistoryView, ReportView
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
 
 router = DefaultRouter(trailing_slash=False)
@@ -33,5 +33,7 @@ urlpatterns = [
     path("api/research/sources", SourcesView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),
+    path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),
+    path("api/reports/<str:project_id>/export", ReportExportView.as_view()),
     path("api/", include(router.urls)),
 ]
