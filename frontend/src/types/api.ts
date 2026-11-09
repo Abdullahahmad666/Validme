@@ -106,7 +106,7 @@ export type Estimate = {
   balance: number;
   balance_after: number;
   sufficient: boolean;
-  budget: { queries: number; results_per_query: number; max_usd: number };
+  budget: { queries: number; results_per_query: number };
 };
 
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" | "CANCELLED";
@@ -170,7 +170,7 @@ export type Evidence = {
   author_name: string;
   author_url: string;
   duplicates: number;
-  classification: { category: EvidenceCategory; relevance: number | null; version: string };
+  classification: { category: EvidenceCategory; relevance: number | null; ai_classified: boolean };
   saved_by_user: boolean;
 };
 

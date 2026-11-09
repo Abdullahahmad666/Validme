@@ -1,5 +1,5 @@
 import { Bookmark, BookmarkCheck, Copy, ExternalLink, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import type { Evidence, EvidenceCategory } from "@/types/api";
 
 export const CATEGORY_META: Record<EvidenceCategory, { label: string; className: string }> = {
@@ -27,7 +27,7 @@ export const fmtDate = (d: string | null) => (d ? dateFmt.format(new Date(d)) : 
 
 export function CategoryBadge({ evidence }: { evidence: Evidence }) {
   const meta = CATEGORY_META[evidence.classification.category];
-  const ai = !!evidence.classification.version;
+  const ai = evidence.classification.ai_classified;
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", meta.className)}>
       {ai && <Sparkles className="size-3" aria-hidden />}
@@ -40,7 +40,7 @@ export function CategoryBadge({ evidence }: { evidence: Evidence }) {
 export function SourceLink({ evidence, className }: { evidence: Evidence; className?: string }) {
   return (
     <a
-      href={evidence.source_url}
+      href={safeHref(evidence.source_url)}
       target="_blank"
       rel="noopener noreferrer nofollow"
       className={cn("inline-flex items-start gap-1 font-medium hover:text-primary hover:underline", className)}
@@ -59,7 +59,7 @@ export function Attribution({ evidence }: { evidence: Evidence }) {
     <span>
       {evidence.author_name &&
         (evidence.author_url ? (
-          <a href={evidence.author_url} target="_blank" rel="noopener noreferrer nofollow" className="underline-offset-2 hover:underline">
+          <a href={safeHref(evidence.author_url)} target="_blank" rel="noopener noreferrer nofollow" className="underline-offset-2 hover:underline">
             {evidence.author_name}
           </a>
         ) : (

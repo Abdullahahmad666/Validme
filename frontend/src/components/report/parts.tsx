@@ -1,6 +1,6 @@
 import { ExternalLink, Gauge, Sparkles } from "lucide-react";
 import { CATEGORY_META, PROVIDER_LABELS, fmtDate } from "@/components/evidence/EvidenceCard";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import type { Level, ReportEvidence } from "@/types/report";
 
 export const LEVEL_STYLE: Record<Level, string> = {
@@ -48,7 +48,7 @@ export function EvidenceQuote({ e }: { e: ReportEvidence }) {
   return (
     <li className="rounded-control border border-border p-3">
       <a
-        href={e.source_url}
+        href={safeHref(e.source_url)}
         target="_blank"
         rel="noopener noreferrer nofollow"
         className="inline-flex items-start gap-1 text-sm font-medium hover:text-primary hover:underline"

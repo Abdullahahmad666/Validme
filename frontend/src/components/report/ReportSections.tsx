@@ -7,7 +7,7 @@ import { CATEGORY_META, PROVIDER_LABELS, fmtDate } from "@/components/evidence/E
 import { AiLabel, Cited, ConfidenceBadge, EvidenceQuote, HBar, LEVEL_STYLE, Panel } from "@/components/report/parts";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import type { EvidenceCategory } from "@/types/api";
 import type { Recommendation, Report, ReportCompetitor } from "@/types/report";
 
@@ -288,7 +288,7 @@ export function Competitors({ r }: { r: Report }) {
               </SheetHeader>
               <div className="flex flex-col gap-5 px-4 pb-6 text-sm">
                 {open.website && (
-                  <a href={open.website} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                  <a href={safeHref(open.website)} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
                     {open.website} <ExternalLink className="size-3.5" aria-hidden />
                   </a>
                 )}

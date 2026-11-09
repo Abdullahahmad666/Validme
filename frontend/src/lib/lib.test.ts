@@ -51,3 +51,14 @@ describe("signupSchema", () => {
     expect(signupSchema.safeParse({ email: "a@b.co", password: "long-enough" }).success).toBe(true);
   });
 });
+
+describe("safeHref", () => {
+  it("keeps http(s) links and drops script or data URLs", async () => {
+    const { safeHref } = await import("@/lib/utils");
+    expect(safeHref("https://news.ycombinator.com/item?id=1")).toBe("https://news.ycombinator.com/item?id=1");
+    expect(safeHref("javascript:alert(1)")).toBeUndefined();
+    expect(safeHref("data:text/html,x")).toBeUndefined();
+    expect(safeHref("not a url")).toBeUndefined();
+    expect(safeHref("")).toBeUndefined();
+  });
+});
