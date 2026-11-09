@@ -5,7 +5,11 @@
       "name": "backend",
       "runtimeExecutable": "backend/.venv/Scripts/python",
       "runtimeArgs": ["backend/manage.py", "runserver", "8000", "--noreload"],
-      "env": { "DEBUG": "True", "CELERY_TASK_ALWAYS_EAGER": "True" },
+      "env": {
+        "DEBUG": "True",
+        "CELERY_TASK_ALWAYS_EAGER": "True",
+        "DATABASE_URL": "postgres://validme:validme@localhost:5432/validme"
+      },
       "port": 8000
     },
     {

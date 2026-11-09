@@ -4,6 +4,10 @@ import type {
   DashboardSummary,
   Depth,
   Estimate,
+  Evidence,
+  EvidenceFacets,
+  EvidenceFilters,
+  EvidenceTheme,
   Interpretation,
   Me,
   Paginated,
@@ -51,6 +55,20 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 const json = (body: unknown) => JSON.stringify(body);
+
+/** Query string for the evidence explorer; empty filters are left out. */
+export function evidenceQuery(f: EvidenceFilters): string {
+  const q = new URLSearchParams();
+  if (f.project) q.set("project", f.project);
+  if (f.category?.length) q.set("category", f.category.join(","));
+  if (f.provider) q.set("provider", f.provider);
+  if (f.cluster) q.set("cluster", String(f.cluster));
+  if (f.q?.trim()) q.set("q", f.q.trim());
+  if (f.saved) q.set("saved", "1");
+  if (f.page && f.page > 1) q.set("page", String(f.page));
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
 
 export const api = {
   me: () => request<Me>("/me"),
@@ -100,4 +118,11 @@ export const api = {
   revokeApiKey: (id: number) => request<void>(`/api-keys/${id}`, { method: "DELETE" }),
 
   getSources: () => request<{ results: ResearchSource[] }>("/research/sources"),
+
+  listEvidence: (f: EvidenceFilters) => request<Paginated<Evidence>>(`/evidence${evidenceQuery(f)}`),
+  evidenceFacets: (project?: string) =>
+    request<EvidenceFacets>(`/evidence/facets${project ? `?project=${encodeURIComponent(project)}` : ""}`),
+  listThemes: (project: string) => request<EvidenceTheme[]>(`/evidence/clusters?project=${encodeURIComponent(project)}`),
+  saveEvidence: (id: number, saved: boolean) =>
+    request<Evidence>(`/evidence/${id}`, { method: "PATCH", body: json({ saved_by_user: saved }) }),
 };

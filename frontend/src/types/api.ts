@@ -145,6 +145,66 @@ export type ResearchJob = {
   completed_at: string | null;
 };
 
+export type EvidenceCategory =
+  | "pain_point"
+  | "feature_request"
+  | "alternative_seeking"
+  | "pricing_objection"
+  | "buying_intent"
+  | "workaround"
+  | "positive_feedback"
+  | "irrelevant"
+  | "unclassified";
+
+/** A verbatim source record. `classification` is AI output, kept separate from the source fields. */
+export type Evidence = {
+  id: number;
+  project: string;
+  provider: string;
+  source_url: string;
+  title: string;
+  excerpt: string;
+  published_at: string | null;
+  retrieved_at: string;
+  license: string;
+  author_name: string;
+  author_url: string;
+  duplicates: number;
+  classification: { category: EvidenceCategory; relevance: number | null; version: string };
+  saved_by_user: boolean;
+};
+
+export type EvidenceFacets = {
+  total: number;
+  categories: Partial<Record<EvidenceCategory, number>>;
+  providers: Record<string, number>;
+  saved: number;
+  duplicates: number;
+};
+
+export type EvidenceTheme = {
+  id: number;
+  name: string;
+  category: EvidenceCategory;
+  severity: "low" | "medium" | "high" | "";
+  confidence: "low" | "medium" | "high" | "";
+  ai_summary: string;
+  evidence_ids: number[];
+  distinct_sources: number;
+  providers: string[];
+  created_at: string;
+};
+
+export type EvidenceFilters = {
+  project?: string;
+  category?: EvidenceCategory[];
+  provider?: string;
+  cluster?: number;
+  q?: string;
+  saved?: boolean;
+  page?: number;
+};
+
 export type DashboardSummary = { projects: number; reports: number; evidence: number; active_jobs: number };
 
 export type Me = {

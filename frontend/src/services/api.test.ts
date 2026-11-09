@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, request } from "@/services/api";
+import { ApiError, evidenceQuery, request } from "@/services/api";
 
 function mockFetch(status: number, body?: unknown) {
   const fn = vi.fn().mockResolvedValue(
@@ -48,5 +48,15 @@ describe("request", () => {
   it("returns undefined for 204", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
     await expect(request("/projects/1", { method: "DELETE" })).resolves.toBeUndefined();
+  });
+});
+
+describe("evidenceQuery", () => {
+  it("omits empty filters and joins categories", () => {
+    expect(evidenceQuery({})).toBe("");
+    expect(evidenceQuery({ project: "p1", category: ["pain_point", "workaround"], q: "  stock  ", saved: true, page: 2 })).toBe(
+      "?project=p1&category=pain_point%2Cworkaround&q=stock&saved=1&page=2",
+    );
+    expect(evidenceQuery({ project: "p1", page: 1, saved: false, q: " " })).toBe("?project=p1");
   });
 });

@@ -66,7 +66,10 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | POST | `/research/jobs` | submit (requires `Idempotency-Key`) |
 | GET | `/research/jobs/{id}` | status + stages |
 | GET | `/reports/{project_id}` | full report |
-| GET | `/evidence?project=&category=&q=` | evidence explorer |
+| GET | `/evidence?project=&category=a,b&provider=&cluster=&q=&saved=1&duplicates=1` | evidence explorer (originals only by default, `duplicates` count) |
+| PATCH | `/evidence/{id}` | `saved_by_user` only; source text is never editable |
+| GET | `/evidence/facets?project=` | counts by category / provider / saved / duplicates |
+| GET | `/evidence/clusters?project=` | AI themes with cited evidence ids and computed confidence |
 
 ## Auth
 - **Browser:** django-allauth headless (`/_allauth/browser/v1/...`): email + password signup/login, Google OAuth, email verification. Session cookie + CSRF (`X-CSRFToken`).

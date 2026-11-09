@@ -180,11 +180,18 @@ export function ProgressView({ projectId }: { projectId: string }) {
               })}
             </ul>
           )}
-          {!running && (
-            <p className="mt-5 border-t border-border pt-4 text-xs leading-relaxed text-muted-foreground">
-              Evidence is stored with its source link and dates. Classification, the evidence explorer and the opportunity
-              report arrive in the next releases.
-            </p>
+          {!running && j.status !== "FAILED" && (
+            <div className="mt-5 border-t border-border pt-4">
+              <Link
+                href={`/evidence?project=${projectId}`}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Explore the evidence
+              </Link>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                The opportunity report arrives in a later release.
+              </p>
+            </div>
           )}
         </aside>
       </div>

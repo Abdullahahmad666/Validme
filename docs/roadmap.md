@@ -26,12 +26,12 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Wizard steps 1–4 (RHF + Zod, 800ms autosave, idempotent launch) + research progress page
 - Milestone: submit idea → real results stored ✅ (verified in browser: HN + Stack Exchange evidence stored, 1 credit charged once)
 - [ ] Playwright test for the wizard flow (CLAUDE.md convention)
-- [ ] Verify migrations on local Postgres
+- [x] Verify migrations on local Postgres (all tests pass on Postgres 18)
 
 ## Week 3 — Evidence intelligence
-- [ ] Normalize, dedupe (URL + simhash), classify (7 categories), cluster
-- [ ] Evidence explorer UI
-- Milestone: traceable evidence
+- [x] Normalize, dedupe (URL + simhash), classify (7 categories), cluster — *classify/cluster need `ANTHROPIC_API_KEY`; without it evidence is stored unclassified and says so*
+- [x] Evidence explorer UI (search, category/source/saved filters, themes, duplicates merged, save, CC BY-SA attribution)
+- Milestone: traceable evidence ✅ (verified on Postgres with live Hacker News results)
 
 ## Week 4 — Competitors & opportunity
 - [ ] Competitor profiles + pricing extraction with dates

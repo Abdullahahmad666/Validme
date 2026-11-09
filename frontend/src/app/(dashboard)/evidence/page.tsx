@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/shared/ComingSoon";
+import { Suspense } from "react";
+import { EvidenceExplorer } from "@/components/evidence/EvidenceExplorer";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Evidence explorer" };
 
-export default function EvidenceexplorerPage() {
-  return <ComingSoon title="Evidence explorer" body="Search and filter every evidence record collected for your projects, with a link to each source." />;
+export default function EvidencePage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96" aria-busy="true" />}>
+      <EvidenceExplorer />
+    </Suspense>
+  );
 }
