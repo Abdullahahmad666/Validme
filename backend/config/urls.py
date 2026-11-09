@@ -4,6 +4,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import ApiKeyViewSet, MeView
+from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
 from projects.views import DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
 
@@ -11,6 +12,8 @@ router = DefaultRouter(trailing_slash=False)
 router.register("projects", ProjectViewSet, basename="project")
 router.register("research/jobs", ResearchJobViewSet, basename="research-job")
 router.register("api-keys", ApiKeyViewSet, basename="api-key")
+router.register("evidence/clusters", EvidenceClusterViewSet, basename="evidence-cluster")
+router.register("evidence", EvidenceViewSet, basename="evidence")
 router.register(r"projects/(?P<project_pk>[^/.]+)/queries", ProjectQueryViewSet, basename="project-query")
 
 

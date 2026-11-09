@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from projects.models import Project
 from research.models import ResearchJob
@@ -33,6 +34,7 @@ class Evidence(models.Model):
     author_name = models.CharField(max_length=120, blank=True)
     author_url = models.URLField(max_length=500, blank=True)
     content_hash = models.CharField(max_length=64, db_index=True)
+    simhash = models.CharField(max_length=16, blank=True)  # 64-bit near-duplicate fingerprint (hex)
     duplicate_of = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
     # classification (AI) — kept separate from the source fields above
     category = models.CharField(max_length=24, choices=Category.choices, default=Category.UNCLASSIFIED)
@@ -51,9 +53,12 @@ class EvidenceCluster(models.Model):
     name = models.CharField(max_length=160)
     category = models.CharField(max_length=24, choices=Category.choices)
     evidence = models.ManyToManyField(Evidence, related_name="clusters")
-    severity = models.CharField(max_length=10, blank=True)
-    confidence = models.CharField(max_length=10, blank=True)
+    job = models.ForeignKey(ResearchJob, on_delete=models.CASCADE, null=True, related_name="clusters")
+    severity = models.CharField(max_length=10, blank=True)  # AI judgement, labelled as such in the UI
+    confidence = models.CharField(max_length=10, blank=True)  # computed from evidence volume/diversity, not by AI
     ai_summary = models.TextField(blank=True)
+    prompt_version = models.CharField(max_length=60, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def distinct_sources(self) -> int:
         return self.evidence.filter(duplicate_of__isnull=True).values("source_url").distinct().count()

@@ -142,7 +142,9 @@ def test_stages_record_real_progress(owner_project, monkeypatch):
     assert stages["community_research"].detail == "Fake: 2 found, 2 new"
     assert stages["web_research"].status == "SKIPPED"  # URL provider with no URLs: skipped, not failed
     assert stages["competitor_analysis"].status == "SKIPPED"
-    assert stages["evidence_analysis"].status == "SKIPPED" and stages["evidence_analysis"].detail
+    # Analysis runs; without an AI key it merges duplicates and says evidence stays unclassified.
+    assert stages["evidence_analysis"].status == "COMPLETED"
+    assert "AI unavailable" in stages["evidence_analysis"].detail
     assert job.coverage == {"counting": "COMPLETED", "fake_urls": "SKIPPED"}
     assert job.status == ResearchJob.Status.COMPLETED  # skipped sources don't make a job partial
 

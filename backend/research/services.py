@@ -25,7 +25,6 @@ from research.providers.base import Availability, Budget, EvidenceIn, ProviderEr
 STAGES = ["idea_analysis", "web_research", "community_research", "evidence_analysis", "competitor_analysis", "report"]
 PROVIDER_STAGES = ["web_research", "community_research", "competitor_analysis"]
 NOT_YET_AVAILABLE = {
-    "evidence_analysis": "Classification and clustering arrive in a later release; evidence is stored unclassified.",
     "report": "The opportunity report arrives in a later release.",
 }
 CACHE_TTL = timedelta(days=7)
@@ -231,6 +230,24 @@ def _save_coverage(job: ResearchJob, coverage: dict, detail: dict, spent: float)
     job.save(update_fields=["coverage", "coverage_detail", "cost_usd"])
 
 
+def run_analysis(job: ResearchJob):
+    """evidence_analysis stage: near-duplicates, classification, themes. Returns the LLM cost."""
+    from evidence.analysis import analyze_evidence
+
+    if not Evidence.objects.filter(job=job).exists():
+        set_stage(job, "evidence_analysis", JobStage.Status.SKIPPED, "No new evidence to analyse")
+        return 0
+    set_stage(job, "evidence_analysis", JobStage.Status.PROCESSING, "Merging duplicates, classifying and grouping")
+    result = analyze_evidence(job)
+    status = (
+        JobStage.Status.FAILED
+        if result.classified == 0 and result.unclassified and "AI unavailable" not in " ".join(result.notes)
+        else JobStage.Status.COMPLETED
+    )
+    set_stage(job, "evidence_analysis", status, result.summary())
+    return result.cost_usd
+
+
 def collect_evidence(job: ResearchJob) -> ResearchJob:
     snapshot = job.config_snapshot
     queries = [QueryIn(q["text"], q["intent"]) for q in snapshot.get("queries", [])]
@@ -265,6 +282,8 @@ def collect_evidence(job: ResearchJob) -> ResearchJob:
         labels = {p.key: p.label for p in providers}
         set_stage(job, stage, _stage_status(runs), " · ".join(r.summary(labels[k]) for k, r in runs.items()))
         _save_coverage(job, coverage, detail, spent)  # survives a crash in a later stage
+
+    spent += float(run_analysis(job))
 
     for stage, reason in NOT_YET_AVAILABLE.items():
         set_stage(job, stage, JobStage.Status.SKIPPED, reason)

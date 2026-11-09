@@ -1,9 +1,13 @@
+import logging
+
 from celery import shared_task
 from django.utils import timezone
 
 from projects.models import Project
 from research.models import JobStage, ResearchJob
 from research.services import collect_evidence
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True, max_retries=0)
@@ -18,6 +22,7 @@ def run_research_job(self, job_id: str) -> str:
         # Week 3-5: classify → cluster → competitors → score → distribution → report
         job = collect_evidence(job)
     except Exception:
+        logger.exception("research job %s crashed", job_id)
         # Never leave a job spinning: whatever stage was running is marked failed, visibly.
         JobStage.objects.filter(job=job, status=JobStage.Status.PROCESSING).update(
             status=JobStage.Status.FAILED, detail="Unexpected error", finished_at=timezone.now()
