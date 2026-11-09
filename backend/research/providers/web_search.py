@@ -17,6 +17,8 @@ class WebSearchProvider:
     key = "web_search"
     label = "Web search"
     contributes = "Market demand, relevant articles, forums and competitor pages."
+    stage = "web_research"
+    uses_queries = True
 
     def availability(self) -> Availability:
         return Availability.AVAILABLE if settings.BRAVE_SEARCH_API_KEY else Availability.REQUIRES_CONNECTION

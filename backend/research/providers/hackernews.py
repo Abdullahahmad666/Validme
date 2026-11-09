@@ -19,6 +19,8 @@ class HackerNewsProvider:
     key = "hackernews"
     label = "Hacker News"
     contributes = "Founder and developer discussions, complaints and tool recommendations."
+    stage = "community_research"
+    uses_queries = True
 
     def availability(self) -> Availability:
         return Availability.AVAILABLE

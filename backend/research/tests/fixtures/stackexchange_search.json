@@ -1,0 +1,21 @@
+{
+  "items": [
+    {
+      "item_type": "question",
+      "question_id": 123456,
+      "title": "How do small restaurants keep track of stock without a POS add-on?",
+      "excerpt": "We count everything on a clipboard every Sunday &amp; it takes <span class=\"highlight\">two hours</span>.",
+      "creation_date": 1767225600
+    },
+    {
+      "item_type": "answer",
+      "question_id": 123456,
+      "answer_id": 654321,
+      "title": "How do small restaurants keep track of stock without a POS add-on?",
+      "excerpt": "A shared spreadsheet with par levels worked for us.",
+      "creation_date": 1767312000
+    }
+  ],
+  "has_more": false,
+  "quota_remaining": 280
+}
