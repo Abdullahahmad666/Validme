@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Clock, ExternalLink } from "lucide-react";
+import { ChevronRight, Clock, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
+import { Audience, Distribution } from "@/components/report/DistributionSections";
+import { ExportMenu, HistorySelect, RerunPanel } from "@/components/report/ReportActions";
 import { Competitors, Demand, MarketGaps, Overview, PainPoints } from "@/components/report/ReportSections";
 import { StatusPill } from "@/components/shared/StatusPill";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -14,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
+import type { Report } from "@/types/report";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -26,6 +29,15 @@ const TABS = [
   { key: "distribution", label: "Distribution" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+const SECTIONS: [string, string, (p: { r: Report }) => React.ReactNode][] = [
+  ["overview", "Overview", Overview],
+  ["demand", "Demand", Demand],
+  ["pain-points", "Pain points", PainPoints],
+  ["competitors", "Competitors", Competitors],
+  ["market-gaps", "Market gaps", MarketGaps],
+  ["audience", "Audience", Audience],
+  ["distribution", "Distribution", Distribution],
+];
 
 export function ReportView({ projectId }: { projectId: string }) {
   const params = useSearchParams();
@@ -33,10 +45,36 @@ export function ReportView({ projectId }: { projectId: string }) {
   const pathname = usePathname();
   const tab = (TABS.find((t) => t.key === params.get("tab"))?.key ?? "overview") as TabKey;
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const report = useQuery({ queryKey: ["report", projectId], queryFn: () => api.getReport(projectId), retry: false });
+  const version = Number(params.get("report")) || undefined;
+  const report = useQuery({
+    queryKey: ["report", projectId, version ?? "latest"],
+    queryFn: () => api.getReport(projectId, version),
+    retry: false,
+  });
+  const history = useQuery({ queryKey: ["report-history", projectId], queryFn: () => api.reportHistory(projectId), retry: false });
+  const [rerun, setRerun] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
+  // PDF export: render every section, open the browser's print dialog (Save as PDF), then restore the tabs.
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(false);
+    window.addEventListener("afterprint", done, { once: true });
+    const t = window.setTimeout(() => window.print(), 50);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [printing]);
+
+  const go = (next: { tab?: TabKey; report?: number | null }) => {
+    const q = new URLSearchParams({ tab: next.tab ?? tab });
+    const v = next.report === undefined ? version : next.report;
+    if (v) q.set("report", String(v));
+    router.replace(`${pathname}?${q}`, { scroll: false });
+  };
   const select = (key: TabKey, focus = false) => {
-    router.replace(`${pathname}?tab=${key}`, { scroll: false });
+    go({ tab: key });
     if (focus) refs.current[TABS.findIndex((t) => t.key === key)]?.focus();
   };
 
@@ -98,21 +136,51 @@ export function ReportView({ projectId }: { projectId: string }) {
             ))}
           </ul>
         )}
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled title="Export arrives with report history">
-            Export
-          </Button>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <ExportMenu projectId={projectId} reportId={r.id} onPrint={() => setPrinting(true)} />
+          {r.project.status === "COMPLETED" && (
+            <Button variant="outline" onClick={() => setRerun((v) => !v)} aria-expanded={rerun}>
+              <RefreshCw aria-hidden /> Re-run
+            </Button>
+          )}
           <Button asChild variant="ghost">
             <Link href={`/projects/${projectId}/progress`}>Research details</Link>
           </Button>
+          <HistorySelect
+            versions={history.data?.results ?? []}
+            value={r.id}
+            onChange={(id) => go({ report: id === history.data?.results[0]?.id ? null : id })}
+          />
         </div>
+        {version && history.data && history.data.results[0]?.id !== r.id && (
+          <p className="rounded-control bg-warning/10 px-3 py-2 text-sm text-warning-text print:hidden">
+            You&apos;re viewing an earlier version.{" "}
+            <button type="button" className="font-medium underline" onClick={() => go({ report: null })}>
+              Go to the latest
+            </button>
+          </p>
+        )}
       </header>
+
+      {rerun && <RerunPanel projectId={projectId} onClose={() => setRerun(false)} />}
+
+      {printing && (
+        <div className="flex flex-col gap-8">
+          {SECTIONS.map(([key, label, Section]) => (
+            <section key={key} className="break-inside-avoid-page">
+              <h2 className="mb-3 text-xl font-semibold">{label}</h2>
+              <Section r={r} />
+            </section>
+          ))}
+        </div>
+      )}
 
       {/* Tabs: keep header context; horizontal scroll on mobile; arrow keys move between tabs. */}
       <div
         role="tablist"
         aria-label="Report sections"
-        className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:mx-0 sm:px-0"
+        hidden={printing}
+        className="-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 print:hidden"
         onKeyDown={(e) => {
           const i = TABS.findIndex((t) => t.key === tab);
           if (e.key === "ArrowRight") select(TABS[(i + 1) % TABS.length].key, true);
@@ -141,7 +209,7 @@ export function ReportView({ projectId }: { projectId: string }) {
         ))}
       </div>
 
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} hidden={printing}>
         {tab === "overview" && <Overview r={r} />}
         {tab === "demand" && <Demand r={r} />}
         {tab === "evidence" && (
@@ -159,12 +227,8 @@ export function ReportView({ projectId }: { projectId: string }) {
         {tab === "pain-points" && <PainPoints r={r} />}
         {tab === "competitors" && <Competitors r={r} />}
         {tab === "market-gaps" && <MarketGaps r={r} />}
-        {(tab === "audience" || tab === "distribution") && (
-          <EmptyState
-            title={tab === "audience" ? "Audience segments" : "Distribution plan"}
-            body="Coming in the next release: audience segments, channels marked Researched or Hypothesis, and a first-10-customers plan."
-          />
-        )}
+        {tab === "audience" && <Audience r={r} />}
+        {tab === "distribution" && <Distribution r={r} />}
       </div>
 
       {r.notes.length > 0 && (

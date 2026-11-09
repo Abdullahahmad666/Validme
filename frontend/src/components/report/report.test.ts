@@ -1,12 +1,14 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { Audience, Distribution } from "@/components/report/DistributionSections";
 import { Competitors, MarketGaps, Overview } from "@/components/report/ReportSections";
 import type { Report } from "@/types/report";
 
 const ev = { id: 1, title: "Counting takes hours", excerpt: "We count stock by hand", source_url: "https://a.test/1", provider: "hackernews", published_at: "2026-10-01", category: "pain_point" as const };
 
 const report: Report = {
+  id: 7,
   project: { id: "p1", name: "Restaurant stock", status: "COMPLETED", industry: "Food", audiences: [], geographies: ["UK"] },
   created_at: "2026-11-01T00:00:00Z",
   generated_at: "2026-11-01T00:00:00Z",
@@ -30,6 +32,28 @@ const report: Report = {
     ],
     scored_weight: 25, assumptions: [{ text: "Customers will pay about $29/month.", source: "founder" }], risks: [],
     market_size: { status: "unavailable", reason: "No sourced market data." }, what_would_change: ["More sources"],
+  },
+  audience: {
+    segments: [
+      {
+        name: "restaurant owners",
+        source: "founder",
+        evidence_count: 1,
+        evidence_ids: [1],
+        signals: { pain_point: 1 },
+        needs: [],
+        channels: ["Hacker News"],
+        accessibility: "Named in 1 record across 1 place we searched.",
+      },
+    ],
+  },
+  distribution: {
+    channels: [
+      { key: "news.ycombinator.com", name: "Hacker News", is_hypothesis: false, evidence_count: 1, threads: 1, latest: "2026-10-01", categories: { pain_point: 1 }, relevance: "low", recommendation: "Read them.", evidence_ids: [1] },
+      { key: "hypothesis-0", name: "Your own network", is_hypothesis: true, evidence_count: 0, threads: 0, latest: null, categories: {}, relevance: "", recommendation: "People you know.", evidence_ids: [] },
+    ],
+    threads: [ev],
+    first_ten_plan: [{ title: "List 30 people", detail: "Write the list yourself.", evidence_ids: [1], ai: false }],
   },
   evidence_index: { "1": ev },
   notes: [],
@@ -55,5 +79,17 @@ describe("report sections", () => {
     expect(out).toContain("Not scored");
     expect(out).toContain("TAM, SAM and SOM: unavailable");
     expect(out).toContain("(yours)");
+  });
+  it("labels researched vs hypothesis channels; hypotheses carry no evidence count", () => {
+    const out = html(Distribution);
+    expect(out).toContain("Researched");
+    expect(out).toContain("Hypothesis");
+    expect(out).toContain("Not searched: no supporting evidence");
+    expect(out).toContain("nothing is sent for you");
+  });
+  it("shows segments, and says when an older report has no audience data", () => {
+    expect(html(Audience)).toContain("restaurant owners");
+    const old = renderToStaticMarkup(createElement(Audience, { r: { ...report, audience: undefined } }));
+    expect(old).toContain("Re-run the research");
   });
 });

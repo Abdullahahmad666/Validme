@@ -13,16 +13,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AuthGuard>
       <div className="flex min-h-screen">
         {/* Nav reads the URL for its active state; Suspense keeps dynamic routes prerenderable. */}
-        <Suspense fallback={<div className="hidden w-16 shrink-0 border-r border-border bg-card md:block lg:w-[250px]" />}>
-          <AppSidebar />
-        </Suspense>
+        {/* Chrome is hidden when printing (report PDF export). */}
+        <div className="contents print:hidden">
+          <Suspense fallback={<div className="hidden w-16 shrink-0 border-r border-border bg-card md:block lg:w-[250px]" />}>
+            <AppSidebar />
+          </Suspense>
+        </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <AppHeader />
+          <div className="print:hidden">
+            <AppHeader />
+          </div>
           <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-8 lg:px-8">{children}</main>
         </div>
-        <Suspense>
-          <MobileNav />
-        </Suspense>
+        <div className="contents print:hidden">
+          <Suspense>
+            <MobileNav />
+          </Suspense>
+        </div>
       </div>
     </AuthGuard>
   );

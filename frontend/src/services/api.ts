@@ -1,5 +1,5 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
-import type { Report } from "@/types/report";
+import type { Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
   DashboardSummary,
@@ -104,10 +104,10 @@ export const api = {
 
   getEstimate: (projectId: string, depth: Depth) =>
     request<Estimate>(`/research/estimate?project=${encodeURIComponent(projectId)}&depth=${depth}`),
-  createJob: (projectId: string, idempotencyKey: string) =>
+  createJob: (projectId: string, idempotencyKey: string, depth?: Depth) =>
     request<ResearchJob>("/research/jobs", {
       method: "POST",
-      body: json({ project: projectId }),
+      body: json(depth ? { project: projectId, depth } : { project: projectId }),
       headers: { "Idempotency-Key": idempotencyKey },
     }),
   listJobs: (projectId: string) => request<Paginated<ResearchJob>>(`/research/jobs?project=${encodeURIComponent(projectId)}`),
@@ -124,7 +124,13 @@ export const api = {
   evidenceFacets: (project?: string) =>
     request<EvidenceFacets>(`/evidence/facets${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   listThemes: (project: string) => request<EvidenceTheme[]>(`/evidence/clusters?project=${encodeURIComponent(project)}`),
-  getReport: (projectId: string) => request<Report>(`/reports/${encodeURIComponent(projectId)}`),
+  getReport: (projectId: string, reportId?: number) =>
+    request<Report>(`/reports/${encodeURIComponent(projectId)}${reportId ? `?report=${reportId}` : ""}`),
+  reportHistory: (projectId: string) => request<{ count: number; results: ReportVersion[] }>(`/reports/${encodeURIComponent(projectId)}/history`),
   saveEvidence: (id: number, saved: boolean) =>
     request<Evidence>(`/evidence/${id}`, { method: "PATCH", body: json({ saved_by_user: saved }) }),
 };
+
+/** Same-origin download link (session cookie travels with it); the browser saves the Markdown file. */
+export const reportExportUrl = (projectId: string, reportId?: number) =>
+  `/api/reports/${encodeURIComponent(projectId)}/export${reportId ? `?report=${reportId}` : ""}`;

@@ -60,7 +60,44 @@ export type ReportCompetitor = {
 
 export type Recommendation = "build" | "research_more" | "pivot";
 
+export type Channel = {
+  key: string;
+  name: string;
+  is_hypothesis: boolean;
+  evidence_count: number;
+  threads: number;
+  latest: string | null;
+  categories: Partial<Record<EvidenceCategory, number>>;
+  relevance: Level | "";
+  recommendation: string;
+  evidence_ids: number[];
+};
+
+export type Segment = {
+  name: string;
+  source: "founder" | "ai";
+  evidence_count: number;
+  evidence_ids: number[];
+  signals: Partial<Record<EvidenceCategory, number>>;
+  needs: { text: string; evidence_ids: number[]; ai: boolean }[];
+  channels: string[];
+  accessibility: string;
+};
+
+export type PlanStep = { title: string; detail: string; evidence_ids: number[]; ai: boolean };
+
+export type ReportVersion = {
+  id: number;
+  created_at: string;
+  depth: string;
+  score: number | null;
+  confidence: Level | "";
+  recommendation: Recommendation | "";
+  evidence_count: number;
+};
+
 export type Report = {
+  id: number;
   project: { id: string; name: string; status: ProjectStatus; industry: string; audiences: string[]; geographies: string[] };
   created_at: string;
   generated_at: string | null;
@@ -93,6 +130,9 @@ export type Report = {
     market_size: { status: "unavailable" | "estimated"; reason?: string };
     what_would_change: string[];
   };
+  // Absent on reports built before Week 5.
+  audience?: { segments: Segment[] };
+  distribution?: { channels: Channel[]; threads: ReportEvidence[]; first_ten_plan: PlanStep[] };
   evidence_index: Record<string, ReportEvidence>;
   notes: string[];
 };
