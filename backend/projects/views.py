@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -12,6 +14,7 @@ from projects.services import dashboard_summary
 from research.ai import client as llm
 from research.ai.tasks import generate_queries, interpret_idea
 from research.models import ResearchQuery
+from research.views import parse_uuid
 
 
 class AIUnavailable(APIException):
@@ -72,7 +75,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def generate_queries(self, request, pk=None):
         """Generate search queries for all intents, or regenerate one group with {"intent": "..."}."""
         project = self._draft()
-        intent = request.data.get("intent") or None
+        intent = (request.data.get("intent") if isinstance(request.data, dict) else None) or None
         if intent is not None and intent not in ResearchQuery.Intent.values:
             raise ValidationError({"intent": f"Must be one of {', '.join(ResearchQuery.Intent.values)}."})
         _run_ai(generate_queries, project, intent=intent)
@@ -94,8 +97,11 @@ class ProjectQueryViewSet(
     MAX_QUERIES = 40
 
     def _project(self) -> Project:
-        # Owner isolation: a project that isn't yours is a 404.
-        return get_object_or_404(Project, pk=self.kwargs["project_pk"], owner=self.request.user)
+        # Owner isolation: a project that isn't yours (or a malformed id) is a 404.
+        project_id = parse_uuid(self.kwargs["project_pk"])
+        if project_id is None:
+            raise Http404
+        return get_object_or_404(Project, pk=project_id, owner=self.request.user)
 
     def get_queryset(self):
         return ResearchQuery.objects.filter(project=self._project())
@@ -104,8 +110,10 @@ class ProjectQueryViewSet(
         if project.status != Project.Status.DRAFT:
             raise ValidationError({"status": "Only draft projects can be changed."})
 
+    @transaction.atomic
     def perform_create(self, serializer):
         project = self._project()
+        Project.objects.select_for_update().filter(pk=project.pk).first()  # serialize the cap check
         self._ensure_draft(project)
         if ResearchQuery.objects.filter(project=project).count() >= self.MAX_QUERIES:
             raise ValidationError({"queries": f"A project can have at most {self.MAX_QUERIES} queries."})

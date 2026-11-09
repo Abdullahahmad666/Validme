@@ -30,7 +30,15 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 
 class LLMError(Exception):
-    """Base class: the caller records a failed stage or marks items unclassified. Never fabricate."""
+    """Base class: the caller records a failed stage or marks items unclassified. Never fabricate.
+
+    `cost_usd` / `model` carry what was already spent on failed attempts so it still gets recorded.
+    """
+
+    def __init__(self, message: str = "", *, cost_usd: Decimal = Decimal("0"), model: str = "") -> None:
+        super().__init__(message)
+        self.cost_usd = cost_usd
+        self.model = model
 
 
 class LLMNotConfigured(LLMError):
@@ -60,7 +68,8 @@ def is_configured() -> bool:
 
 @lru_cache(maxsize=1)
 def _anthropic_client() -> anthropic.Anthropic:
-    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=120.0, max_retries=2)
+    # Drafting calls run inside a web request: bound them tightly (no SDK retries, 45 s each).
+    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=45.0, max_retries=0)
 
 
 def cost_for(model: str, input_tokens: int, output_tokens: int) -> Decimal:
@@ -115,8 +124,14 @@ def complete_json(
     validator = jsonschema.Draft202012Validator(schema)
     total_in = total_out = 0
     last_error = ""
+    model = settings.LLM_MODEL
     for _attempt in range(2):
-        text, response = _call_anthropic(system, prompt, schema, max_tokens)
+        try:
+            text, response = _call_anthropic(system, prompt, schema, max_tokens)
+        except LLMError as exc:
+            exc.cost_usd, exc.model = cost_for(model, total_in, total_out), model
+            raise
+        model = response.model
         total_in += response.usage.input_tokens
         total_out += response.usage.output_tokens
         try:
@@ -132,4 +147,6 @@ def complete_json(
             output_tokens=total_out,
             cost_usd=cost_for(response.model, total_in, total_out),
         )
-    raise LLMInvalidOutput(f"output failed schema validation twice: {last_error}")
+    raise LLMInvalidOutput(
+        f"output failed schema validation twice: {last_error}", cost_usd=cost_for(model, total_in, total_out), model=model
+    )

@@ -42,11 +42,12 @@ function initialMarket(project: Project): { values: MarketForm; flags: AISuggest
   const untouched = !values.industry && !values.customer_type && !values.audiences.length && !values.geographies.length;
   if (untouched && flags.length === 0 && hasInterpretation(project)) {
     const ai = project.ai_interpretation;
-    if (ai.industry) {
+    const known = (v: string) => !!v && !["unknown", "unclear"].includes(v.toLowerCase());
+    if (known(ai.industry)) {
       values.industry = ai.industry;
       flags.push("industry");
     }
-    if (ai.customer_type) {
+    if (ai.customer_type !== "unknown") {
       values.customer_type = ai.customer_type;
       flags.push("customer_type");
     }

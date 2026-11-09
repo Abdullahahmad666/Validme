@@ -28,6 +28,10 @@ class Evidence(models.Model):
     published_at = models.DateField(null=True, blank=True)
     retrieved_at = models.DateTimeField()
     author_hash = models.CharField(max_length=64, blank=True)
+    # Attribution, where the source's licence requires it (e.g. Stack Exchange, CC BY-SA).
+    license = models.CharField(max_length=40, blank=True)
+    author_name = models.CharField(max_length=120, blank=True)
+    author_url = models.URLField(max_length=500, blank=True)
     content_hash = models.CharField(max_length=64, db_index=True)
     duplicate_of = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True)
     # classification (AI) — kept separate from the source fields above

@@ -22,6 +22,7 @@ class _UrlPageProvider:
     stage = "web_research"
     config_key = ""  # which list in the job snapshot holds this provider's URLs
     uses_queries = False
+    prefer_description = True  # competitor pages: the meta description is their own positioning
 
     def availability(self) -> Availability:
         return Availability.AVAILABLE
@@ -50,8 +51,9 @@ class _UrlPageProvider:
 
     def normalize(self, raw: RawResult) -> EvidenceIn:
         d = raw.data
-        # Excerpt is the page's own words: meta description first, then the start of the visible text.
-        excerpt = d["description"] or d["text"]
+        # Excerpt is the page's own words. Threads/reviews: the visible text (the meta description is
+        # often site boilerplate). Competitor pages: their meta description, then the visible text.
+        excerpt = (d["description"] or d["text"]) if self.prefer_description else (d["text"] or d["description"])
         return EvidenceIn(
             provider=self.key,
             source_url=d["url"],
@@ -67,6 +69,7 @@ class UserUrlsProvider(_UrlPageProvider):
     contributes = "Threads, reviews or articles you found yourself."
     stage = "web_research"
     config_key = "evidence_urls"
+    prefer_description = False
 
 
 class CompetitorPagesProvider(_UrlPageProvider):

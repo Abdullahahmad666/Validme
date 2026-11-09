@@ -19,7 +19,8 @@ const STAGE: Record<StageStatus, { label: string; icon: typeof Clock; className:
 };
 
 const COVERAGE: Record<CoverageStatus, { label: string; icon: typeof Clock; className: string }> = {
-  COMPLETED: { label: "Searched", icon: CheckCircle2, className: "text-success-text" },
+  COMPLETED: { label: "Done", icon: CheckCircle2, className: "text-success-text" },
+  PARTIAL: { label: "Partly done", icon: AlertTriangle, className: "text-warning-text" },
   FAILED: { label: "Failed", icon: XCircle, className: "text-destructive-text" },
   UNAVAILABLE: { label: "Unavailable", icon: Ban, className: "text-muted-strong" },
   SKIPPED: { label: "Nothing to read", icon: MinusCircle, className: "text-muted-strong" },
@@ -64,7 +65,10 @@ export function ProgressView({ projectId }: { projectId: string }) {
     );
   }
   const running = j.status === "PENDING" || j.status === "RUNNING";
-  const failedSources = Object.entries(j.coverage).filter(([, v]) => v === "FAILED").map(([k]) => label(k));
+  const byStatus = (s: CoverageStatus) => Object.entries(j.coverage).filter(([, v]) => v === s).map(([k]) => label(k));
+  const failedSources = byStatus("FAILED");
+  const partialSources = byStatus("PARTIAL");
+  const unavailableSources = byStatus("UNAVAILABLE");
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,16 +95,21 @@ export function ProgressView({ projectId }: { projectId: string }) {
         </p>
       </header>
 
-      {j.status === "PARTIALLY_COMPLETED" && failedSources.length > 0 && (
-        <p className="flex items-start gap-2 rounded-control border border-warning/30 bg-warning/[0.06] p-3 text-sm">
+      {j.status === "PARTIALLY_COMPLETED" && (
+        <div className="flex items-start gap-2 rounded-control border border-warning/30 bg-warning/[0.06] p-3 text-sm">
           <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-text" aria-hidden />
-          {failedSources.join(", ")} couldn&apos;t be searched. Everything else ran, and results will say what&apos;s missing.
-        </p>
+          <ul className="flex flex-col gap-1">
+            {failedSources.length > 0 && <li>Failed: {failedSources.join(", ")}.</li>}
+            {partialSources.length > 0 && <li>Only partly searched: {partialSources.join(", ")} (see notes below).</li>}
+            {unavailableSources.length > 0 && <li>Not available, so not searched: {unavailableSources.join(", ")}.</li>}
+          </ul>
+        </div>
       )}
       {j.status === "FAILED" && (
         <p className="flex items-start gap-2 rounded-control border border-destructive/30 bg-destructive/[0.05] p-3 text-sm">
           <XCircle className="mt-0.5 size-4 shrink-0 text-destructive-text" aria-hidden />
-          No source returned results. The project is back in draft so you can adjust sources or queries.
+          No source could be searched successfully. Your credits went to a run that found nothing, and the project is back
+          in draft so you can adjust sources or queries.
           <Link href={`/research/new?project=${projectId}&step=3`} className="font-medium text-primary underline">
             Adjust setup
           </Link>
@@ -142,13 +151,30 @@ export function ProgressView({ projectId }: { projectId: string }) {
             <ul className="mt-3 flex flex-col gap-2.5 text-sm">
               {Object.entries(j.coverage).map(([key, status]) => {
                 const c = COVERAGE[status];
+                const d = j.coverage_detail?.[key];
                 return (
-                  <li key={key} className="flex items-center justify-between gap-3">
-                    <span>{label(key)}</span>
-                    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", c.className)}>
-                      <c.icon className="size-3.5" aria-hidden />
-                      {c.label}
+                  <li key={key} className="flex flex-col gap-1">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>{label(key)}</span>
+                      <span className={cn("inline-flex items-center gap-1 text-xs font-medium", c.className)}>
+                        <c.icon className="size-3.5" aria-hidden />
+                        {c.label}
+                      </span>
                     </span>
+                    {d && (status === "COMPLETED" || status === "PARTIAL") && (
+                      <span className="text-xs text-muted-foreground">
+                        {d.found} found, {d.stored} new{d.excluded ? `, ${d.excluded} excluded` : ""}
+                      </span>
+                    )}
+                    {d?.notes.length ? (
+                      <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                        {d.notes.slice(0, 5).map((n) => (
+                          <li key={n} className="break-words">
+                            {n}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 );
               })}

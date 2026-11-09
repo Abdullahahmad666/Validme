@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import html
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, Protocol
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
 class Availability(StrEnum):
@@ -52,6 +55,9 @@ class EvidenceIn:
     retrieved_at: datetime
     published_at: date | None = None
     author_hash: str = ""
+    license: str = ""
+    author_name: str = ""
+    author_url: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -74,6 +80,27 @@ class ResearchProvider(Protocol):
     def search(self, query: QueryIn, budget: Budget) -> list[RawResult]: ...
 
     def normalize(self, raw: RawResult) -> EvidenceIn: ...
+
+
+_TRACKING_PARAMS = ("utm_", "fbclid", "gclid", "mc_cid", "mc_eid", "ref_src")
+
+
+def normalize_url(url: str) -> str:
+    """Canonical form for dedupe: lowercase host, no fragment, no tracking params, no trailing slash."""
+    parts = urlsplit(url.strip())
+    query = urlencode(
+        [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if not k.lower().startswith(_TRACKING_PARAMS)]
+    )
+    path = parts.path.rstrip("/") or "/"
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), path, query, ""))
+
+
+_TAG = re.compile(r"<[^>]+>")
+
+
+def strip_html(text: str) -> str:
+    """Source text without markup: tags removed, entities decoded, whitespace collapsed."""
+    return " ".join(html.unescape(_TAG.sub(" ", text or "")).split())
 
 
 def clip(text: str, limit: int = 500) -> str:

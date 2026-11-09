@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import httpx
 from django.conf import settings
 
-from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, clip
+from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, clip, strip_html
 
 API = "https://api.search.brave.com/res/v1/web/search"
 COST_PER_QUERY_USD = 0.005  # list price; verify on Brave's pricing page and update
@@ -41,7 +41,8 @@ class WebSearchProvider:
         return EvidenceIn(
             provider=self.key,
             source_url=r["url"],
-            title=r.get("title", ""),
-            excerpt=clip(r.get("description", "")),
+            title=strip_html(r.get("title", "")),
+            # Brave wraps matched words in <strong> and escapes entities: store the plain source text.
+            excerpt=clip(strip_html(r.get("description", ""))),
             retrieved_at=datetime.now(UTC),
         )

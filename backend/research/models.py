@@ -26,7 +26,10 @@ class ResearchJob(models.Model):
     depth = models.CharField(max_length=10, choices=Depth.choices, default=Depth.STANDARD)
     idempotency_key = models.CharField(max_length=80)
     config_snapshot = models.JSONField(default=dict)  # exact sources/queries/competitors used
-    coverage = models.JSONField(default=dict)  # provider_key -> COMPLETED | FAILED | UNAVAILABLE | SKIPPED
+    coverage = models.JSONField(default=dict)  # provider_key -> COMPLETED | PARTIAL | FAILED | UNAVAILABLE | SKIPPED
+    # provider_key -> {"found", "stored", "excluded", "queries_ok", "queries_total", "notes"}: what each
+    # source actually did, shown on the progress page so nothing is skipped silently.
+    coverage_detail = models.JSONField(default=dict)
     credits_charged = models.PositiveIntegerField(default=0)
     cost_usd = models.DecimalField(max_digits=10, decimal_places=4, default=0)
     created_at = models.DateTimeField(auto_now_add=True)

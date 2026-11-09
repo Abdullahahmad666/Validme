@@ -160,7 +160,8 @@ def test_search_cache_serves_repeat_queries(owner_project, monkeypatch):
     collect_evidence(_job(owner_project, ["counting"]))
     job2 = collect_evidence(_job(owner_project, ["counting"]))
     assert counting.calls == 1  # second job hit the 7-day cache
-    assert "from cache" in job2.stages.get(name="community_research").detail
+    # ...but cache hits are never shown: that would reveal another user's recent searches.
+    assert "cache" not in job2.stages.get(name="community_research").detail
 
 
 def test_exclude_terms_filter_evidence(owner_project, monkeypatch):

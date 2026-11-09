@@ -14,7 +14,7 @@ from django.db import transaction
 from billing.models import UsageTransaction
 from projects.models import Project
 from research.ai import prompts
-from research.ai.client import LLMResult, complete_json
+from research.ai.client import LLMError, LLMResult, complete_json
 from research.models import ResearchQuery
 
 INTERPRET_PROMPT = "interpret_v1"
@@ -49,7 +49,8 @@ INTERPRETATION_SCHEMA = {
         "target_customers": _list({"type": "string", "minLength": 1, "maxLength": 120}, 5),
         "category": {"type": "string", "minLength": 1, "maxLength": 80},
         "industry": {"type": "string", "minLength": 1, "maxLength": 120},
-        "customer_type": {"type": "string", "enum": ["B2B", "B2C", "B2B2C"]},
+        # "unknown" is a valid answer: the model must not guess what the founder didn't say.
+        "customer_type": {"type": "string", "enum": ["B2B", "B2C", "B2B2C", "unknown"]},
         "suggested_audiences": _list({"type": "string", "minLength": 1, "maxLength": 120}, 6),
         "suggested_geographies": _list({"type": "string", "minLength": 1, "maxLength": 80}, 6),
         "assumptions": _list({"type": "string", "minLength": 1, "maxLength": 200}, 6),
@@ -82,8 +83,23 @@ QUERIES_SCHEMA = {
 }
 
 
-def _record_cost(project: Project, operation: str, result: LLMResult) -> None:
-    UsageTransaction.objects.create(user=project.owner, operation=operation, credits=0, cost_usd=result.cost_usd)
+def _record_cost(project: Project, operation: str, cost_usd) -> None:
+    UsageTransaction.objects.create(user=project.owner, operation=operation, credits=0, cost_usd=cost_usd)
+
+
+def _complete(project: Project, operation: str, prompt: str, schema: dict) -> LLMResult:
+    """complete_json that records spend on the ledger even when the call fails."""
+    try:
+        return complete_json(prompt, schema, system=SYSTEM, max_tokens=4000)
+    except LLMError as exc:
+        if exc.cost_usd:
+            _record_cost(project, f"{operation}_failed", exc.cost_usd)
+        raise
+
+
+def _quote(text: str) -> str:
+    """Founder text goes inside <tags> in prompts; escape '<' so it can't close or open a tag."""
+    return text.replace("<", "&lt;")
 
 
 def _idea_text(project: Project) -> str:
@@ -93,20 +109,20 @@ def _idea_text(project: Project) -> str:
         parts.append(f"Additional context: {idea.additional_context}")
     if idea.existing_product_url:
         parts.append(f"Existing product: {idea.existing_product_url}")
-    return "\n".join(parts)
+    return _quote("\n".join(parts))
 
 
 def interpret_idea(project: Project) -> dict:
     """Store and return the AI interpretation. Never touches the founder's own fields."""
     template, version = prompts.load(INTERPRET_PROMPT)
-    result = complete_json(template.format(idea=_idea_text(project)), INTERPRETATION_SCHEMA, system=SYSTEM, max_tokens=4000)
+    result = _complete(project, "ai_interpret", template.format(idea=_idea_text(project)), INTERPRETATION_SCHEMA)
     with transaction.atomic():
         idea = project.idea
         idea.ai_interpretation = result.data
-        idea.ai_prompt_version = version
+        idea.ai_prompt_version = f"{version}@{result.model}"[:40]
         idea.user_confirmed = False
         idea.save(update_fields=["ai_interpretation", "ai_prompt_version", "user_confirmed"])
-        _record_cost(project, "ai_interpret", result)
+        _record_cost(project, "ai_interpret", result.cost_usd)
     return result.data
 
 
@@ -122,7 +138,7 @@ def _market_text(project: Project) -> str:
         "Current alternatives": m.current_alternatives,
     }
     lines = [f"{k}: {v}" for k, v in fields.items() if v]
-    return "\n".join(lines) or "Not specified yet."
+    return _quote("\n".join(lines)) or "Not specified yet."
 
 
 def generate_queries(project: Project, intent: str | None = None, per_intent: int = 3) -> list[ResearchQuery]:
@@ -139,10 +155,11 @@ def generate_queries(project: Project, intent: str | None = None, per_intent: in
         intent_note=intent_note,
     )
     if project.idea.ai_interpretation:
-        prompt += f"\n<interpretation>\n{json.dumps(project.idea.ai_interpretation)}\n</interpretation>\n"
-    result = complete_json(prompt, QUERIES_SCHEMA, system=SYSTEM, max_tokens=4000)
+        prompt += f"\n<interpretation>\n{_quote(json.dumps(project.idea.ai_interpretation))}\n</interpretation>\n"
+    result = _complete(project, "ai_queries", prompt, QUERIES_SCHEMA)
 
-    items = result.data["queries"]
+    # Search operators aren't allowed (the prompt says so; enforce it rather than trust it).
+    items = [q for q in result.data["queries"] if "site:" not in q["text"].lower()]
     if intent:
         items = [q for q in items if q["intent"] == intent]
     seen: set[str] = set()
@@ -160,9 +177,15 @@ def generate_queries(project: Project, intent: str | None = None, per_intent: in
         stale.delete()
         created = ResearchQuery.objects.bulk_create(
             [
-                ResearchQuery(project=project, text=q["text"][:200], intent=q["intent"], ai_generated=True, prompt_version=version)
+                ResearchQuery(
+                    project=project,
+                    text=q["text"][:200],
+                    intent=q["intent"],
+                    ai_generated=True,
+                    prompt_version=f"{version}@{result.model}"[:40],
+                )
                 for q in unique
             ]
         )
-        _record_cost(project, "ai_queries", result)
+        _record_cost(project, "ai_queries", result.cost_usd)
     return created

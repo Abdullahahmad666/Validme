@@ -1,19 +1,20 @@
 {
   "items": [
     {
-      "item_type": "question",
       "question_id": 123456,
-      "title": "How do small restaurants keep track of stock without a POS add-on?",
-      "excerpt": "We count everything on a clipboard every Sunday &amp; it takes <span class=\"highlight\">two hours</span>.",
-      "creation_date": 1767225600
+      "link": "https://softwarerecs.stackexchange.com/questions/123456/stock-counting-for-a-small-restaurant",
+      "title": "Stock counting for a small restaurant &amp; caf&eacute;",
+      "body": "<p>We count everything on a clipboard every Sunday &amp; it takes <strong>two hours</strong>.</p>",
+      "creation_date": 1767225600,
+      "owner": {"display_name": "Sam &amp; Co", "link": "https://softwarerecs.stackexchange.com/users/42/sam", "user_type": "registered"}
     },
     {
-      "item_type": "answer",
-      "question_id": 123456,
-      "answer_id": 654321,
-      "title": "How do small restaurants keep track of stock without a POS add-on?",
-      "excerpt": "A shared spreadsheet with par levels worked for us.",
-      "creation_date": 1767312000
+      "question_id": 654321,
+      "link": "https://softwarerecs.stackexchange.com/questions/654321/simple-par-level-tracker",
+      "title": "Simple par level tracker?",
+      "body": "<p>A shared spreadsheet with par levels kind of works for us.</p>",
+      "creation_date": 1767312000,
+      "owner": {"user_type": "does_not_exist"}
     }
   ],
   "has_more": false,

@@ -14,7 +14,9 @@ Rules:
 - `assumptions` are the beliefs the idea depends on that research should test, phrased so evidence
   could support or contradict them (e.g. "Owners will pay monthly to save time on stock counts").
 - `suggested_geographies` only when the idea implies a market; otherwise return an empty list.
-- If the idea is too vague to tell something, say so in `clarifying_questions` rather than guessing.
+- If the idea is too vague to tell something, say so in `clarifying_questions` rather than guessing. Use
+  "unknown" for `category`, `industry` or `customer_type` when the description doesn't say, and "unclear"
+  for `problem` or `solution` if they can't be stated from the founder's words.
 
 <founder_idea>
 {idea}

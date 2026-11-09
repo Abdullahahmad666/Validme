@@ -18,6 +18,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def fake_dns(monkeypatch, mapping: dict[str, str]):
     def getaddrinfo(host, port, *args, **kwargs):
+        if host not in mapping and any(c.isdigit() for c in host) and ("." in host or ":" in host):
+            mapping[host] = host  # IP literals resolve to themselves
         if host not in mapping:
             raise socket.gaierror("unknown host")
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (mapping[host], port))]
@@ -38,6 +40,8 @@ def fake_dns(monkeypatch, mapping: dict[str, str]):
         "http://192.168.1.1/",
         "http://169.254.169.254/latest/meta-data/",
         "http://[::1]/",
+        "http://100.100.100.200/latest/meta-data/",
+        "http://[::ffff:10.0.0.1]/",
     ],
 )
 def test_blocks_non_public_targets(monkeypatch, url):
@@ -159,12 +163,16 @@ def test_url_provider_raises_when_everything_fails(monkeypatch):
 def test_stackexchange_normalize_fixture():
     data = json.loads((FIXTURES / "stackexchange_search.json").read_text(encoding="utf-8"))
     provider = StackExchangeProvider()
-    q, a = (provider.normalize(RawResult(provider.key, {**item, "_site": "stackoverflow"})) for item in data["items"])
-    assert q.source_url == "https://stackoverflow.com/q/123456"
+    q, deleted = (provider.normalize(RawResult(provider.key, {**item, "_site": "softwarerecs"})) for item in data["items"])
+    assert q.source_url == "https://softwarerecs.stackexchange.com/questions/123456/stock-counting-for-a-small-restaurant"
+    assert q.title == "Stock counting for a small restaurant & café"
     assert q.excerpt == "We count everything on a clipboard every Sunday & it takes two hours ."
     assert q.published_at.isoformat() == "2026-01-01"
-    assert q.extra["license"] == "CC BY-SA"
-    assert a.source_url == "https://stackoverflow.com/a/654321"
+    # CC BY-SA attribution travels with the record.
+    assert q.license == "CC BY-SA 4.0"
+    assert q.author_name == "Sam & Co"
+    assert q.author_url == "https://softwarerecs.stackexchange.com/users/42/sam"
+    assert deleted.author_name == "deleted user" and deleted.author_url == ""
 
 
 def test_stackexchange_availability(settings):
@@ -197,3 +205,68 @@ def test_stackexchange_respects_budget(monkeypatch):
     monkeypatch.setattr("research.providers.stackexchange.httpx.get", fake_get)
     StackExchangeProvider().search(QueryIn("restaurant stock", "problem_discovery"), Budget(7, 1.0))
     assert seen["pagesize"] == 7
+
+
+def test_connects_to_the_checked_ip_with_real_host(monkeypatch):
+    """DNS rebinding: the request goes to the IP we validated, not to a second DNS answer."""
+    fake_dns(monkeypatch, {"acme.test": "93.184.216.34"})
+    seen = []
+
+    def handler(request):
+        seen.append((request.url.host, request.headers["host"], request.extensions.get("sni_hostname")))
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, headers={"content-type": "text/html"}, text=PAGE)
+
+    _client_with(monkeypatch, handler)
+    fetch_public_page("https://acme.test/pricing")
+    assert seen and all(s == ("93.184.216.34", "acme.test", "acme.test") for s in seen)
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{"content-type": "text/html", "content-encoding": "br"}, {"content-type": "text/html", "content-length": "99999999"}],
+)
+def test_rejects_compressed_or_oversized_bodies(monkeypatch, headers):
+    fake_dns(monkeypatch, {"acme.test": "93.184.216.34"})
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, headers=headers, content=b"x")
+
+    _client_with(monkeypatch, handler)
+    with pytest.raises(fetch_mod.FetchError):
+        fetch_public_page("https://acme.test/page")
+
+
+@pytest.mark.parametrize("robots_status", [403, 503])
+def test_restricted_or_failing_robots_means_disallow(monkeypatch, robots_status):
+    fake_dns(monkeypatch, {"acme.test": "93.184.216.34"})
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(robots_status)
+        return httpx.Response(200, headers={"content-type": "text/html"}, text=PAGE)
+
+    _client_with(monkeypatch, handler)
+    with pytest.raises(BlockedURL):
+        fetch_public_page("https://acme.test/page")
+
+
+def test_redirect_target_robots_is_checked(monkeypatch):
+    fake_dns(monkeypatch, {"a.test": "93.184.216.34", "b.test": "93.184.216.35"})
+
+    def handler(request):
+        host = request.headers["host"]
+        if request.url.path == "/robots.txt":
+            if host == "b.test":
+                return httpx.Response(200, headers={"content-type": "text/plain"}, text="User-agent: *\nDisallow: /")
+            return httpx.Response(404)
+        if host == "a.test":
+            return httpx.Response(301, headers={"location": "https://b.test/page"})
+        return httpx.Response(200, headers={"content-type": "text/html"}, text=PAGE)
+
+    _client_with(monkeypatch, handler)
+    with pytest.raises(BlockedURL):
+        fetch_public_page("https://a.test/page")

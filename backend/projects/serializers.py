@@ -139,6 +139,10 @@ class ProjectSerializer(serializers.ModelSerializer):
         idea = validated.pop("idea", {})
         market = validated.pop("market", {})
         config = validated.pop("config", {})
+        if market and "ai_suggested_fields" not in market and getattr(project, "market", None) is not None:
+            changed = {f for f, v in market.items() if getattr(project.market, f) != v}
+            if changed & set(project.market.ai_suggested_fields):
+                market["ai_suggested_fields"] = [f for f in project.market.ai_suggested_fields if f not in changed]
         for k, v in validated.items():
             setattr(project, k, v)
         project.save()

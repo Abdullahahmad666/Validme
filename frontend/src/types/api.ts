@@ -43,7 +43,7 @@ export type Interpretation = {
   target_customers: string[];
   category: string;
   industry: string;
-  customer_type: CustomerType;
+  customer_type: CustomerType | "unknown";
   suggested_audiences: string[];
   suggested_geographies: string[];
   assumptions: string[];
@@ -111,7 +111,17 @@ export type Estimate = {
 
 export type JobStatus = "PENDING" | "RUNNING" | "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" | "CANCELLED";
 export type StageStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "SKIPPED";
-export type CoverageStatus = "COMPLETED" | "FAILED" | "UNAVAILABLE" | "SKIPPED";
+export type CoverageStatus = "COMPLETED" | "PARTIAL" | "FAILED" | "UNAVAILABLE" | "SKIPPED";
+
+export type CoverageDetail = {
+  status: CoverageStatus;
+  found: number;
+  stored: number;
+  excluded: number;
+  queries_ok: number;
+  queries_total: number;
+  notes: string[];
+};
 
 export type JobStage = {
   name: StageName;
@@ -127,6 +137,7 @@ export type ResearchJob = {
   status: JobStatus;
   depth: Depth;
   coverage: Record<string, CoverageStatus>;
+  coverage_detail: Record<string, CoverageDetail>;
   credits_charged: number;
   stages: JobStage[];
   created_at: string;

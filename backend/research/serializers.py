@@ -21,6 +21,7 @@ class ResearchJobSerializer(serializers.ModelSerializer):
             "status",
             "depth",
             "coverage",
+            "coverage_detail",
             "credits_charged",
             "stages",
             "created_at",
