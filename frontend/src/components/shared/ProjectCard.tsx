@@ -8,7 +8,12 @@ const dateFmt = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", 
 // Score is intentionally absent: it only appears on completed projects once reports exist (week 4).
 export function ProjectCard({ project }: { project: Project }) {
   // Drafts resume the wizard; launched projects open their research progress.
-  const href = project.status === "DRAFT" ? `/research/new?project=${project.id}` : `/projects/${project.id}/progress`;
+  const href =
+    project.status === "DRAFT"
+      ? `/research/new?project=${project.id}`
+      : project.status === "COMPLETED"
+        ? `/projects/${project.id}/report`
+        : `/projects/${project.id}/progress`;
   return (
     <article className="relative flex flex-col gap-3 rounded-card border border-border bg-card p-5 transition-colors hover:border-primary/40 has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary has-[a:focus-visible]:ring-offset-2">
       <div className="flex items-start justify-between gap-3">

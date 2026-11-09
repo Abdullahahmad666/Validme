@@ -1,4 +1,5 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
+import type { Report } from "@/types/report";
 import type {
   ApiKey,
   DashboardSummary,
@@ -123,6 +124,7 @@ export const api = {
   evidenceFacets: (project?: string) =>
     request<EvidenceFacets>(`/evidence/facets${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   listThemes: (project: string) => request<EvidenceTheme[]>(`/evidence/clusters?project=${encodeURIComponent(project)}`),
+  getReport: (projectId: string) => request<Report>(`/reports/${encodeURIComponent(projectId)}`),
   saveEvidence: (id: number, saved: boolean) =>
     request<Evidence>(`/evidence/${id}`, { method: "PATCH", body: json({ saved_by_user: saved }) }),
 };
