@@ -1,6 +1,7 @@
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 from projects.models import Project
 
@@ -70,6 +71,11 @@ class ResearchQuery(models.Model):
     enabled = models.BooleanField(default=True)
     ai_generated = models.BooleanField(default=True)
     user_modified = models.BooleanField(default=False)
+    prompt_version = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["intent", "created_at"]
 
 
 class SearchCache(models.Model):

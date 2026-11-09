@@ -31,5 +31,5 @@ class ResearchJobSerializer(serializers.ModelSerializer):
 
 class ResearchJobCreateSerializer(serializers.Serializer):
     project = serializers.UUIDField()
-    depth = serializers.ChoiceField(choices=ResearchJob.Depth.choices, default="standard")
+    depth = serializers.ChoiceField(choices=ResearchJob.Depth.choices, required=False)  # default: project config
     sources = serializers.ListField(child=serializers.CharField(), required=False)

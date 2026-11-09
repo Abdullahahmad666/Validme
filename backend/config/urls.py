@@ -4,13 +4,14 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import ApiKeyViewSet, MeView
-from projects.views import DashboardSummaryView, ProjectViewSet
-from research.views import ResearchJobViewSet, SourcesView
+from projects.views import DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
+from research.views import EstimateView, ResearchJobViewSet, SourcesView
 
 router = DefaultRouter(trailing_slash=False)
 router.register("projects", ProjectViewSet, basename="project")
 router.register("research/jobs", ResearchJobViewSet, basename="research-job")
 router.register("api-keys", ApiKeyViewSet, basename="api-key")
+router.register(r"projects/(?P<project_pk>[^/.]+)/queries", ProjectQueryViewSet, basename="project-query")
 
 
 def health(_request):
@@ -26,5 +27,6 @@ urlpatterns = [
     path("api/me", MeView.as_view()),
     path("api/dashboard/summary", DashboardSummaryView.as_view()),
     path("api/research/sources", SourcesView.as_view()),
+    path("api/research/estimate", EstimateView.as_view()),
     path("api/", include(router.urls)),
 ]

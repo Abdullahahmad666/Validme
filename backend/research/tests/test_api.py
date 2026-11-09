@@ -95,3 +95,40 @@ def test_sources_lists_unavailable(api):
     keys = {s["key"]: s["availability"] for s in api.get("/api/research/sources").json()["results"]}
     assert keys["reddit"] == "UNAVAILABLE"
     assert keys["hackernews"] == "AVAILABLE"
+
+
+def test_jobs_filter_by_project_and_isolation(api, other):
+    pid = make_project(api)
+    api.post("/api/research/jobs", {"project": pid, "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="f1")
+    assert api.get(f"/api/research/jobs?project={pid}").json()["count"] == 1
+    c = APIClient()
+    c.force_authenticate(other)
+    assert c.get(f"/api/research/jobs?project={pid}").json()["count"] == 0
+
+
+def test_second_job_on_same_project_is_rejected(api):
+    pid = make_project(api)
+    api.post("/api/research/jobs", {"project": pid, "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="a")
+    r = api.post("/api/research/jobs", {"project": pid, "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="b")
+    assert r.status_code == 409
+
+
+def test_job_snapshot_uses_project_config(api):
+    pid = make_project(api)
+    api.patch(
+        f"/api/projects/{pid}",
+        {"depth": "quick", "sources": ["hackernews"], "exclude_terms": ["jobs"], "evidence_urls": ["https://example.com/thread"]},
+        format="json",
+    )
+    job = api.post("/api/research/jobs", {"project": pid}, format="json", HTTP_IDEMPOTENCY_KEY="c").json()
+    snap = ResearchJob.objects.get(pk=job["id"]).config_snapshot
+    assert job["depth"] == "quick"
+    assert snap["sources"] == ["hackernews"]
+    assert snap["exclude_terms"] == ["jobs"]
+    assert snap["evidence_urls"] == ["https://example.com/thread"]
+
+
+def test_unknown_source_rejected(api):
+    pid = make_project(api)
+    r = api.post("/api/research/jobs", {"project": pid, "sources": ["darkweb"]}, format="json", HTTP_IDEMPOTENCY_KEY="d")
+    assert r.status_code == 400

@@ -53,3 +53,17 @@ class MarketProfile(models.Model):
     current_alternatives = models.TextField(blank=True)
     price_hypothesis = models.CharField(max_length=120, blank=True)
     ai_suggested_fields = models.JSONField(default=list)  # names of fields still unconfirmed AI suggestions
+
+
+class ResearchConfig(models.Model):
+    """Wizard step 3: what to research. Snapshotted onto the ResearchJob when it's submitted."""
+
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="config")
+    sources = models.JSONField(default=list, blank=True)  # provider keys; empty = all available
+    depth = models.CharField(max_length=10, default="standard")
+    competitor_discovery = models.BooleanField(default=True)
+    competitor_urls = models.JSONField(default=list, blank=True)  # ≤ 10 user-provided competitor sites
+    evidence_urls = models.JSONField(default=list, blank=True)  # ≤ 10 threads/reviews the user found
+    competitor_aspects = models.JSONField(default=list, blank=True)  # features, pricing, audience, ...
+    exclude_terms = models.JSONField(default=list, blank=True)  # appended as -term to search queries
+    updated_at = models.DateTimeField(auto_now=True)
