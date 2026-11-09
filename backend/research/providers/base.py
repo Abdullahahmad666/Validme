@@ -11,6 +11,8 @@ from enum import StrEnum
 from typing import Any, Protocol
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+import httpx
+
 
 class Availability(StrEnum):
     AVAILABLE = "AVAILABLE"
@@ -67,7 +69,33 @@ class EvidenceIn:
 
 
 class ProviderError(Exception):
-    """Raised by a provider; the orchestrator records it as coverage FAILED instead of failing the job."""
+    """Raised by a provider; the orchestrator records it as coverage FAILED instead of failing the job.
+
+    Its message is shown to the user in coverage notes: build it with `describe_http_error`, never str(exc),
+    because httpx messages include the request URL (and API keys sent as query parameters).
+    """
+
+
+_SECRET_PARAM = re.compile(r"(?i)\b(key|api_key|apikey|access_token|token|secret|signature)=[^&\s'\"]+")
+
+
+def redact(text: str) -> str:
+    """Remove credentials from text that may reach users or logs."""
+    return _SECRET_PARAM.sub(r"\1=[redacted]", text)
+
+
+def describe_http_error(exc: Exception) -> str:
+    """A user-safe description of an HTTP failure: status or kind only, no URL."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        if code == 429:
+            return "rate limited by the source (HTTP 429)"
+        return f"the source returned HTTP {code}"
+    if isinstance(exc, httpx.TimeoutException):
+        return "the source timed out"
+    if isinstance(exc, httpx.HTTPError):
+        return "couldn't reach the source"
+    return "unexpected error"
 
 
 class ResearchProvider(Protocol):

@@ -1,3 +1,4 @@
+from django.db.models.fields.json import KT
 from django.http import Http404, HttpResponse
 from django.utils.text import slugify
 from rest_framework.response import Response
@@ -23,7 +24,8 @@ def _report(request, project: Project) -> Report:
     qs = Report.objects.filter(project=project).order_by("-created_at")
     raw = request.query_params.get("report")
     if raw:
-        report = qs.filter(pk=int(raw)).first() if raw.isdigit() else None
+        # Bounded: a 20-digit id would overflow the integer column and 500.
+        report = qs.filter(pk=int(raw)).first() if raw.isdigit() and len(raw) <= 12 else None
     else:
         report = qs.first()
     if report is None:
@@ -61,20 +63,32 @@ class ReportHistoryView(APIView):
 
     def get(self, request, project_id: str):
         project = _project(request, project_id)
-        results = []
-        for r in Report.objects.filter(project=project).select_related("job").order_by("-created_at"):
-            o = r.content.get("overview", {})
-            results.append(
-                {
-                    "id": r.id,
-                    "created_at": r.created_at.isoformat(),
-                    "depth": r.content.get("depth", ""),
-                    "score": o.get("score"),
-                    "confidence": o.get("confidence", ""),
-                    "recommendation": o.get("recommendation", ""),
-                    "evidence_count": o.get("evidence_count", 0),
-                }
+        # Select only the JSON keys we list: reports can be large, history should stay cheap.
+        rows = (
+            Report.objects.filter(project=project)
+            .order_by("-created_at")
+            .values(
+                "id",
+                "created_at",
+                depth=KT("content__depth"),
+                score=KT("content__overview__score"),
+                confidence=KT("content__overview__confidence"),
+                recommendation=KT("content__overview__recommendation"),
+                evidence_count=KT("content__overview__evidence_count"),
             )
+        )
+        results = [
+            {
+                "id": r["id"],
+                "created_at": r["created_at"].isoformat(),
+                "depth": r["depth"] or "",
+                "score": int(r["score"]) if r["score"] not in (None, "", "null") else None,
+                "confidence": r["confidence"] or "",
+                "recommendation": r["recommendation"] or "",
+                "evidence_count": int(r["evidence_count"] or 0),
+            }
+            for r in rows
+        ]
         return Response({"count": len(results), "results": results})
 
 

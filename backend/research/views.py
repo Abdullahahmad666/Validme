@@ -158,6 +158,7 @@ class EstimateView(APIView):
                 "balance": balance,
                 "balance_after": balance - cost,
                 "sufficient": balance >= cost,
-                "budget": DEPTH_BUDGETS[depth],
+                # Search budget only: the internal spend cap (max_usd) is never sent to clients.
+                "budget": {k: v for k, v in DEPTH_BUDGETS[depth].items() if k != "max_usd"},
             }
         )

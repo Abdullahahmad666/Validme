@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import httpx
 
-from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, clip
+from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, clip, describe_http_error
 
 API = "https://hn.algolia.com/api/v1/search"
 _TAG = re.compile(r"<[^>]+>")
@@ -33,7 +33,7 @@ class HackerNewsProvider:
                 resp = httpx.get(API, params=params, timeout=10)
             resp.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ProviderError(f"hackernews: {exc}") from exc
+            raise ProviderError(f"hackernews: {describe_http_error(exc)}") from exc
         return [RawResult(self.key, hit) for hit in resp.json().get("hits", [])]
 
     def normalize(self, raw: RawResult) -> EvidenceIn:

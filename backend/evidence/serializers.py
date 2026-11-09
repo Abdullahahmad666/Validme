@@ -33,7 +33,7 @@ class EvidenceSerializer(serializers.ModelSerializer):
         return {
             "category": obj.category,
             "relevance": obj.relevance,
-            "version": obj.classifier_version,  # "" = not classified by AI
+            "ai_classified": bool(obj.classifier_version),  # prompt/model versions stay server-side
         }
 
 

@@ -45,7 +45,7 @@ class EvidenceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.U
             qs = qs.filter(category__in=cats)
         if p.get("provider"):
             qs = qs.filter(provider=p["provider"])
-        if p.get("cluster", "").isdigit():
+        if p.get("cluster", "").isdigit() and len(p["cluster"]) <= 12:
             qs = qs.filter(clusters__id=int(p["cluster"]), clusters__project__owner=self.request.user)
         if p.get("saved") == "1":
             qs = qs.filter(saved_by_user=True)

@@ -20,7 +20,7 @@ from evidence.models import Evidence, SourceSnapshot
 from research.budgets import DEPTH_BUDGETS, budget_for
 from research.models import JobStage, ResearchJob, SearchCache
 from research.providers import registry
-from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, normalize_url
+from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, normalize_url, redact
 
 STAGES = ["idea_analysis", "web_research", "community_research", "evidence_analysis", "competitor_analysis", "report"]
 PROVIDER_STAGES = ["web_research", "community_research", "competitor_analysis"]
@@ -123,7 +123,7 @@ class ProviderRun:
 
     def note(self, text: str) -> None:
         if len(self.notes) < MAX_NOTES:
-            self.notes.append(text[:200])
+            self.notes.append(redact(text)[:200])  # notes are shown to users
 
     def detail(self) -> dict:
         return {

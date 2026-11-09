@@ -12,7 +12,17 @@ from datetime import UTC, datetime
 import httpx
 from django.conf import settings
 
-from research.providers.base import Availability, Budget, EvidenceIn, ProviderError, QueryIn, RawResult, clip, strip_html
+from research.providers.base import (
+    Availability,
+    Budget,
+    EvidenceIn,
+    ProviderError,
+    QueryIn,
+    RawResult,
+    clip,
+    describe_http_error,
+    strip_html,
+)
 
 # /search/advanced returns full questions with their owner (needed for attribution).
 API = "https://api.stackexchange.com/2.3/search/advanced"
@@ -56,7 +66,7 @@ class StackExchangeProvider:
                 resp = httpx.get(API, params=params, timeout=10)
             resp.raise_for_status()
         except httpx.HTTPError as exc:
-            raise ProviderError(f"stackexchange: {exc}") from exc
+            raise ProviderError(f"stackexchange: {describe_http_error(exc)}") from exc
         body = resp.json()
         if body.get("error_id"):
             raise ProviderError(f"stackexchange: {body.get('error_name')}: {body.get('error_message')}")

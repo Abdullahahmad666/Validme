@@ -17,9 +17,18 @@ def _md(text: str) -> str:
     return (text or "").replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]").replace("\n", " ").strip()
 
 
+def _url(url: str) -> str:
+    """Only http(s) links survive; characters that would end the Markdown link are percent-encoded."""
+    if not url.lower().startswith(("http://", "https://")):
+        return ""
+    return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29").replace("<", "%3C").replace(">", "%3E")
+
+
 def _src(card: dict) -> str:
     date = (card.get("published_at") or "")[:10] or "date unavailable"
-    return f"[{_md(card.get('title') or card['source_url'])}]({card['source_url']}) ({card.get('provider')}, {date})"
+    title = _md(card.get("title") or card["source_url"])
+    url = _url(card["source_url"])
+    return f"{f'[{title}]({url})' if url else title} ({card.get('provider')}, {date})"
 
 
 def _cites(ids: list[int], index: dict, k: int = 3) -> list[str]:
