@@ -44,8 +44,8 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] MCP server against live API; install instructions in Settings and `mcp-server/README.md` (a public install page waits for a published package)
 
 ## Week 6 — Billing, hardening, deploy
-- [ ] Credits, packs, server-side limits, payment provider (merchant of record)
-- [ ] Error handling, job recovery, security review, analytics
+- [x] Credits, packs, server-side limits, payment provider (merchant of record: Lemon Squeezy; packs + prices configured there)
+- [x] Error handling, job recovery, security review, analytics (first-party)
 - [ ] Deploy (Vercel + Render or Railway)
 
 ## Marketing site

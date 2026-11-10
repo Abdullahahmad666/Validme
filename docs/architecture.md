@@ -68,6 +68,11 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/reports/{project_id}?report=` | report snapshot (owner only; 404 until built; latest unless `report` id given): overview, demand, pain_points, competitors, opportunity, audience, distribution, evidence_index, notes |
 | GET | `/reports/{project_id}/history` | report versions, newest first (score, confidence, depth) |
 | GET | `/reports/{project_id}/export?report=` | Markdown download of a report |
+| GET | `/billing/packs` | plan + limits + packs on sale (price label from the payment provider; no provider ids) |
+| POST | `/billing/checkout` | `{pack}` → hosted checkout URL (web sessions only; API keys get 403; throttle `checkout`) |
+| GET | `/billing/usage` | own credit ledger, paginated (credits only, never `cost_usd`) |
+| POST | `/billing/webhooks/lemonsqueezy` | signed webhook (`X-Signature`, HMAC-SHA256); the only path that grants purchased credits |
+| POST | `/analytics/events` | whitelisted client events, anonymous allowed, throttled; returns 204 |
 | GET | `/evidence?project=&category=a,b&provider=&cluster=&q=&saved=1&duplicates=1` | evidence explorer (originals only by default, `duplicates` count) |
 | PATCH | `/evidence/{id}` | `saved_by_user` only; source text is never editable |
 | GET | `/evidence/facets?project=` | counts by category / provider / saved / duplicates |
@@ -106,3 +111,11 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 - The first-10 plan is a checklist the founder runs by hand. Nothing is sent for them (rule 8).
 - A completed project can re-run (`POST /research/jobs`, new idempotency key); each run adds a `Report`, so history is the list of snapshots. A failed re-run keeps the project `COMPLETED` so earlier reports stay reachable.
 - PDF export is the browser's print dialog on a print layout of all sections; Markdown export is server-side (`reports/export.py`).
+
+## Billing, limits, recovery and analytics (Week 6)
+- **Payments:** Lemon Squeezy is the merchant of record (tax/VAT, invoices, refunds). `POST /billing/checkout` creates a pending `Purchase` and returns a hosted checkout URL; no payment script runs on our pages. Credits are granted only by the signed `order_created` webhook, after checking the purchase id, the user, the pack's variant and test/live mode. `provider_order_id` is unique and the ledger key `purchase:<order>` is idempotent, so retries never double-credit. `order_refunded` takes back the pack's unspent credits once.
+- **Packs and prices** live in config (`CREDIT_PACKS`) and in Lemon Squeezy. No price is hard-coded; the UI shows the provider's price or "Price shown at checkout". Without configuration, buying is closed.
+- **Plan limits** (`billing/plans.py`, `PLAN_LIMITS`): "free" (no paid pack) runs Quick only; everyone has caps on running jobs and launches per day. Checked at launch under a lock on the user row; 403 `plan_depth`, 429 `too_many_running` / `daily_limit`, nothing charged.
+- **Job recovery:** a job that fails (crash, or no source could be searched) is refunded once (`job_refund:<job>`). `recover_stuck_jobs` runs every 5 minutes via Celery beat (and `manage.py recover_jobs`): PENDING > 15 min or RUNNING > 45 min → FAILED with a visible reason, refunded, project released.
+- **Errors:** API paths return the JSON error envelope for unmatched URLs and crashes (`config/errors.py`); messages never include exception details. Logs go to stdout; httpx request logs are off (their URLs can carry API keys).
+- **Analytics:** first-party only (`analytics.AnalyticsEvent`): server events for research/report/purchase milestones; a short whitelist of client events via `POST /analytics/events`. No cookies, IP or user agent stored; query strings stripped; nothing sent when the browser signals Global Privacy Control or Do Not Track.
