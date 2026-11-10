@@ -106,6 +106,8 @@ export type Estimate = {
   balance: number;
   balance_after: number;
   sufficient: boolean;
+  allowed: boolean;
+  plan: Plan;
   budget: { queries: number; results_per_query: number };
 };
 
@@ -214,6 +216,25 @@ export type Me = {
   last_name: string;
   credits: number;
   date_joined: string;
+  plan: Plan;
+  allowed_depths: Depth[];
+};
+
+export type Plan = "free" | "paid";
+
+export type PlanLimits = { plan: Plan; depths: Depth[]; max_running: number; daily_launches: number };
+
+export type CreditPack = { id: string; credits: number; price: string | null };
+
+export type BillingPacks = { payments_available: boolean; limits: PlanLimits; packs: CreditPack[] };
+
+export type UsageEntry = {
+  id: number;
+  operation: string;
+  label: string;
+  credits: number;
+  created_at: string;
+  project: { id: string; name: string } | null;
 };
 
 export type ApiKey = {

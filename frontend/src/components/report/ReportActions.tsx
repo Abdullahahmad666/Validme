@@ -8,6 +8,8 @@ import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useMe } from "@/hooks/useSession";
+import { track } from "@/lib/analytics";
 import { DEPTHS } from "@/lib/wizard";
 import { api, ApiError, reportExportUrl } from "@/services/api";
 import type { Depth } from "@/types/api";
@@ -23,11 +25,11 @@ export function ExportMenu({ projectId, reportId, onPrint }: { projectId: string
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem asChild>
-          <a href={reportExportUrl(projectId, reportId)} download>
+          <a href={reportExportUrl(projectId, reportId)} download onClick={() => track("report_exported", { format: "md" })}>
             <FileText aria-hidden /> Markdown (.md)
           </a>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={onPrint}>
+        <DropdownMenuItem onSelect={() => (track("report_exported", { format: "pdf" }), onPrint())}>
           <Printer aria-hidden /> PDF (print / save as PDF)
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -58,7 +60,10 @@ export function HistorySelect({ versions, value, onChange }: { versions: ReportV
 
 /** Re-run with the same setup: shows the credit cost first and needs an explicit confirm (idempotent submit). */
 export function RerunPanel({ projectId, onClose }: { projectId: string; onClose: () => void }) {
-  const [depth, setDepth] = useState<Depth>("standard");
+  const me = useMe();
+  const [picked, setDepth] = useState<Depth | null>(null);
+  // Default to the deepest depth this plan allows, up to Standard.
+  const depth: Depth = picked ?? (me.data && !me.data.allowed_depths.includes("standard") ? "quick" : "standard");
   const [key] = useState(() => crypto.randomUUID());
   const router = useRouter();
   const qc = useQueryClient();
@@ -73,9 +78,11 @@ export function RerunPanel({ projectId, onClose }: { projectId: string; onClose:
   const error =
     run.error instanceof ApiError && run.error.status === 402
       ? "Not enough credits for this depth."
-      : run.error
-        ? "Couldn't start the research. Nothing was charged; please try again."
-        : null;
+      : run.error instanceof ApiError && (run.error.status === 403 || run.error.status === 429)
+        ? `${run.error.message} Nothing was charged.`
+        : run.error
+          ? "Couldn't start the research. Nothing was charged; please try again."
+          : null;
   return (
     <section aria-labelledby="rerun-h" className="rounded-card border border-border bg-card p-5">
       <h2 id="rerun-h" className="font-semibold">
@@ -106,7 +113,9 @@ export function RerunPanel({ projectId, onClose }: { projectId: string; onClose:
       </fieldset>
       <p className="mt-3 text-sm" aria-live="polite">
         {est.data
-          ? `Costs ${est.data.credits} credit${est.data.credits === 1 ? "" : "s"}. Balance ${est.data.balance} → ${Math.max(est.data.balance_after, 0)}.`
+          ? est.data.allowed
+            ? `Costs ${est.data.credits} credit${est.data.credits === 1 ? "" : "s"}. Balance ${est.data.balance} → ${Math.max(est.data.balance_after, 0)}.`
+            : "This depth needs a credit pack. Free accounts run Quick research."
           : est.isError
             ? "Couldn't load the estimate."
             : "Checking credits…"}
@@ -117,7 +126,7 @@ export function RerunPanel({ projectId, onClose }: { projectId: string; onClose:
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => run.mutate()} disabled={!est.data?.sufficient || run.isPending}>
+        <Button onClick={() => run.mutate()} disabled={!est.data?.sufficient || !est.data?.allowed || run.isPending}>
           <RefreshCw aria-hidden /> {run.isPending ? "Starting…" : `Spend ${est.data?.credits ?? "…"} and run`}
         </Button>
         <Button variant="ghost" onClick={onClose}>

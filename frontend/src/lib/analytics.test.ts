@@ -32,3 +32,13 @@ describe("track", () => {
     expect(good).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("trackingAllowed", () => {
+  it("honours Global Privacy Control and Do Not Track", async () => {
+    const { trackingAllowed } = await import("@/lib/analytics");
+    expect(trackingAllowed({ doNotTrack: null })).toBe(true);
+    expect(trackingAllowed({ globalPrivacyControl: true })).toBe(false);
+    expect(trackingAllowed({ doNotTrack: "1" })).toBe(false);
+    expect(trackingAllowed(undefined)).toBe(false);
+  });
+});

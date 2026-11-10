@@ -40,7 +40,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Account",
     items: [
-      { href: "/billing", label: "Subscription & usage", icon: CreditCard },
+      { href: "/billing", label: "Credits & usage", icon: CreditCard },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

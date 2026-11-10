@@ -15,6 +15,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import { api, ApiError } from "@/services/api";
 import type { Report } from "@/types/report";
 
@@ -53,6 +54,12 @@ export function ReportView({ projectId }: { projectId: string }) {
   });
   const history = useQuery({ queryKey: ["report-history", projectId], queryFn: () => api.reportHistory(projectId), retry: false });
   const [rerun, setRerun] = useState(false);
+  const viewedId = report.data?.id;
+  useEffect(() => {
+    if (viewedId) track("report_viewed", { tab });
+    // Once per report version, not per tab switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewedId]);
   const [printing, setPrinting] = useState(false);
 
   // PDF export: render every section, open the browser's print dialog (Save as PDF), then restore the tabs.

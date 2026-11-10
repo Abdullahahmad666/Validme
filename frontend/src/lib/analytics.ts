@@ -1,20 +1,12 @@
 /**
- * Provider-agnostic analytics. No vendor is wired in yet, and there are no tracking IDs here.
+ * First-party analytics: events go to our own API (POST /api/analytics/events), never to a third party.
+ * No cookies are set, no IP or user agent is stored, and nothing is sent when the browser asks not to be
+ * tracked (Global Privacy Control or Do Not Track).
  *
- * To connect a provider later, call `registerAnalyticsHandler` once on the client
- * (e.g. in app/providers.tsx) with a function that forwards to it. Until then, events are
- * dispatched as a `validme:analytics` DOM event (and logged in development) and go nowhere.
- *
- * Integration points:
- *  - hero_cta_clicked        → marketing hero CTA (wired)
- *  - sample_report_opened    → /sample-report page view (wired)
- *  - pricing_viewed          → pricing section enters viewport / /pricing (wired)
- *  - signup_started          → signup form submitted (wired, AuthForm)
- *  - signup_completed        → signup succeeded (wired, AuthForm)
- *  - first_research_started  → research job submission (wizard step 4; Week 2). Prefer firing
- *                              server-side, where "first" is known.
- *  - first_report_completed  → job reaches COMPLETED/PARTIALLY_COMPLETED (server-side)
- *  - subscription_started    → payment provider webhook (Week 6, server-side)
+ * Client events (the server drops anything else; keep in sync with backend/analytics/services.py):
+ *  hero_cta_clicked · sample_report_opened · pricing_viewed · signup_started · signup_completed ·
+ *  report_viewed · report_exported · checkout_clicked
+ * Research, report and purchase events are recorded server-side, where the facts are known.
  */
 export type AnalyticsEvent =
   | "hero_cta_clicked"
@@ -22,9 +14,9 @@ export type AnalyticsEvent =
   | "pricing_viewed"
   | "signup_started"
   | "signup_completed"
-  | "first_research_started"
-  | "first_report_completed"
-  | "subscription_started";
+  | "report_viewed"
+  | "report_exported"
+  | "checkout_clicked";
 
 export type AnalyticsProps = Record<string, string | number | boolean | null | undefined>;
 type Handler = (event: AnalyticsEvent, props: AnalyticsProps) => void;
@@ -47,4 +39,18 @@ export function track(event: AnalyticsEvent, props: AnalyticsProps = {}): void {
   }
   window.dispatchEvent(new CustomEvent("validme:analytics", { detail: { event, props } }));
   if (process.env.NODE_ENV === "development") console.debug("[analytics]", event, props);
+}
+
+/** Respect the browser's opt-out signals. */
+export function trackingAllowed(nav: { doNotTrack?: string | null; globalPrivacyControl?: boolean } | undefined): boolean {
+  if (!nav) return false;
+  return !(nav.globalPrivacyControl === true || nav.doNotTrack === "1");
+}
+
+/** Install once on the client: forwards events to our own API. Returns an uninstall function. */
+export function installFirstPartyAnalytics(send: (body: { event: string; props: AnalyticsProps; path: string }) => void) {
+  return registerAnalyticsHandler((event, props) => {
+    if (!trackingAllowed(navigator as Navigator & { globalPrivacyControl?: boolean })) return;
+    send({ event, props, path: window.location.pathname });
+  });
 }

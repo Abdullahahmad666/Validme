@@ -63,7 +63,7 @@ export function StepReview() {
   const estimate = useEstimate(project.id, project.depth);
   const launch = useLaunch(project.id);
   const [agreed, setAgreed] = useState(false);
-  const [problem, setProblem] = useState<{ kind: "credits" | "conflict" | "other"; message: string } | null>(null);
+  const [problem, setProblem] = useState<{ kind: "credits" | "conflict" | "plan" | "other"; message: string } | null>(null);
 
   // Nothing to autosave on this step.
   useEffect(() => reportSave({ state: "saved", flush: async () => {}, retry: () => {} }), [reportSave]);
@@ -85,12 +85,14 @@ export function StepReview() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 402) setProblem({ kind: "credits", message: err.message });
       else if (err instanceof ApiError && err.status === 409) setProblem({ kind: "conflict", message: err.message });
+      else if (err instanceof ApiError && (err.status === 403 || err.status === 429))
+        setProblem({ kind: "plan", message: `${err.message} Nothing was charged.` });
       else setProblem({ kind: "other", message: "We couldn't launch the research. Nothing was charged; please try again." });
     }
   }
 
   const est = estimate.data;
-  const canLaunch = agreed && selected.length > 0 && !!est?.sufficient && !launch.isPending;
+  const canLaunch = agreed && selected.length > 0 && !!est?.sufficient && est?.allowed !== false && !launch.isPending;
 
   return (
     <div>
@@ -211,11 +213,30 @@ export function StepReview() {
           </Alert>
         )}
 
+        {est && !est.allowed && (
+          <Alert role="status">
+            <AlertTriangle aria-hidden />
+            <AlertDescription>
+              {depth.label} depth needs a credit pack; free accounts run Quick research. Go back to step 3 to switch to
+              Quick, or{" "}
+              <Link href="/billing" className="font-medium underline">
+                see credit packs
+              </Link>
+              .
+            </AlertDescription>
+          </Alert>
+        )}
+
         {problem && (
           <Alert variant="destructive" role="alert">
             <AlertTriangle aria-hidden />
             <AlertDescription>
               {problem.message}{" "}
+              {(problem.kind === "plan" || problem.kind === "credits") && (
+                <Link href="/billing" className="font-medium underline">
+                  See credit packs
+                </Link>
+              )}
               {problem.kind === "conflict" && (
                 <Link href={`/projects/${project.id}/progress`} className="font-medium underline">
                   View progress

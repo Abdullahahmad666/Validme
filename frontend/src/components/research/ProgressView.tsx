@@ -108,8 +108,8 @@ export function ProgressView({ projectId }: { projectId: string }) {
       {j.status === "FAILED" && (
         <p className="flex items-start gap-2 rounded-control border border-destructive/30 bg-destructive/[0.05] p-3 text-sm">
           <XCircle className="mt-0.5 size-4 shrink-0 text-destructive-text" aria-hidden />
-          No source could be searched successfully. Your credits went to a run that found nothing, and the project is back
-          in draft so you can adjust sources or queries.
+          This research didn&apos;t complete, so its credits were refunded to your balance. The project is back in draft
+          so you can adjust sources or queries and run it again.
           <Link href={`/research/new?project=${projectId}&step=3`} className="font-medium text-primary underline">
             Adjust setup
           </Link>

@@ -2,6 +2,7 @@ import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
+  BillingPacks,
   DashboardSummary,
   Depth,
   Estimate,
@@ -20,6 +21,7 @@ import type {
   ResearchJob,
   ResearchQuery,
   ResearchSource,
+  UsageEntry,
 } from "@/types/api";
 
 // Same-origin by default: next.config.ts proxies /api to Django.
@@ -73,6 +75,11 @@ export function evidenceQuery(f: EvidenceFilters): string {
 
 export const api = {
   me: () => request<Me>("/me"),
+  billingPacks: () => request<BillingPacks>("/billing/packs"),
+  startCheckout: (pack: string) => request<{ url: string }>("/billing/checkout", { method: "POST", body: json({ pack }) }),
+  sendEvent: (body: { event: string; props: Record<string, unknown>; path: string }) =>
+    request<void>("/analytics/events", { method: "POST", body: json(body), keepalive: true }),
+  usage: (page = 1) => request<Paginated<UsageEntry>>(`/billing/usage?page=${page}`),
   dashboardSummary: () => request<DashboardSummary>("/dashboard/summary"),
 
   listProjects: (params: { status?: ProjectStatus; page?: number } = {}) => {

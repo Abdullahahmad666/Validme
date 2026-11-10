@@ -1,9 +1,10 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
-import { ApiError } from "@/services/api";
+import { installFirstPartyAnalytics } from "@/lib/analytics";
+import { api, ApiError } from "@/services/api";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -19,6 +20,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+  // Best effort: an analytics failure never surfaces to the user.
+  useEffect(() => installFirstPartyAnalytics((body) => void api.sendEvent(body).catch(() => {})), []);
   return (
     <QueryClientProvider client={client}>
       {children}

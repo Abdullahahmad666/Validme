@@ -13,6 +13,7 @@ import { ChipsInput } from "@/components/shared/ChipsInput";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAutosave } from "@/hooks/useAutosave";
+import { useMe } from "@/hooks/useSession";
 import { useSources } from "@/hooks/useResearch";
 import { autosavePatch, COMPETITOR_ASPECTS, DEPTHS, stepSchemas } from "@/lib/wizard";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ export function StepConfigure() {
   const { project: maybeProject, goTo, reportSave } = useWizard();
   const project = maybeProject!;
   const sources = useSources();
+  const me = useMe();
 
   const form = useForm<ConfigForm>({
     resolver: zodResolver(stepSchemas[3]),
@@ -180,16 +182,20 @@ export function StepConfigure() {
               <div role="radiogroup" aria-label="Research depth" className="grid gap-2 sm:grid-cols-3">
                 {DEPTHS.map((d) => {
                   const selected = field.value === d.value;
+                  // Mirrors the server's plan limit (enforced again at launch).
+                  const locked = !!me.data && !me.data.allowed_depths.includes(d.value);
                   return (
                     <button
                       key={d.value}
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => field.onChange(d.value)}
+                      aria-disabled={locked}
+                      onClick={() => !locked && field.onChange(d.value)}
                       className={cn(
                         "relative flex flex-col items-start rounded-card border p-4 text-left transition-colors",
                         selected ? "border-primary bg-primary/[0.05]" : "border-border hover:bg-muted",
+                        locked && "cursor-not-allowed opacity-60 hover:bg-transparent",
                       )}
                     >
                       {d.recommended && (
@@ -202,6 +208,7 @@ export function StepConfigure() {
                         {d.credits} credit{d.credits > 1 ? "s" : ""}
                       </span>
                       <span className="mt-2 text-xs leading-relaxed text-muted-foreground">{d.body}</span>
+                      {locked && <span className="mt-2 text-xs font-medium text-primary">Unlocked by any credit pack</span>}
                     </button>
                   );
                 })}
