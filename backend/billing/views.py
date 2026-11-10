@@ -132,6 +132,10 @@ class LemonSqueezyWebhookView(APIView):
             payload = json.loads(raw)
         except ValueError:
             return Response({"error": {"code": "bad_payload", "message": "Invalid JSON."}}, status=400)
-        result = services.handle_webhook(payload)
+        try:
+            result = services.handle_webhook(payload)
+        except services.WebhookRetry as exc:
+            logger.warning("lemonsqueezy webhook deferred: %s", exc)
+            return Response({"error": {"code": "retry", "message": "Not ready; retry later."}}, status=409)
         logger.info("lemonsqueezy webhook: %s", result)
         return Response({"ok": True})

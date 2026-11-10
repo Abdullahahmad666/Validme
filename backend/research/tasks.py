@@ -14,12 +14,13 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=0)
 def run_research_job(self, job_id: str) -> str:
+    # Conditional update: a job recovery already failed (and refunded) must never start running again.
+    started = ResearchJob.objects.filter(pk=job_id, status__in=(ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING)).update(
+        status=ResearchJob.Status.RUNNING, started_at=timezone.now()
+    )
     job = ResearchJob.objects.select_related("project__owner").get(pk=job_id)
-    if job.status not in (ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING):
+    if not started:
         return job.status  # already finished (e.g. a duplicate delivery, or recovered as stuck)
-    job.status = ResearchJob.Status.RUNNING
-    job.started_at = timezone.now()
-    job.save(update_fields=["status", "started_at"])
     try:
         # classify → cluster → competitors → score → distribution → report
         job = collect_evidence(job)

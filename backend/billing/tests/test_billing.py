@@ -233,11 +233,15 @@ def test_unknown_api_path_is_json_404(api, db):
 def test_client_analytics_whitelist_and_cleaning(client, db):
     r = client.post(
         "/api/analytics/events",
-        {"event": "pricing_viewed", "path": "/pricing?email=a@b.c", "props": {"plan": "pro", "nested": {"x": 1}}},
+        {
+            "event": "pricing_viewed",
+            "path": "/pricing?email=a@b.c",
+            "props": {"source": "landing", "email": "a@b.c", "nested": {"x": 1}},
+        },
         content_type="application/json",
     )
     assert r.status_code == 204
     e = AnalyticsEvent.objects.get()
-    assert e.path == "/pricing" and e.props == {"plan": "pro"} and e.user is None
+    assert e.path == "/pricing" and e.props == {"source": "landing"} and e.user is None
     client.post("/api/analytics/events", {"event": "made_up"}, content_type="application/json")
     assert AnalyticsEvent.objects.count() == 1

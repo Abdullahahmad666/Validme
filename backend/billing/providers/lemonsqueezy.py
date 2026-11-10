@@ -80,17 +80,27 @@ def price_label(variant_id: str) -> str | None:
         return cached or None
     label = ""
     try:
-        v = httpx.get(f"{API}/variants/{variant_id}", headers=_headers(), timeout=10, trust_env=False)
-        s = httpx.get(f"{API}/stores/{settings.LEMONSQUEEZY_STORE_ID}", headers=_headers(), timeout=10, trust_env=False)
+        currency = _store_currency()
+        v = httpx.get(f"{API}/variants/{variant_id}", headers=_headers(), timeout=3, trust_env=False)
         v.raise_for_status()
-        s.raise_for_status()
         cents = int(v.json()["data"]["attributes"]["price"])
-        currency = s.json()["data"]["attributes"]["currency"]
         label = f"{cents / 100:,.2f} {currency}"
     except (httpx.HTTPError, KeyError, ValueError, TypeError):
         logger.warning("lemonsqueezy price lookup failed for variant %s", variant_id)
     cache.set(key, label, 3600 if label else 300)
     return label or None
+
+
+def _store_currency() -> str:
+    """Store currency, cached for a day (one lookup for every pack)."""
+    key = f"ls:currency:{settings.LEMONSQUEEZY_STORE_ID}"
+    currency = cache.get(key)
+    if not currency:
+        s = httpx.get(f"{API}/stores/{settings.LEMONSQUEEZY_STORE_ID}", headers=_headers(), timeout=3, trust_env=False)
+        s.raise_for_status()
+        currency = s.json()["data"]["attributes"]["currency"]
+        cache.set(key, currency, 86400)
+    return currency
 
 
 def verify_signature(raw_body: bytes, signature: str) -> bool:
@@ -99,4 +109,5 @@ def verify_signature(raw_body: bytes, signature: str) -> bool:
     if not secret or not signature:
         return False
     expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature)
+    # Compare bytes: str compare_digest raises on non-ASCII input (an unauthenticated 500).
+    return hmac.compare_digest(expected.encode(), signature.encode("latin-1", "replace"))

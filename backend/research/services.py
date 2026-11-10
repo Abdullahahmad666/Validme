@@ -307,7 +307,11 @@ def collect_evidence(job: ResearchJob) -> ResearchJob:
         set_stage(job, stage, _stage_status(runs), " · ".join(r.summary(labels[k]) for k, r in runs.items()))
         _save_coverage(job, coverage, detail, spent)  # survives a crash in a later stage
 
+    if not _still_running(job):
+        return job  # recovered as stuck meanwhile (failed + refunded): don't build a report on top
     spent += float(run_analysis(job))
+    if not _still_running(job):
+        return job
     spent += float(run_report(job))
 
     for stage, reason in NOT_YET_AVAILABLE.items():
@@ -322,5 +326,19 @@ def collect_evidence(job: ResearchJob) -> ResearchJob:
         job.status = ResearchJob.Status.PARTIALLY_COMPLETED
     job.completed_at = timezone.now()
     _save_coverage(job, coverage, detail, spent)
-    job.save(update_fields=["status", "completed_at"])
+    # Only a still-live job can finish; one recovered meanwhile keeps its FAILED status and refund.
+    finished = ResearchJob.objects.filter(pk=job.pk, status__in=LIVE).update(status=job.status, completed_at=job.completed_at)
+    if not finished:
+        job.refresh_from_db()
     return job
+
+
+LIVE = (ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING)
+
+
+def _still_running(job: ResearchJob) -> bool:
+    current = ResearchJob.objects.filter(pk=job.pk).values_list("status", flat=True).first()
+    if current not in LIVE:
+        job.refresh_from_db()
+        return False
+    return True

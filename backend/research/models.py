@@ -38,6 +38,8 @@ class ResearchJob(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        # Stuck-job recovery filters on status + time every few minutes.
+        indexes = [models.Index(fields=["status", "created_at"]), models.Index(fields=["status", "started_at"])]
         constraints = [models.UniqueConstraint(fields=["project", "idempotency_key"], name="unique_job_per_idempotency_key")]
 
 

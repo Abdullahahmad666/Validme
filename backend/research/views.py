@@ -70,6 +70,8 @@ class ResearchJobViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mix
         key = request.headers.get("Idempotency-Key")
         if not key:
             raise ValidationError({"Idempotency-Key": "Header is required."})
+        if len(key) > 80:
+            raise ValidationError({"Idempotency-Key": "Must be at most 80 characters."})
         body = ResearchJobCreateSerializer(data=request.data)
         body.is_valid(raise_exception=True)
         try:

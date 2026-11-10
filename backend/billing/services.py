@@ -91,8 +91,8 @@ def start_checkout(user: User, pack_id: str) -> str:
     return url
 
 
-class WebhookRejected(Exception):
-    pass
+class WebhookRetry(Exception):
+    """Return non-2xx so the provider redelivers (e.g. a refund for an order we haven't linked yet)."""
 
 
 def handle_webhook(payload: dict) -> str:
@@ -105,13 +105,15 @@ def handle_webhook(payload: dict) -> str:
     if data.get("type") != "orders" or not order_id:
         return f"ignored {event}"
     if bool(meta.get("test_mode")) != bool(settings.LEMONSQUEEZY_TEST_MODE):
-        # A test-mode order must never grant real credits (and vice versa).
-        logger.warning("webhook %s for order %s has mismatched test_mode", event, order_id)
+        # A test-mode order must never grant real credits (and vice versa). Error level: in production this
+        # means LEMONSQUEEZY_TEST_MODE is wrong and paying customers aren't being credited.
+        logger.error("webhook %s for order %s has mismatched test_mode", event, order_id)
         return "ignored test_mode mismatch"
-    if event == "order_created" and attrs.get("status") == "paid":
-        return _order_paid(order_id, meta.get("custom_data") or {}, attrs)
+    custom = meta.get("custom_data") or {}
+    if event == "order_created" and attrs.get("status") in ("paid", "refunded", "partial_refund"):
+        return _order_paid(order_id, custom, attrs)
     if event == "order_refunded":
-        return _order_refunded(order_id)
+        return _order_refunded(order_id, attrs, custom)
     return f"ignored {event}"
 
 
@@ -133,31 +135,85 @@ def _order_paid(order_id: str, custom: dict, attrs: dict) -> str:
             return "ignored variant mismatch"
         if purchase.status != Purchase.Status.PENDING:
             return "already applied"
-        grant_credits(purchase.user, purchase.credits, "purchase", idempotency_key=f"purchase:{order_id}")
-        purchase.status = Purchase.Status.PAID
+        # A refund may have been delivered first (or be included in this delivery): never grant refunded credits.
+        refunded = max(purchase.credits_refunded, int(purchase.credits * refunded_share(attrs)))
+        grant = purchase.credits - refunded
+        if grant > 0:
+            grant_credits(purchase.user, grant, "purchase", idempotency_key=f"purchase:{order_id}")
+        purchase.credits_refunded = refunded
+        purchase.status = Purchase.Status.PAID if grant > 0 else Purchase.Status.REFUNDED
         purchase.provider_order_id = order_id
         purchase.paid_at = timezone.now()
-        purchase.save(update_fields=["status", "provider_order_id", "paid_at"])
+        purchase.save(update_fields=["status", "provider_order_id", "paid_at", "credits_refunded"])
     track("purchase_completed", user=purchase.user, props={"pack": purchase.pack_id, "credits": purchase.credits})
     return "credited"
 
 
-def _order_refunded(order_id: str) -> str:
+def refunded_share(attrs: dict) -> float:
+    """Fraction of the order refunded so far (0..1). Lemon Squeezy sends cumulative cents on each refund."""
+    try:
+        total = int(attrs.get("total") or 0)
+        refunded = int(attrs.get("refunded_amount") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if attrs.get("status") == "refunded":
+        return 1.0  # the provider says it's fully refunded (amounts can differ by tax or rounding)
+    if total <= 0:
+        return 0.0
+    return max(0.0, min(1.0, refunded / total))
+
+
+def _purchase_for_refund(order_id: str, custom: dict) -> Purchase | None:
+    """Locked purchase for a refund: by order id, or by our purchase id when the paid event hasn't arrived."""
+    purchase = Purchase.objects.select_for_update().filter(provider_order_id=order_id).first()
+    if purchase is not None:
+        return purchase
+    try:
+        purchase_id = uuid.UUID(str(custom.get("purchase_id", "")))
+    except ValueError:
+        return None
+    purchase = Purchase.objects.select_for_update().filter(pk=purchase_id).first()
+    if purchase is None or str(purchase.user_id) != str(custom.get("user_id")) or purchase.provider_order_id:
+        return None
+    return purchase
+
+
+def _order_refunded(order_id: str, attrs: dict, custom: dict) -> str:
+    """Full or partial refund: take back the matching share of the pack's credits (rounded down, in the
+    customer's favour), never more than the balance. Credits already spent on research stay spent."""
+    share = refunded_share(attrs)
+    if share <= 0:
+        return "ignored refund without amount"
     with transaction.atomic():
-        purchase = Purchase.objects.select_for_update().filter(provider_order_id=order_id).first()
-        if purchase is None or purchase.status != Purchase.Status.PAID:
+        purchase = _purchase_for_refund(order_id, custom)
+        if purchase is None:
+            # Not linked yet (or a concurrent paid delivery hasn't committed): ask the provider to retry.
+            raise WebhookRetry(f"refund for unknown order {order_id}")
+        if purchase.status == Purchase.Status.PENDING:
+            # Refund before the paid event: remember it; the paid event then grants only the unrefunded part.
+            purchase.provider_order_id = order_id
+            purchase.credits_refunded = max(purchase.credits_refunded, int(purchase.credits * share))
+            if share >= 1:
+                purchase.status = Purchase.Status.REFUNDED
+                purchase.refunded_at = timezone.now()
+            purchase.save(update_fields=["provider_order_id", "credits_refunded", "status", "refunded_at"])
+            return "refund recorded before payment"
+        if purchase.status != Purchase.Status.PAID:
             return "ignored refund"
-        user = User.objects.select_for_update().get(pk=purchase.user_id)
-        # Take back what's left of the pack; credits already spent on research stay spent.
-        take = min(purchase.credits, user.credits)
-        if take and not UsageTransaction.objects.filter(idempotency_key=f"purchase_refund:{order_id}").exists():
-            user.credits -= take
-            user.save(update_fields=["credits"])
-            UsageTransaction.objects.create(
-                user=user, operation="purchase_refund", credits=-take, idempotency_key=f"purchase_refund:{order_id}"
-            )
-        purchase.status = Purchase.Status.REFUNDED
-        purchase.refunded_at = timezone.now()
-        purchase.save(update_fields=["status", "refunded_at"])
-    track("purchase_refunded", user=purchase.user, props={"pack": purchase.pack_id})
-    return "refunded"
+        target = int(purchase.credits * share)  # credits this cumulative refund covers
+        delta = target - purchase.credits_refunded
+        if delta > 0:
+            user = User.objects.select_for_update().get(pk=purchase.user_id)
+            take = min(delta, user.credits)
+            key = f"purchase_refund:{order_id}:{target}"  # one ledger row per refund level, so replays are no-ops
+            if take and not UsageTransaction.objects.filter(idempotency_key=key).exists():
+                user.credits -= take
+                user.save(update_fields=["credits"])
+                UsageTransaction.objects.create(user=user, operation="purchase_refund", credits=-take, idempotency_key=key)
+            purchase.credits_refunded = target
+        if share >= 1:
+            purchase.status = Purchase.Status.REFUNDED
+            purchase.refunded_at = timezone.now()
+        purchase.save(update_fields=["credits_refunded", "status", "refunded_at"])
+    track("purchase_refunded", user=purchase.user, props={"pack": purchase.pack_id, "full": share >= 1})
+    return "refunded" if share >= 1 else "partially refunded"
