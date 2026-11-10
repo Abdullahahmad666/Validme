@@ -1,9 +1,12 @@
-from django.db.models import Count, F, Q
+from django.conf import settings
+from django.db.models import Count, F, Q, Window
+from django.db.models.functions import RowNumber
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
+from billing.plans import plan_for
 from evidence.models import Category, Evidence, EvidenceCluster
 from evidence.serializers import EvidenceClusterSerializer, EvidenceSerializer
 from research.views import parse_uuid
@@ -19,6 +22,26 @@ def _project_filter(request):
     if project_id is None:
         raise ValidationError({"project": "Not a valid project id."})
     return project_id
+
+
+# Same order the explorer lists in, so the preview is the most relevant records.
+RANKING = [F("relevance").desc(nulls_last=True), F("published_at").desc(nulls_last=True), F("id").desc()]
+
+
+def preview_ids(user, project_id=None) -> list[int] | None:
+    """Free plan: the ids a user may browse (top N originals per project). None = no limit.
+
+    The report itself is never limited: every finding keeps its cited evidence (CLAUDE.md rule 1).
+    """
+    if plan_for(user) != "free":
+        return None
+    base = Evidence.objects.filter(project__owner=user, duplicate_of__isnull=True)
+    if project_id:
+        base = base.filter(project_id=project_id)
+    ranked = base.annotate(rn=Window(RowNumber(), partition_by=[F("project_id")], order_by=RANKING)).filter(
+        rn__lte=settings.EVIDENCE_PREVIEW_LIMIT
+    )
+    return list(ranked.values_list("id", flat=True))
 
 
 class EvidenceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
@@ -52,7 +75,36 @@ class EvidenceViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.U
         q = (p.get("q") or "").strip()[:100]
         if q:
             qs = qs.filter(Q(title__icontains=q) | Q(excerpt__icontains=q))
-        return qs.order_by(F("relevance").desc(nulls_last=True), F("published_at").desc(nulls_last=True), "-id")
+        # Free plan: filters and search work inside the preview, never beyond it (list, detail and save).
+        scope = project_id
+        if scope is None and self.kwargs.get("pk"):
+            # Detail/save: rank only that record's project, not all of the user's evidence.
+            scope = (
+                Evidence.objects.filter(
+                    pk=self.kwargs["pk"] if str(self.kwargs["pk"]).isdigit() else None, project__owner=self.request.user
+                )
+                .values_list("project_id", flat=True)
+                .first()
+            )
+        self._preview = preview_ids(self.request.user, scope)
+        if self._preview is not None:
+            qs = qs.filter(Q(id__in=self._preview) | Q(duplicate_of_id__in=self._preview))
+        return qs.order_by(*RANKING)
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        if getattr(self, "_preview", None) is not None:
+            total = Evidence.objects.filter(project__owner=request.user, duplicate_of__isnull=True)
+            project_id = _project_filter(request)
+            if project_id:
+                total = total.filter(project_id=project_id)
+            response.data["preview"] = {
+                "limited": True,
+                "limit_per_project": settings.EVIDENCE_PREVIEW_LIMIT,
+                "available": len(self._preview),
+                "total": total.count(),
+            }
+        return response
 
     def update(self, request, *args, **kwargs):
         allowed = {"saved_by_user"}

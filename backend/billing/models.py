@@ -41,6 +41,8 @@ class Purchase(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
     refunded_at = models.DateTimeField(null=True, blank=True)
+    # Credits covered by refunds so far (partial refunds take back a matching share of the pack).
+    credits_refunded = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["-created_at"]

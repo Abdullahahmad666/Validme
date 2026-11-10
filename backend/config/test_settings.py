@@ -13,3 +13,4 @@ PLAN_LIMITS = {
 }
 LEMONSQUEEZY_TEST_MODE = True
 CREDIT_PACKS = []
+EVIDENCE_PREVIEW_LIMIT = 100000  # off by default in tests; billing tests set it explicitly

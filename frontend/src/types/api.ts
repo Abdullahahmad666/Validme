@@ -249,3 +249,7 @@ export type ApiKey = {
 export type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
 
 export type ApiErrorBody = { error: { code: string; message: string; details?: Record<string, unknown> } };
+
+/** Free plan: the explorer shows a preview (top records per project); reports are never limited. */
+export type EvidencePreview = { limited: boolean; limit_per_project: number; available: number; total: number };
+export type EvidencePage = Paginated<Evidence> & { preview?: EvidencePreview };

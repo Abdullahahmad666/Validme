@@ -106,6 +106,9 @@ REST_FRAMEWORK = {
         "analytics": env("THROTTLE_ANALYTICS", default="120/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
+    # Throttles key on the client IP the proxy appended (X-Forwarded-For), not on a header the client controls.
+    # Django must only be reachable through that proxy (see USE_X_FORWARDED_HOST below).
+    "NUM_PROXIES": env.int("DRF_NUM_PROXIES", default=1),
 }
 
 # Frontend + cookies. The Next.js app proxies /api and /_allauth to Django, so the browser
@@ -172,6 +175,9 @@ CELERY_BEAT_SCHEDULE = {
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
 JOB_RUNNING_TIMEOUT_MINUTES = env.int("JOB_RUNNING_TIMEOUT_MINUTES", default=45)
+# Workers stop before recovery would act, so a job is never both refunded and completed.
+CELERY_TASK_SOFT_TIME_LIMIT = max(60, (JOB_RUNNING_TIMEOUT_MINUTES - 5) * 60)
+CELERY_TASK_TIME_LIMIT = max(120, (JOB_RUNNING_TIMEOUT_MINUTES - 2) * 60)
 
 # Research providers (empty key => provider shows REQUIRES_CONNECTION)
 BRAVE_SEARCH_API_KEY = env("BRAVE_SEARCH_API_KEY", default="")
@@ -195,11 +201,17 @@ PLAN_LIMITS = {
     "paid": {"depths": ["quick", "standard", "deep"], "max_running": 3, "daily_launches": 20},
 }
 
+# Free plan: evidence explorer/search shows this many records per project (reports are never limited).
+EVIDENCE_PREVIEW_LIMIT = env.int("EVIDENCE_PREVIEW_LIMIT", default=10)
+# Global cap on anonymous analytics events per day (storage guard on top of the per-IP throttle).
+ANALYTICS_ANON_DAILY_CAP = env.int("ANALYTICS_ANON_DAILY_CAP", default=20000)
+
 # Payments: Lemon Squeezy is the merchant of record (handles tax/VAT). Without these, buying is closed.
 LEMONSQUEEZY_API_KEY = env("LEMONSQUEEZY_API_KEY", default="")
 LEMONSQUEEZY_STORE_ID = env("LEMONSQUEEZY_STORE_ID", default="")
 LEMONSQUEEZY_WEBHOOK_SECRET = env("LEMONSQUEEZY_WEBHOOK_SECRET", default="")
-LEMONSQUEEZY_TEST_MODE = env.bool("LEMONSQUEEZY_TEST_MODE", default=True)
+# Defaults to DEBUG: production (DEBUG off) honours live orders unless test mode is set explicitly.
+LEMONSQUEEZY_TEST_MODE = env.bool("LEMONSQUEEZY_TEST_MODE", default=DEBUG)
 # JSON list of packs: [{"id": "starter", "credits": 6, "variant_id": "123456"}]. Prices live in Lemon Squeezy.
 CREDIT_PACKS = env.json("CREDIT_PACKS", default=[])
 

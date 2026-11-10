@@ -44,6 +44,8 @@ class Evidence(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["project", "source_url", "content_hash"], name="unique_evidence")]
+        # Explorer order and the free-plan preview ranking (top records per project).
+        indexes = [models.Index(fields=["project", "-relevance", "-published_at", "-id"], name="evidence_rank_idx")]
 
 
 class EvidenceCluster(models.Model):

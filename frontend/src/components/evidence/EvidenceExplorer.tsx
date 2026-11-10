@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Copy, Info, Layers, Search, Sparkles, X } from "lucide-react";
+import { Bookmark, Copy, Info, Layers, Lock, Search, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -164,13 +164,13 @@ export function EvidenceExplorer() {
             Verbatim excerpts from the sources your research searched, each linked to the original.
           </p>
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex w-full min-w-0 max-w-full flex-col gap-1.5 sm:w-auto">
           <Label htmlFor="project-select">Project</Label>
           <select
             id="project-select"
             value={filters.project ?? ""}
             onChange={(e) => setFilters({ project: e.target.value, cluster: undefined })}
-            className="h-11 min-w-56 rounded-control border border-input bg-card px-3 text-sm"
+            className="h-11 w-full min-w-0 max-w-full truncate rounded-control border border-input bg-card px-3 text-sm sm:w-auto sm:min-w-56 sm:max-w-sm"
           >
             {researched.map((p) => (
               <option key={p.id} value={p.id}>
@@ -278,6 +278,19 @@ export function EvidenceExplorer() {
               </p>
             )}
           </div>
+
+          {page?.preview?.limited && page.preview.total > page.preview.available && (
+            <p role="note" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-control border border-primary/30 bg-primary/[0.05] p-3 text-sm">
+              <Lock className="size-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                Free preview: you can browse the {page.preview.available} most relevant of {page.preview.total} records. Your
+                report still links every source it cites.
+              </span>
+              <Link href="/billing" className="font-medium text-primary underline">
+                Any credit pack unlocks all of them
+              </Link>
+            </p>
+          )}
 
           {/* Results */}
           {evidence.isPending ? (

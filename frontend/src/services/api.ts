@@ -7,6 +7,7 @@ import type {
   Depth,
   Estimate,
   Evidence,
+  EvidencePage,
   EvidenceFacets,
   EvidenceFilters,
   EvidenceTheme,
@@ -127,7 +128,7 @@ export const api = {
 
   getSources: () => request<{ results: ResearchSource[] }>("/research/sources"),
 
-  listEvidence: (f: EvidenceFilters) => request<Paginated<Evidence>>(`/evidence${evidenceQuery(f)}`),
+  listEvidence: (f: EvidenceFilters) => request<EvidencePage>(`/evidence${evidenceQuery(f)}`),
   evidenceFacets: (project?: string) =>
     request<EvidenceFacets>(`/evidence/facets${project ? `?project=${encodeURIComponent(project)}` : ""}`),
   listThemes: (project: string) => request<EvidenceTheme[]>(`/evidence/clusters?project=${encodeURIComponent(project)}`),
