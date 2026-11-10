@@ -6,6 +6,9 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import User
+from analytics.services import track
+from billing.plans import PlanLimit, check_launch, limits_for
 from billing.services import InsufficientCredits, credits_for, spend_credits
 from projects.models import Project
 from research.budgets import DEPTH_BUDGETS
@@ -116,6 +119,10 @@ class ResearchJobViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mix
                         {"error": {"code": "not_draft", "message": "This project already has research running."}},
                         status=status.HTTP_409_CONFLICT,
                     )
+                # Plan limits are checked under a lock on the user, so two launches can't both slip past the caps.
+                User.objects.select_for_update().get(pk=request.user.pk)
+                check_launch(request.user, depth)
+                first = not ResearchJob.objects.filter(project__owner=request.user).exists()
                 job = ResearchJob.objects.create(
                     project=locked,
                     depth=depth,
@@ -132,6 +139,12 @@ class ResearchJobViewSet(mixins.CreateModelMixin, mixins.RetrieveModelMixin, mix
                 {"error": {"code": "insufficient_credits", "message": str(exc)}},
                 status=status.HTTP_402_PAYMENT_REQUIRED,
             )
+        except PlanLimit as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status=status.HTTP_403_FORBIDDEN if exc.code == "plan_depth" else status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+        track("first_research_started" if first else "research_started", user=request.user, props={"depth": depth})
         transaction.on_commit(lambda: run_research_job.delay(str(job.id)))
         return Response(ResearchJobSerializer(job).data, status=status.HTTP_201_CREATED)
 
@@ -151,6 +164,7 @@ class EstimateView(APIView):
                 raise NotFound("Project not found.")
         cost = credits_for(depth)
         balance = request.user.credits
+        limits = limits_for(request.user)
         return Response(
             {
                 "depth": depth,
@@ -158,6 +172,9 @@ class EstimateView(APIView):
                 "balance": balance,
                 "balance_after": balance - cost,
                 "sufficient": balance >= cost,
+                # Depth allowed on this account's plan (enforced again at launch).
+                "allowed": depth in limits["depths"],
+                "plan": limits["plan"],
                 # Search budget only: the internal spend cap (max_usd) is never sent to clients.
                 "budget": {k: v for k, v in DEPTH_BUDGETS[depth].items() if k != "max_usd"},
             }

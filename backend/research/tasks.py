@@ -3,9 +3,10 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
-from projects.models import Project
-from reports.models import Report
-from research.models import JobStage, ResearchJob
+from analytics.services import track
+from billing.services import refund_job
+from research.models import ResearchJob
+from research.recovery import fail_job, recover_stuck_jobs, settle_project
 from research.services import collect_evidence
 
 logger = logging.getLogger(__name__)
@@ -13,31 +14,38 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=0)
 def run_research_job(self, job_id: str) -> str:
-    job = ResearchJob.objects.select_related("project").get(pk=job_id)
+    job = ResearchJob.objects.select_related("project__owner").get(pk=job_id)
     if job.status not in (ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING):
-        return job.status  # already finished (e.g. a duplicate delivery)
+        return job.status  # already finished (e.g. a duplicate delivery, or recovered as stuck)
     job.status = ResearchJob.Status.RUNNING
     job.started_at = timezone.now()
     job.save(update_fields=["status", "started_at"])
     try:
-        # Week 3-5: classify → cluster → competitors → score → distribution → report
+        # classify → cluster → competitors → score → distribution → report
         job = collect_evidence(job)
     except Exception:
         logger.exception("research job %s crashed", job_id)
-        # Never leave a job spinning: whatever stage was running is marked failed, visibly.
-        JobStage.objects.filter(job=job, status=JobStage.Status.PROCESSING).update(
-            status=JobStage.Status.FAILED, detail="Unexpected error", finished_at=timezone.now()
-        )
-        job.status = ResearchJob.Status.FAILED
-        job.completed_at = timezone.now()
-        job.save(update_fields=["status", "completed_at"])
+        # Never leave a job spinning: unfinished stages are marked failed, visibly, and credits come back.
+        fail_job(job, "Unexpected error. Your credits were refunded.")
         raise
-    finally:
-        # A failed job returns the project to draft so it can be edited and run again.
-        done = job.status in (ResearchJob.Status.COMPLETED, ResearchJob.Status.PARTIALLY_COMPLETED)
-        # A failed re-run keeps the project's earlier reports reachable.
-        has_report = Report.objects.filter(project_id=job.project_id).exists()
-        Project.objects.filter(pk=job.project_id).update(
-            status=Project.Status.COMPLETED if done or has_report else Project.Status.DRAFT
+    if job.status == ResearchJob.Status.FAILED:
+        # Nothing could be searched: the run delivered nothing, so it's free.
+        refund_job(job)
+        track("research_failed", user=job.project.owner, props={"depth": job.depth})
+    else:
+        first = (
+            not ResearchJob.objects.filter(
+                project__owner=job.project.owner,
+                status__in=(ResearchJob.Status.COMPLETED, ResearchJob.Status.PARTIALLY_COMPLETED),
+            )
+            .exclude(pk=job.pk)
+            .exists()
         )
+        track("first_report_completed" if first else "report_completed", user=job.project.owner, props={"depth": job.depth})
+    settle_project(job)
     return job.status
+
+
+@shared_task
+def recover_stuck_jobs_task() -> int:
+    return recover_stuck_jobs()

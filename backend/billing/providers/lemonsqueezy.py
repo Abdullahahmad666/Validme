@@ -1,0 +1,102 @@
+"""Lemon Squeezy (merchant of record): hosted checkout + signed webhooks.
+
+Docs: https://docs.lemonsqueezy.com/api. Nothing here runs in the browser; the API key and webhook
+secret come from env and never leave the server.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import logging
+
+import httpx
+from django.conf import settings
+from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
+
+API = "https://api.lemonsqueezy.com/v1"
+NAME = "lemonsqueezy"
+
+
+class ProviderUnavailable(Exception):
+    pass
+
+
+def is_configured() -> bool:
+    return bool(settings.LEMONSQUEEZY_API_KEY and settings.LEMONSQUEEZY_STORE_ID and settings.LEMONSQUEEZY_WEBHOOK_SECRET)
+
+
+def _headers() -> dict:
+    return {
+        "Authorization": f"Bearer {settings.LEMONSQUEEZY_API_KEY}",
+        "Accept": "application/vnd.api+json",
+        "Content-Type": "application/vnd.api+json",
+    }
+
+
+def create_checkout(*, variant_id: str, purchase_id: str, user_id: int, email: str, redirect_url: str) -> tuple[str, str]:
+    """Returns (checkout_id, hosted checkout URL). Our purchase id travels in custom data and comes back
+    on the webhook; the webhook still re-checks the variant and user before granting anything."""
+    if not is_configured():
+        raise ProviderUnavailable("Payments aren't configured.")
+    body = {
+        "data": {
+            "type": "checkouts",
+            "attributes": {
+                "checkout_data": {"email": email, "custom": {"purchase_id": purchase_id, "user_id": str(user_id)}},
+                "product_options": {"redirect_url": redirect_url, "enabled_variants": [int(variant_id)]},
+                "test_mode": settings.LEMONSQUEEZY_TEST_MODE,
+            },
+            "relationships": {
+                "store": {"data": {"type": "stores", "id": str(settings.LEMONSQUEEZY_STORE_ID)}},
+                "variant": {"data": {"type": "variants", "id": str(variant_id)}},
+            },
+        }
+    }
+    try:
+        resp = httpx.post(f"{API}/checkouts", json=body, headers=_headers(), timeout=15, trust_env=False)
+        resp.raise_for_status()
+    except httpx.HTTPError as exc:
+        # Log the status only: the request carries the API key in a header, never echo it.
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else "network"
+        logger.warning("lemonsqueezy checkout failed: %s", status)
+        raise ProviderUnavailable("The payment provider didn't respond. Please try again.") from exc
+    data = resp.json()["data"]
+    url = data["attributes"]["url"]
+    if not url.startswith("https://"):
+        raise ProviderUnavailable("Unexpected checkout URL.")
+    return data["id"], url
+
+
+def price_label(variant_id: str) -> str | None:
+    """Display price straight from the provider (never hard-coded here). Cached for an hour."""
+    if not is_configured():
+        return None
+    key = f"ls:price:{variant_id}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached or None
+    label = ""
+    try:
+        v = httpx.get(f"{API}/variants/{variant_id}", headers=_headers(), timeout=10, trust_env=False)
+        s = httpx.get(f"{API}/stores/{settings.LEMONSQUEEZY_STORE_ID}", headers=_headers(), timeout=10, trust_env=False)
+        v.raise_for_status()
+        s.raise_for_status()
+        cents = int(v.json()["data"]["attributes"]["price"])
+        currency = s.json()["data"]["attributes"]["currency"]
+        label = f"{cents / 100:,.2f} {currency}"
+    except (httpx.HTTPError, KeyError, ValueError, TypeError):
+        logger.warning("lemonsqueezy price lookup failed for variant %s", variant_id)
+    cache.set(key, label, 3600 if label else 300)
+    return label or None
+
+
+def verify_signature(raw_body: bytes, signature: str) -> bool:
+    """X-Signature = hex HMAC-SHA256 of the raw body with the webhook signing secret."""
+    secret = settings.LEMONSQUEEZY_WEBHOOK_SECRET
+    if not secret or not signature:
+        return False
+    expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)

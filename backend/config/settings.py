@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "evidence",
     "reports",
     "billing",
+    "analytics",
 ]
 
 MIDDLEWARE = [
@@ -101,6 +102,8 @@ REST_FRAMEWORK = {
         "user": env("THROTTLE_USER", default="600/min"),
         # LLM-backed drafting endpoints cost real money and are free to the user.
         "ai": env("THROTTLE_AI", default="30/hour"),
+        "checkout": env("THROTTLE_CHECKOUT", default="10/hour"),
+        "analytics": env("THROTTLE_ANALYTICS", default="120/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
 }
@@ -163,6 +166,12 @@ CACHES = {"default": env.cache("CACHE_URL", default="locmemcache://")}
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
+# Run `celery -A config beat` next to the worker: it fails and refunds jobs whose worker died.
+CELERY_BEAT_SCHEDULE = {
+    "recover-stuck-jobs": {"task": "research.tasks.recover_stuck_jobs_task", "schedule": 300.0},
+}
+JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
+JOB_RUNNING_TIMEOUT_MINUTES = env.int("JOB_RUNNING_TIMEOUT_MINUTES", default=45)
 
 # Research providers (empty key => provider shows REQUIRES_CONNECTION)
 BRAVE_SEARCH_API_KEY = env("BRAVE_SEARCH_API_KEY", default="")
@@ -179,3 +188,27 @@ OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 # Credits per research depth (internal budgets live in research/budgets.py)
 CREDITS_PER_DEPTH = {"quick": 1, "standard": 2, "deep": 4}
 FREE_SIGNUP_CREDITS = 1
+
+# Plan limits, enforced at launch (billing/plans.py). "paid" = has bought a credit pack.
+PLAN_LIMITS = {
+    "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3},
+    "paid": {"depths": ["quick", "standard", "deep"], "max_running": 3, "daily_launches": 20},
+}
+
+# Payments: Lemon Squeezy is the merchant of record (handles tax/VAT). Without these, buying is closed.
+LEMONSQUEEZY_API_KEY = env("LEMONSQUEEZY_API_KEY", default="")
+LEMONSQUEEZY_STORE_ID = env("LEMONSQUEEZY_STORE_ID", default="")
+LEMONSQUEEZY_WEBHOOK_SECRET = env("LEMONSQUEEZY_WEBHOOK_SECRET", default="")
+LEMONSQUEEZY_TEST_MODE = env.bool("LEMONSQUEEZY_TEST_MODE", default=True)
+# JSON list of packs: [{"id": "starter", "credits": 6, "variant_id": "123456"}]. Prices live in Lemon Squeezy.
+CREDIT_PACKS = env.json("CREDIT_PACKS", default=[])
+
+# Logs go to stdout (the platform collects them). Never log request bodies, headers or keys.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
+    "loggers": {"httpx": {"level": "WARNING"}, "httpcore": {"level": "WARNING"}},
+}

@@ -4,6 +4,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from accounts.views import ApiKeyViewSet, MeView
+from analytics.views import EventView
+from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, UsageView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
 from projects.views import DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
 from reports.views import ReportExportView, ReportHistoryView, ReportView
@@ -31,9 +33,18 @@ urlpatterns = [
     path("api/me", MeView.as_view()),
     path("api/dashboard/summary", DashboardSummaryView.as_view()),
     path("api/research/sources", SourcesView.as_view()),
+    path("api/billing/packs", PacksView.as_view()),
+    path("api/billing/checkout", CheckoutView.as_view()),
+    path("api/billing/usage", UsageView.as_view()),
+    path("api/billing/webhooks/lemonsqueezy", LemonSqueezyWebhookView.as_view()),
+    path("api/analytics/events", EventView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),
     path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),
     path("api/reports/<str:project_id>/export", ReportExportView.as_view()),
     path("api/", include(router.urls)),
 ]
+
+# API callers get the JSON error envelope even for unmatched URLs and crashes, never an HTML page.
+handler404 = "config.errors.not_found"
+handler500 = "config.errors.server_error"
