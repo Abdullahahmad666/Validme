@@ -1,4 +1,4 @@
-# Roadmap (one developer, ~6 weeks + 2-week beta)
+# Roadmap (one developer: v1 Weeks 0–6, v2 Weeks 7–15)
 
 Tick boxes as you go — Claude Code reads this file to know what's next.
 
@@ -56,6 +56,75 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [ ] Final plan prices + allowances; decide subscriptions vs credit packs (PRD §9 favours packs)
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
 - [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`
+
+## v2: continuous intelligence (plan in `docs/strategy-v2.md`)
+Every week ends with a **gate day**: security-reviewer, research-quality/ui reviewer, performance (query counts, p95, LLM cost per unit), exposure check, tests + build, docs. Nothing is pushed before the gate passes.
+
+### Week 7 — Decision workspace (quick wins)
+- [ ] D1 Pricing & feature gap matrix (`/reports/{id}/competitive-matrix`, Competitors tab v2)
+- [ ] D2 Assumption tracker (separate from evidence; status + linked evidence)
+- [ ] D3 Score history chart + compare 2–4 ideas
+- [ ] D4 Unit economics simulator (deterministic, founder inputs) + public `/tools/unit-economics`
+- [ ] D5 Gate
+
+### Week 8 — Monitoring engine (needs deploy: worker + beat + Redis)
+- [ ] D1 `monitoring` app: Watch, Observation, indexes
+- [ ] D2 Scheduler: beat + skip_locked claims + per-domain politeness lock
+- [ ] D3 Conditional GET, robots, SSRF re-check, normalize, hash, retention
+- [ ] D4 Deterministic diffs (verified pricing, sections) → Change
+- [ ] D5 Gate (SSRF focus; 1k-watch load test)
+
+### Week 9 — Change intelligence & alerts
+- [ ] D1 LLM summary on diffs only (labelled) + significance rules
+- [ ] D2 Watch management UI
+- [ ] D3 Competitor change timeline UI
+- [ ] D4 In-app notifications + entitlements v1 (watch quota, cadence)
+- [ ] D5 Gate
+
+### Week 10 — Weekly digest, new competitors, subscriptions
+- [ ] D1 Email provider + digest builder (every item linked to evidence)
+- [ ] D2 Preferences, signed unsubscribe, idempotent sends, bounces
+- [ ] D3 New-competitor detection (saved queries; user confirms)
+- [ ] D4 Lemon Squeezy subscriptions → entitlements
+- [ ] D5 Gate (billing focus)
+
+### Week 11 — Opportunity Radar
+- [ ] D1 Signal model + generators (complaint themes, competitor changes, own discussion trends, new competitors)
+- [ ] D2 Deterministic relevance/impact/confidence; AI rationale labelled
+- [ ] D3 Radar UI (evidence, source, date, action; dismiss/acted)
+- [ ] D4 Revalidation + score snapshots; Radar in digest
+- [ ] D5 Gate (research-quality focus)
+
+### Week 12 — Distribution data v2
+- [ ] D1 YouTube Data API provider (size / relevance / activity separate; 30-day expiry)
+- [ ] D2 Licensed keyword demand provider (cached, cost-capped)
+- [ ] D3 GitHub issues provider
+- [ ] D4 "Where to find your customers" UI v2
+- [ ] D5 Gate
+
+### Week 13 — Validation Lab 1: landing page + waitlist
+- [ ] D1 Separate origin, structured-block pages, publish rules
+- [ ] D2 Block editor UI
+- [ ] D3 Waitlist form (honeypot, rate limits, consent, encrypted emails, retention)
+- [ ] D4 First-party page analytics
+- [ ] D5 Gate (XSS, abuse, PII, origin isolation)
+
+### Week 14 — Validation Lab 2: surveys + price tests
+- [ ] D1 Survey builder + public survey page
+- [ ] D2 Pricing smoke test (variants, honest "not available yet")
+- [ ] D3 Results dashboard with sample-size warnings
+- [ ] D4 Export, deletion, respondent data requests
+- [ ] D5 Gate
+
+### Week 15 — Close the loop
+- [ ] D1 Experiment results as tier-1 evidence in scoring
+- [ ] D2 Predicted vs actual panel
+- [ ] D3 Assumptions auto-marked supported/contradicted (founder can override)
+- [ ] D4 MCP tools for watches, Radar, Lab (scoped keys)
+- [ ] D5 Gate + full regression/performance pass
+
+### Later (Phase D, on demand)
+- [ ] Agency workspaces · licensed Reddit/G2/Crunchbase/Similarweb (business decisions) · evidence-first GTM generator if asked
 
 ## Weeks 7–8 — Private beta
 - [ ] 20-idea quality test set reviewed by a human
