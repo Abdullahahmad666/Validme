@@ -136,3 +136,59 @@ export type Report = {
   evidence_index: Record<string, ReportEvidence>;
   notes: string[];
 };
+
+export type CompetitiveMatrix = {
+  report_id: number;
+  competitor_count: number;
+  pricing: {
+    competitor_id: number;
+    name: string;
+    status: "verified" | "unavailable";
+    plans: { name: string; price: string; period?: string }[];
+    lowest: { price: string; period: string } | null;
+    mixed_periods: boolean;
+    has_free: boolean;
+    source_url: string;
+    retrieved_at: string | null;
+  }[];
+  features: { feature: string; competitor_ids: number[] }[];
+  features_ai_extracted: boolean;
+  complaints: { competitor_id: number; name: string; complaints: number; gap: string; evidence_ids: number[] }[];
+  gap_candidates: {
+    theme: string;
+    category: string;
+    records: number;
+    distinct_sources: number;
+    confidence: Level | "";
+    evidence_ids: number[];
+  }[];
+  method: string;
+};
+
+export type AssumptionStatus = "untested" | "supported" | "contradicted";
+
+export type Assumption = {
+  id: number;
+  text: string;
+  source: "founder" | "ai";
+  status: AssumptionStatus;
+  note: string;
+  evidence: { id: number; title: string; source_url: string; provider: string; category: string }[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type CompareRow = {
+  id: string;
+  name: string;
+  status: string;
+  report_id: number | null;
+  generated_at: string | null;
+  score: number | null;
+  confidence: Level | null;
+  recommendation: Recommendation | null;
+  evidence_count: number;
+  competitor_count: number;
+  scored_weight: number | null;
+  dimensions: { key: string; label: string; weight: number; score: number | null; available: boolean; confidence: Level }[];
+};

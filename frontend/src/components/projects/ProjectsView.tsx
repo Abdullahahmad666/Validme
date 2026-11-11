@@ -19,9 +19,16 @@ export function ProjectsView() {
             {projects.data ? `${projects.data.count} project${projects.data.count === 1 ? "" : "s"}` : " "}
           </p>
         </div>
-        <Button asChild>
-          <Link href="/research/new">+ New research</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {(projects.data?.count ?? 0) >= 2 && (
+            <Button asChild variant="outline">
+              <Link href="/projects/compare">Compare ideas</Link>
+            </Button>
+          )}
+          <Button asChild>
+            <Link href="/research/new">+ New research</Link>
+          </Button>
+        </div>
       </header>
       {projects.isPending ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

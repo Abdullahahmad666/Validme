@@ -335,7 +335,8 @@ export function Competitors({ r }: { r: Report }) {
   );
 }
 
-export function MarketGaps({ r }: { r: Report }) {
+/** `assumptions` replaces the read-only list with the interactive tracker (in the app; print/tests keep the list). */
+export function MarketGaps({ r, assumptions }: { r: Report; assumptions?: React.ReactNode }) {
   const o = r.opportunity;
   return (
     <div className="flex flex-col gap-4">
@@ -396,6 +397,7 @@ export function MarketGaps({ r }: { r: Report }) {
             </span>
           </p>
         </Panel>
+        {assumptions ?? (
         <Panel title="Assumptions to test">
           {o.assumptions.length === 0 ? (
             <p className="text-sm text-muted-foreground">None recorded.</p>
@@ -412,6 +414,7 @@ export function MarketGaps({ r }: { r: Report }) {
             </ul>
           )}
         </Panel>
+        )}
         <Panel title="Risks">
           {o.risks.length === 0 ? (
             <p className="text-sm text-muted-foreground">No risks flagged from the evidence.</p>

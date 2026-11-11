@@ -1,5 +1,6 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
-import type { Report, ReportVersion } from "@/types/report";
+import type { UnitInputs } from "@/lib/unitEconomics";
+import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
   BillingPacks,
@@ -134,6 +135,21 @@ export const api = {
   listThemes: (project: string) => request<EvidenceTheme[]>(`/evidence/clusters?project=${encodeURIComponent(project)}`),
   getReport: (projectId: string, reportId?: number) =>
     request<Report>(`/reports/${encodeURIComponent(projectId)}${reportId ? `?report=${reportId}` : ""}`),
+  competitiveMatrix: (projectId: string, reportId?: number) =>
+    request<CompetitiveMatrix>(`/reports/${encodeURIComponent(projectId)}/competitive-matrix${reportId ? `?report=${reportId}` : ""}`),
+  listAssumptions: (projectId: string) => request<Assumption[]>(`/projects/${encodeURIComponent(projectId)}/assumptions`),
+  createAssumption: (projectId: string, body: { text: string; evidence_ids?: number[] }) =>
+    request<Assumption>(`/projects/${encodeURIComponent(projectId)}/assumptions`, { method: "POST", body: json(body) }),
+  updateAssumption: (projectId: string, id: number, body: Partial<Pick<Assumption, "status" | "note" | "text">> & { evidence_ids?: number[] }) =>
+    request<Assumption>(`/projects/${encodeURIComponent(projectId)}/assumptions/${id}`, { method: "PATCH", body: json(body) }),
+  deleteAssumption: (projectId: string, id: number) =>
+    request<void>(`/projects/${encodeURIComponent(projectId)}/assumptions/${id}`, { method: "DELETE" }),
+  compareProjects: (ids: string[]) =>
+    request<{ results: CompareRow[] }>(`/projects/compare?ids=${ids.map(encodeURIComponent).join(",")}`),
+  getUnitEconomics: (projectId: string) =>
+    request<{ inputs: UnitInputs | null; updated_at: string | null }>(`/projects/${encodeURIComponent(projectId)}/unit-economics`),
+  saveUnitEconomics: (projectId: string, inputs: UnitInputs) =>
+    request<{ inputs: UnitInputs; updated_at: string }>(`/projects/${encodeURIComponent(projectId)}/unit-economics`, { method: "PUT", body: json(inputs) }),
   reportHistory: (projectId: string) => request<{ count: number; results: ReportVersion[] }>(`/reports/${encodeURIComponent(projectId)}/history`),
   saveEvidence: (id: number, saved: boolean) =>
     request<Evidence>(`/evidence/${id}`, { method: "PATCH", body: json({ saved_by_user: saved }) }),

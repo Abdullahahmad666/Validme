@@ -93,3 +93,35 @@ describe("report sections", () => {
     expect(old).toContain("Re-run the research");
   });
 });
+
+describe("score history", () => {
+  it("needs two versions and shows unscored versions as gaps, not zero", async () => {
+    const { ScoreHistory } = await import("@/components/report/ScoreHistory");
+    const v = (id: number, score: number | null) => ({ id, created_at: "2026-11-0" + id, depth: "quick", score, confidence: "low" as const, recommendation: "research_more" as const, evidence_count: 1 });
+    expect(renderToStaticMarkup(createElement(ScoreHistory, { versions: [v(1, 40)], currentId: 1 }))).toBe("");
+    const out = renderToStaticMarkup(createElement(ScoreHistory, { versions: [v(3, 55), v(2, null), v(1, 40)], currentId: 3 }));
+    expect(out).toContain("+15 since the first scored version");
+    expect(out).toContain("Not scored");
+    // The line breaks at the unscored version instead of joining 40 → 55 across it.
+    expect(out.match(/ M/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
+    expect(out).not.toMatch(/d="M[^"]*L/);
+  });
+});
+
+describe("unit economics simulator", () => {
+  it("labels example numbers and won't save them as the founder's", async () => {
+    const { UnitEconomicsSimulator } = await import("@/components/tools/UnitEconomicsSimulator");
+    const out = renderToStaticMarkup(createElement(UnitEconomicsSimulator, { onSave: () => {} }));
+    expect(out).toContain("Example numbers: replace them with yours.");
+    expect(out).toMatch(/<button[^>]*disabled[^>]*>.*Save to project/);
+    expect(out).toContain("Change at least one number to save your own inputs.");
+  });
+  it("treats saved inputs as the founder's own", async () => {
+    const { UnitEconomicsSimulator } = await import("@/components/tools/UnitEconomicsSimulator");
+    const { DEFAULT_INPUTS } = await import("@/lib/unitEconomics");
+    const out = renderToStaticMarkup(createElement(UnitEconomicsSimulator, { initial: DEFAULT_INPUTS, example: false, onSave: () => {} }));
+    expect(out).toContain("Your numbers, not market data.");
+    expect(out).not.toContain("Example numbers");
+    expect(out).toContain('type="radio"'); // native radios: keyboard arrows work
+  });
+});

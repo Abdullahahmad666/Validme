@@ -40,12 +40,12 @@ export function ExportMenu({ projectId, reportId, onPrint }: { projectId: string
 export function HistorySelect({ versions, value, onChange }: { versions: ReportVersion[]; value: number; onChange: (id: number) => void }) {
   if (versions.length < 2) return null;
   return (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="flex min-w-0 max-w-full items-center gap-2 text-sm">
       <span className="text-muted-foreground">Version</span>
       <select
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-10 rounded-control border border-input bg-card px-2 text-sm"
+        className="h-10 min-w-0 max-w-full flex-1 truncate rounded-control border border-input bg-card px-2 text-sm sm:max-w-xs"
       >
         {versions.map((v, i) => (
           <option key={v.id} value={v.id}>

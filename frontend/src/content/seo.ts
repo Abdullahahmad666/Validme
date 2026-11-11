@@ -74,6 +74,21 @@ export const PAGES = {
     index: true,
     sitemap: { priority: 0.6, changeFrequency: "monthly" },
   },
+  unitEconomics: {
+    path: "/tools/unit-economics",
+    title: "SaaS unit economics calculator",
+    description:
+      "Free SaaS unit economics calculator: work out LTV, LTV:CAC, CAC payback and break-even customers from your own price, churn and costs, in three scenarios.",
+    og: {
+      eyebrow: "Free tool",
+      headline: "Will your SaaS make money? Check the unit economics.",
+      subline: "LTV, CAC payback and break-even from your own numbers.",
+    },
+    schemaType: "WebPage",
+    label: "Unit economics calculator",
+    index: true,
+    sitemap: { priority: 0.7, changeFrequency: "monthly" },
+  },
   about: {
     path: "/about",
     title: "About",

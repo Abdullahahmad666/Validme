@@ -270,6 +270,7 @@ export const FOOTER_COLUMNS = [
       { href: "/blog", label: "Blog" },
       { href: "/guides", label: "Startup guides" },
       { href: "/glossary", label: "Market research glossary" },
+      { href: "/tools/unit-economics", label: "Unit economics calculator" },
     ],
   },
   {

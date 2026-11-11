@@ -1,12 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Clock, ExternalLink, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
+import { AssumptionTracker } from "@/components/report/AssumptionTracker";
+import { CompetitiveMatrix } from "@/components/report/CompetitiveMatrix";
 import { Audience, Distribution } from "@/components/report/DistributionSections";
+import { EconomicsTab } from "@/components/report/EconomicsTab";
+import { ScoreHistory } from "@/components/report/ScoreHistory";
 import { ExportMenu, HistorySelect, RerunPanel } from "@/components/report/ReportActions";
 import { Competitors, Demand, MarketGaps, Overview, PainPoints } from "@/components/report/ReportSections";
 import { StatusPill } from "@/components/shared/StatusPill";
@@ -28,13 +32,23 @@ const TABS = [
   { key: "market-gaps", label: "Market gaps" },
   { key: "audience", label: "Audience" },
   { key: "distribution", label: "Distribution" },
+  { key: "economics", label: "Economics" },
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
+
+function CompetitorsTab({ r }: { r: Report }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <CompetitiveMatrix r={r} />
+      <Competitors r={r} />
+    </div>
+  );
+}
 const SECTIONS: [string, string, (p: { r: Report }) => React.ReactNode][] = [
   ["overview", "Overview", Overview],
   ["demand", "Demand", Demand],
   ["pain-points", "Pain points", PainPoints],
-  ["competitors", "Competitors", Competitors],
+  ["competitors", "Competitors", CompetitorsTab],
   ["market-gaps", "Market gaps", MarketGaps],
   ["audience", "Audience", Audience],
   ["distribution", "Distribution", Distribution],
@@ -47,6 +61,7 @@ export function ReportView({ projectId }: { projectId: string }) {
   const tab = (TABS.find((t) => t.key === params.get("tab"))?.key ?? "overview") as TabKey;
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const version = Number(params.get("report")) || undefined;
+  const qc = useQueryClient();
   const report = useQuery({
     queryKey: ["report", projectId, version ?? "latest"],
     queryFn: () => api.getReport(projectId, version),
@@ -113,12 +128,12 @@ export function ReportView({ projectId }: { projectId: string }) {
     <div className="flex flex-col gap-6">
       <nav aria-label="Breadcrumb">
         <ol className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <li>
+          <li className="flex items-center gap-1.5">
             <Link href="/projects" className="hover:text-foreground">
               My projects
             </Link>
+            <ChevronRight className="size-3.5" aria-hidden />
           </li>
-          <ChevronRight className="size-3.5" aria-hidden />
           <li aria-current="page" className="max-w-[16rem] truncate font-medium text-foreground">
             {r.project.name}
           </li>
@@ -144,7 +159,17 @@ export function ReportView({ projectId }: { projectId: string }) {
           </ul>
         )}
         <div className="flex flex-wrap items-center gap-2 print:hidden">
-          <ExportMenu projectId={projectId} reportId={r.id} onPrint={() => setPrinting(true)} />
+          <ExportMenu projectId={projectId} reportId={r.id} onPrint={async () => {
+              // Load the competitor comparison first, so the PDF never captures a loading skeleton.
+              await qc
+                .prefetchQuery({
+                  queryKey: ["competitive-matrix", r.project.id, r.id],
+                  queryFn: () => api.competitiveMatrix(r.project.id, r.id),
+                  staleTime: Infinity,
+                })
+                .catch(() => {});
+              setPrinting(true);
+            }} />
           {r.project.status === "COMPLETED" && (
             <Button variant="outline" onClick={() => setRerun((v) => !v)} aria-expanded={rerun}>
               <RefreshCw aria-hidden /> Re-run
@@ -217,7 +242,12 @@ export function ReportView({ projectId }: { projectId: string }) {
       </div>
 
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} hidden={printing}>
-        {tab === "overview" && <Overview r={r} />}
+        {tab === "overview" && (
+          <div className="flex flex-col gap-4">
+            <Overview r={r} />
+            <ScoreHistory versions={history.data?.results ?? []} currentId={r.id} />
+          </div>
+        )}
         {tab === "demand" && <Demand r={r} />}
         {tab === "evidence" && (
           <div className="rounded-card border border-border bg-card p-6">
@@ -232,8 +262,9 @@ export function ReportView({ projectId }: { projectId: string }) {
           </div>
         )}
         {tab === "pain-points" && <PainPoints r={r} />}
-        {tab === "competitors" && <Competitors r={r} />}
-        {tab === "market-gaps" && <MarketGaps r={r} />}
+        {tab === "competitors" && <CompetitorsTab r={r} />}
+        {tab === "market-gaps" && <MarketGaps r={r} assumptions={<AssumptionTracker r={r} />} />}
+        {tab === "economics" && <EconomicsTab projectId={projectId} />}
         {tab === "audience" && <Audience r={r} />}
         {tab === "distribution" && <Distribution r={r} />}
       </div>
