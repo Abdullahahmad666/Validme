@@ -53,17 +53,24 @@ Stage list from backend (Idea analysis · Web research · Evidence analysis · C
 
 ## P0 — Opportunity report (`/projects/[id]/report`)
 Header: breadcrumb, status, title, date, geography/industry/audience chips, Export · Share · More. Tabs keep header context; on mobile tabs become horizontal scroll.
-1. **Overview:** score /100 + confidence + evidence count + competitors found; executive summary; key findings (each linked to evidence); recommended next step.
+1. **Overview:** score /100 + confidence + evidence count + competitors found; executive summary; key findings (each linked to evidence); recommended next step; **score history** (≥ 2 versions: line breaks at unscored versions, which sit in a separate band, never at 0; plus a version table).
 2. **Demand:** demand signals by category, problem frequency, evidence by source (stacked bar), buying-intent indicators, coverage & date range.
 3. **Evidence:** = Evidence explorer scoped to project.
 4. **Pain points:** clusters with distinct records, distinct authors (if legitimately available), severity, sample evidence, confidence, opportunity.
-5. **Competitors:** searchable table (positioning, pricing w/ verified/unavailable, identified gap) + detail drawer (website, audience, features, plans, strengths, complaints, sources).
-6. **Market gaps / opportunity:** six dimensions with weight, score, evidence, explanation; assumptions, risks, market size (with calculation or "unavailable"), missing info, "what would change the score".
+5. **Competitors:** **pricing compared** (verified plans only, cheapest plan only when billed the same way, read date + link), **features compared** (from their own pages, AI-extracted label, "not listed ≠ lacks it"), **gap candidates** (complaint/request themes not in any listed feature, cited, method shown); then the searchable table (positioning, pricing w/ verified/unavailable, identified gap) + detail drawer (website, audience, features, plans, strengths, complaints, sources).
+6. **Market gaps / opportunity:** six dimensions with weight, score, evidence, explanation; **assumption tracker** (founder or AI-suggested; status untested/supported/contradicted is the founder's call; notes; link cited evidence via select + Link button; remove/dismiss with confirmation), risks, market size (with calculation or "unavailable"), missing info, "what would change the score".
 7. **Audience:** segment cards (needs, evidence, motivations, accessibility).
 8. **Distribution:** channel cards labelled *Researched* vs *Hypothesis*, with supporting evidence count; "Where to find your first 100 potential customers"; first-10 action plan.
+9. **Economics:** unit-economics simulator on the founder's own numbers (saved per project, not per report). Example numbers are labelled and can't be saved until edited; inline validation; three scenarios; "your numbers, not market data".
+
+## P1 — Compare ideas (`/projects/compare?ids=`)
+2–4 researched ideas side by side from each latest report: score (with a low-confidence flag), confidence, recommendation, share of the model scored, each dimension, evidence/competitor counts, date. Sticky row labels on mobile; stale ids in the URL are dropped with a note.
+
+## Public — Unit economics calculator (`/tools/unit-economics`)
+Same simulator without saving; example numbers labelled; FAQ with FAQPage JSON-LD; registered in `seo.ts`.
 
 ## P0 — Evidence explorer (`/evidence`)
 Search + filter chips (All, Pain points, Buying intent, Feature requests, platform, date). Evidence card: source title, provider badge, link ↗, published + retrieved dates, excerpt, category, relevance, verification state, related-duplicates count, Save button. Desktop table / mobile cards.
 
 ## P1 — Competitors, Audience & distribution, Billing & usage, Settings
-## P2 — Idea comparison, Monitoring dashboard, Team workspaces
+## P2 — Monitoring dashboard, Team workspaces

@@ -68,6 +68,10 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/reports/{project_id}?report=` | report snapshot (owner only; 404 until built; latest unless `report` id given): overview, demand, pain_points, competitors, opportunity, audience, distribution, evidence_index, notes |
 | GET | `/reports/{project_id}/history` | report versions, newest first (score, confidence, depth) |
 | GET | `/reports/{project_id}/export?report=` | Markdown download of a report |
+| GET | `/reports/{project_id}/competitive-matrix?report=` | verified pricing (cheapest only within one billing period), feature grid, cited gap candidates + method; from the snapshot only |
+| GET/POST/PATCH/DELETE | `/projects/{id}/assumptions` | founder's assumptions (status is theirs; AI rows can't be reworded, delete = dismiss); new evidence links must be in the free preview or cited by the latest report |
+| GET | `/projects/compare?ids=a,b[,c,d]` | latest report summary for 2–4 own projects (400 bad ids, 404 any foreign) |
+| GET/PUT | `/projects/{id}/unit-economics` | founder's simulator inputs (bounded floats), per project |
 | GET | `/billing/packs` | plan + limits + packs on sale (price label from the payment provider; no provider ids) |
 | POST | `/billing/checkout` | `{pack}` → hosted checkout URL (web sessions only; API keys get 403; throttle `checkout`) |
 | GET | `/billing/usage` | own credit ledger, paginated (credits only, never `cost_usd`) |

@@ -60,12 +60,12 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 ## v2: continuous intelligence (plan in `docs/strategy-v2.md`)
 Every week ends with a **gate day**: security-reviewer, research-quality/ui reviewer, performance (query counts, p95, LLM cost per unit), exposure check, tests + build, docs. Nothing is pushed before the gate passes.
 
-### Week 7 — Decision workspace (quick wins)
-- [ ] D1 Pricing & feature gap matrix (`/reports/{id}/competitive-matrix`, Competitors tab v2)
-- [ ] D2 Assumption tracker (separate from evidence; status + linked evidence)
-- [ ] D3 Score history chart + compare 2–4 ideas
-- [ ] D4 Unit economics simulator (deterministic, founder inputs) + public `/tools/unit-economics`
-- [ ] D5 Gate
+### Week 7 — Decision workspace (quick wins) ✅
+- [x] D1 Pricing & feature gap matrix (`/reports/{id}/competitive-matrix`, Competitors tab v2)
+- [x] D2 Assumption tracker (separate from evidence; status + linked evidence; backfilled from existing reports)
+- [x] D3 Score history chart + compare 2–4 ideas
+- [x] D4 Unit economics simulator (deterministic, founder inputs) + public `/tools/unit-economics`
+- [x] D5 Gate: security-reviewer (6 should-fix + nits fixed), ui-reviewer (3 blockers + should-fix fixed), query-count test for compare, bundle scan
 
 ### Week 8 — Monitoring engine (needs deploy: worker + beat + Redis)
 - [ ] D1 `monitoring` app: Watch, Observation, indexes
