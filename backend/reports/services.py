@@ -13,6 +13,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from evidence.models import Category, Evidence, EvidenceCluster
+from projects.models import Assumption
 from reports import distribution as dist
 from reports.competitors import build_competitors
 from reports.models import ChannelRecommendation, Competitor, Opportunity, Report
@@ -210,6 +211,15 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
     }
 
     with transaction.atomic():
+        # Seed the assumption tracker (founder's price hypothesis, AI-suggested assumptions); never overwrite edits.
+        room = 30 - Assumption.objects.filter(project=project).count()  # AssumptionViewSet.MAX_ASSUMPTIONS
+        for a in content["opportunity"]["assumptions"]:
+            text = " ".join(a["text"].split())[:300]
+            if room <= 0 or len(text) < 5:
+                break
+            # get_or_create: an edited or dismissed row with this text is left exactly as the founder left it.
+            _, created = Assumption.objects.get_or_create(project=project, text=text, defaults={"source": a["source"]})
+            room -= int(created)
         Opportunity.objects.update_or_create(
             project=project,
             defaults={

@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from projects.models import Project
 from reports.export import to_markdown
+from reports.matrix import build_matrix
 from reports.models import Report
 from research.views import parse_uuid
 
@@ -103,3 +104,12 @@ class ReportExportView(APIView):
         name = slugify(project.name)[:60] or "report"
         resp["Content-Disposition"] = f'attachment; filename="{name}-report-{report.id}.md"'
         return resp
+
+
+class CompetitiveMatrixView(APIView):
+    """GET /reports/{project_id}/competitive-matrix[?report=<id>] — pricing, feature grid and gap candidates."""
+
+    def get(self, request, project_id: str):
+        project = _project(request, project_id)
+        report = _report(request, project)
+        return Response({"report_id": report.id, **build_matrix(report.content)})

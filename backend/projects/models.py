@@ -67,3 +67,39 @@ class ResearchConfig(models.Model):
     competitor_aspects = models.JSONField(default=list, blank=True)  # features, pricing, audience, ...
     exclude_terms = models.JSONField(default=list, blank=True)  # appended as -term to search queries
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class Assumption(models.Model):
+    """Something the founder believes and wants to test. Kept apart from Evidence and AI conclusions (rule 2):
+    the status is the founder's call; linked evidence is what they point to."""
+
+    class Source(models.TextChoices):
+        FOUNDER = "founder"
+        AI = "ai"  # suggested by the idea interpretation; the founder decides whether it matters
+
+    class Status(models.TextChoices):
+        UNTESTED = "untested"
+        SUPPORTED = "supported"
+        CONTRADICTED = "contradicted"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="assumptions")
+    text = models.CharField(max_length=300)
+    source = models.CharField(max_length=10, choices=Source.choices, default=Source.FOUNDER)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.UNTESTED)
+    note = models.TextField(blank=True, max_length=1000)
+    dismissed = models.BooleanField(default=False)  # AI suggestion the founder removed; never re-seeded
+    evidence = models.ManyToManyField("evidence.Evidence", blank=True, related_name="assumptions")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [models.UniqueConstraint(fields=["project", "text"], name="unique_assumption_text")]
+
+
+class UnitEconomics(models.Model):
+    """The founder's own numbers for the simulator (rule 2: user inputs, never evidence or AI output)."""
+
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="unit_economics")
+    inputs = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)

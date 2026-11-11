@@ -2,7 +2,7 @@ from django.core.validators import URLValidator
 from django.db import transaction
 from rest_framework import serializers
 
-from projects.models import IdeaDefinition, MarketProfile, Project, ResearchConfig
+from projects.models import Assumption, IdeaDefinition, MarketProfile, Project, ResearchConfig
 from research.models import ResearchJob, ResearchQuery
 
 OBJECTIVES = [
@@ -176,3 +176,50 @@ class ResearchQuerySerializer(serializers.ModelSerializer):
         if "text" in validated and validated["text"] != instance.text:
             validated["user_modified"] = True
         return super().update(instance, validated)
+
+
+class AssumptionSerializer(serializers.ModelSerializer):
+    evidence_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1, max_value=2**63 - 1), required=False, max_length=20, write_only=True
+    )
+    evidence = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Assumption
+        fields = ["id", "text", "source", "status", "note", "evidence_ids", "evidence", "created_at", "updated_at"]
+        read_only_fields = ["id", "source", "created_at", "updated_at"]
+
+    def get_evidence(self, obj) -> list[dict]:
+        return [
+            {"id": e.id, "title": e.title, "source_url": e.source_url, "provider": e.provider, "category": e.category}
+            for e in obj.evidence.all()
+        ]
+
+    def validate_text(self, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 5:
+            raise serializers.ValidationError("Describe the assumption in a few words.")
+        if self.instance is not None and self.instance.source == Assumption.Source.AI and value != self.instance.text:
+            raise serializers.ValidationError("AI-suggested assumptions can't be reworded; add your own instead.")
+        return value
+
+
+class _Scenario(serializers.Serializer):
+    """Percentage changes applied to the base inputs (e.g. price -20, churn +50)."""
+
+    price = serializers.FloatField(min_value=-90, max_value=500)
+    cac = serializers.FloatField(min_value=-90, max_value=500)
+    churn = serializers.FloatField(min_value=-90, max_value=500)
+    growth = serializers.FloatField(min_value=-100, max_value=500)
+
+
+class UnitEconomicsSerializer(serializers.Serializer):
+    currency = serializers.RegexField(r"^[A-Z]{3}$", max_length=3)
+    price = serializers.FloatField(min_value=0, max_value=1_000_000)  # per customer per month
+    cac = serializers.FloatField(min_value=0, max_value=10_000_000)  # cost to acquire one customer
+    churn_pct = serializers.FloatField(min_value=0.1, max_value=100)  # monthly
+    margin_pct = serializers.FloatField(min_value=0, max_value=100)  # gross margin
+    fixed_costs = serializers.FloatField(min_value=0, max_value=100_000_000)  # per month
+    new_customers = serializers.FloatField(min_value=0, max_value=1_000_000)  # per month
+    pessimistic = _Scenario()
+    optimistic = _Scenario()

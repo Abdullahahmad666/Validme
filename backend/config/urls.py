@@ -7,8 +7,8 @@ from accounts.views import ApiKeyViewSet, MeView
 from analytics.views import EventView
 from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, UsageView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
-from projects.views import DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
-from reports.views import ReportExportView, ReportHistoryView, ReportView
+from projects.views import AssumptionViewSet, DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
+from reports.views import CompetitiveMatrixView, ReportExportView, ReportHistoryView, ReportView
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
 
 router = DefaultRouter(trailing_slash=False)
@@ -18,6 +18,7 @@ router.register("api-keys", ApiKeyViewSet, basename="api-key")
 router.register("evidence/clusters", EvidenceClusterViewSet, basename="evidence-cluster")
 router.register("evidence", EvidenceViewSet, basename="evidence")
 router.register(r"projects/(?P<project_pk>[^/.]+)/queries", ProjectQueryViewSet, basename="project-query")
+router.register(r"projects/(?P<project_pk>[^/.]+)/assumptions", AssumptionViewSet, basename="project-assumption")
 
 
 def health(_request):
@@ -42,6 +43,7 @@ urlpatterns = [
     path("api/reports/<str:project_id>", ReportView.as_view()),
     path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),
     path("api/reports/<str:project_id>/export", ReportExportView.as_view()),
+    path("api/reports/<str:project_id>/competitive-matrix", CompetitiveMatrixView.as_view()),
     path("api/", include(router.urls)),
 ]
 

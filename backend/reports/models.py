@@ -67,3 +67,4 @@ class Report(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["project", "-created_at"])]  # latest report per project, history
