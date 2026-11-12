@@ -75,8 +75,10 @@ def check_url(url: str) -> str:
 @dataclass
 class FetchedPage:
     url: str  # final URL after redirects
-    status: int
+    status: int  # 304 = not modified since the validators we sent (text is empty)
     text: str
+    etag: str = ""
+    last_modified: str = ""
 
 
 class _Fetcher:
@@ -89,7 +91,7 @@ class _Fetcher:
         if time.monotonic() > self.deadline:
             raise FetchError("took too long")
 
-    def _request(self, url: str) -> httpx.Response:
+    def _request(self, url: str, extra_headers: dict | None = None) -> httpx.Response:
         """Open a streaming GET to the checked IP for `url` (Host + SNI keep the real hostname)."""
         ip = check_url(url)
         parts = urlsplit(url)
@@ -99,7 +101,7 @@ class _Fetcher:
         request = self.client.build_request(
             "GET",
             pinned,
-            headers={"Host": parts.netloc},
+            headers={"Host": parts.netloc, **(extra_headers or {})},
             extensions={"sni_hostname": parts.hostname} if parts.scheme == "https" else {},
         )
         response = self.client.send(request, stream=True)
@@ -128,14 +130,29 @@ class _Fetcher:
                 raise FetchError("page too large")
         return body.decode(response.encoding or "utf-8", "replace")
 
-    def get(self, url: str, *, check_robots: bool = True) -> FetchedPage:
+    def get(self, url: str, *, check_robots: bool = True, conditional: dict | None = None) -> FetchedPage:
+        """`conditional` = {"etag": ..., "last_modified": ...} from a previous fetch: a 304 skips the body."""
         current = url
+        cond = {}
+        if conditional and conditional.get("etag"):
+            cond["If-None-Match"] = conditional["etag"][:200]
+        if conditional and conditional.get("last_modified"):
+            cond["If-Modified-Since"] = conditional["last_modified"][:100]
         for _hop in range(MAX_REDIRECTS + 1):
             self._time_left()
             if check_robots and not self.allowed_by_robots(current):
                 raise BlockedURL("disallowed by robots.txt")
-            response = self._request(current)
+            # Validators only apply to the URL they came from, not to a redirect target.
+            response = self._request(current, cond if current == url else None)
             try:
+                if response.status_code == 304:
+                    return FetchedPage(
+                        url=current,
+                        status=304,
+                        text="",
+                        etag=conditional.get("etag", "") if conditional else "",
+                        last_modified=conditional.get("last_modified", "") if conditional else "",
+                    )
                 if response.is_redirect:
                     location = response.headers.get("location")
                     if not location:
@@ -147,7 +164,13 @@ class _Fetcher:
                 content_type = response.headers.get("content-type", "")
                 if "html" not in content_type and "text/plain" not in content_type:
                     raise FetchError(f"unsupported content type {content_type or 'unknown'}")
-                return FetchedPage(url=current, status=response.status_code, text=self._read(response))
+                return FetchedPage(
+                    url=current,
+                    status=response.status_code,
+                    text=self._read(response),
+                    etag=response.headers.get("etag", "")[:200],
+                    last_modified=response.headers.get("last-modified", "")[:100],
+                )
             finally:
                 response.close()
         raise FetchError("too many redirects")
@@ -179,12 +202,12 @@ class _Fetcher:
         return True if parser is None else parser.can_fetch(USER_AGENT, url)
 
 
-def fetch_public_page(url: str) -> FetchedPage:
-    """Fetch one public HTML page, or raise FetchError/BlockedURL."""
+def fetch_public_page(url: str, conditional: dict | None = None) -> FetchedPage:
+    """Fetch one public HTML page, or raise FetchError/BlockedURL. See _Fetcher.get for `conditional`."""
     headers = {"User-Agent": USER_AGENT, "Accept": "text/html,text/plain;q=0.9", "Accept-Encoding": "identity"}
     try:
         with httpx.Client(timeout=TIMEOUT, headers=headers, follow_redirects=False, trust_env=False) as client:
-            return _Fetcher(client).get(url)
+            return _Fetcher(client).get(url, conditional=conditional)
     except httpx.HTTPError as exc:
         raise FetchError(str(exc)[:200]) from exc
 
@@ -228,9 +251,22 @@ class _TextExtractor(HTMLParser):
     def text(self) -> str:
         return " ".join(" ".join(self._chunks).split())
 
+    @property
+    def blocks(self) -> list[str]:
+        """Visible text as separate blocks (one per text node), whitespace-normalized; for change diffs."""
+        return [b for b in (" ".join(c.split()) for c in self._chunks) if len(b) > 2]
+
 
 def extract_text(html: str) -> tuple[str, str, str]:
     """Return (title, description, visible text) from an HTML page."""
     parser = _TextExtractor()
     parser.feed(html)
     return " ".join(parser.title.split()), " ".join(parser.description.split()), parser.text
+
+
+def extract_blocks(html: str) -> list[str]:
+    """Visible text blocks of a page (scripts, styles and navigation skipped), for change detection."""
+    parser = _TextExtractor()
+    parser.feed(html)
+    parser.close()
+    return parser.blocks

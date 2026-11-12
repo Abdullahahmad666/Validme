@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 env = environ.Env(DEBUG=(bool, False))
@@ -36,6 +37,7 @@ INSTALLED_APPS = [
     "reports",
     "billing",
     "analytics",
+    "monitoring",
 ]
 
 MIDDLEWARE = [
@@ -104,6 +106,8 @@ REST_FRAMEWORK = {
         "ai": env("THROTTLE_AI", default="30/hour"),
         "checkout": env("THROTTLE_CHECKOUT", default="10/hour"),
         "analytics": env("THROTTLE_ANALYTICS", default="120/hour"),
+        # Creating watches / check now / from report: each can make the server fetch pages.
+        "monitoring": env("THROTTLE_MONITORING", default="30/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
     # Throttles key on the client IP the proxy appended (X-Forwarded-For), not on a header the client controls.
@@ -164,6 +168,10 @@ if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
 
 # Cache (throttling + allauth rate limits). Use Redis in production so limits are shared across workers.
 CACHES = {"default": env.cache("CACHE_URL", default="locmemcache://")}
+if not DEBUG and "locmem" in CACHES["default"]["BACKEND"].lower():
+    # Throttles, the anonymous-analytics cap and monitoring politeness need ONE cache shared by every web
+    # and worker process. A per-process cache silently multiplies all of those limits.
+    raise ImproperlyConfigured("Set CACHE_URL to Redis (e.g. redis://localhost:6379/1) when DEBUG is off.")
 
 # Celery
 CELERY_BROKER_URL = env("REDIS_URL", default="redis://localhost:6379/0")
@@ -172,6 +180,7 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 # Run `celery -A config beat` next to the worker: it fails and refunds jobs whose worker died.
 CELERY_BEAT_SCHEDULE = {
     "recover-stuck-jobs": {"task": "research.tasks.recover_stuck_jobs_task", "schedule": 300.0},
+    "monitoring-due-watches": {"task": "monitoring.tasks.run_due_watches", "schedule": 300.0},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
 JOB_RUNNING_TIMEOUT_MINUTES = env.int("JOB_RUNNING_TIMEOUT_MINUTES", default=45)
@@ -200,6 +209,17 @@ PLAN_LIMITS = {
     "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3},
     "paid": {"depths": ["quick", "standard", "deep"], "max_running": 3, "daily_launches": 20},
 }
+
+# Monitoring (competitor pages). Locally: `manage.py monitor [--loop]`; in production Celery beat runs it.
+MONITORING_BATCH_SIZE = env.int("MONITORING_BATCH_SIZE", default=100)  # watches claimed per cycle
+MONITORING_LEASE_MINUTES = 15  # a claimed watch isn't re-claimed for this long (crash → retried later)
+MONITORING_HOST_INTERVAL = env.int("MONITORING_HOST_INTERVAL", default=30)  # seconds between requests to one host
+MONITORING_MAX_ERRORS = 5  # failed checks in a row before a watch pauses itself
+MONITORING_KEEP_OBSERVATIONS = 10  # plus any referenced by a kept change
+MONITORING_KEEP_CHANGES = 100  # per watch; older changes (and the observations only they used) are pruned
+MONITORING_MANUAL_COOLDOWN_MINUTES = 10
+MONITORING_MAX_WATCHES_PER_PROJECT = 20
+MONITORING_MAX_WATCHES_PER_USER = 50
 
 # Free plan: evidence explorer/search shows this many records per project (reports are never limited).
 EVIDENCE_PREVIEW_LIMIT = env.int("EVIDENCE_PREVIEW_LIMIT", default=10)

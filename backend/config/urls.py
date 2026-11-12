@@ -7,6 +7,7 @@ from accounts.views import ApiKeyViewSet, MeView
 from analytics.views import EventView
 from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, UsageView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
+from monitoring.views import ChangeViewSet, WatchViewSet
 from projects.views import AssumptionViewSet, DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
 from reports.views import CompetitiveMatrixView, ReportExportView, ReportHistoryView, ReportView
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
@@ -19,6 +20,8 @@ router.register("evidence/clusters", EvidenceClusterViewSet, basename="evidence-
 router.register("evidence", EvidenceViewSet, basename="evidence")
 router.register(r"projects/(?P<project_pk>[^/.]+)/queries", ProjectQueryViewSet, basename="project-query")
 router.register(r"projects/(?P<project_pk>[^/.]+)/assumptions", AssumptionViewSet, basename="project-assumption")
+router.register(r"projects/(?P<project_pk>[^/.]+)/watches", WatchViewSet, basename="project-watch")
+router.register(r"projects/(?P<project_pk>[^/.]+)/changes", ChangeViewSet, basename="project-change")
 
 
 def health(_request):
