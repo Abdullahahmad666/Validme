@@ -67,12 +67,12 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D4 Unit economics simulator (deterministic, founder inputs) + public `/tools/unit-economics`
 - [x] D5 Gate: security-reviewer (6 should-fix + nits fixed), ui-reviewer (3 blockers + should-fix fixed), query-count test for compare, bundle scan
 
-### Week 8 — Monitoring engine (needs deploy: worker + beat + Redis)
-- [ ] D1 `monitoring` app: Watch, Observation, indexes
-- [ ] D2 Scheduler: beat + skip_locked claims + per-domain politeness lock
-- [ ] D3 Conditional GET, robots, SSRF re-check, normalize, hash, retention
-- [ ] D4 Deterministic diffs (verified pricing, sections) → Change
-- [ ] D5 Gate (SSRF focus; 1k-watch load test)
+### Week 8 — Monitoring engine ✅ (runs locally via `manage.py monitor`; production needs worker + beat + Redis)
+- [x] D1 `monitoring` app: Watch, Observation, Change, indexes
+- [x] D2 Scheduler: beat + skip_locked claims (leased) + per-host politeness lock; local runner `manage.py monitor [--loop]`
+- [x] D3 Conditional GET, robots, SSRF re-check, normalize, hash, retention; error backoff + auto-pause
+- [x] D4 Deterministic diffs (prices, text blocks) → Change; watches API (CRUD, check now, from report) + changes feed
+- [x] D5 Gate: security-reviewer (1 blocker + 6 should-fix fixed: linear diff, leases, per-IP politeness, safe validators, capped changes, read-only API keys), 1k-watch claim test, live local run. Dependency lockfile still pending (PyPI timeouts)
 
 ### Week 9 — Change intelligence & alerts
 - [ ] D1 LLM summary on diffs only (labelled) + significance rules
