@@ -5,9 +5,10 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import ApiKeyViewSet, MeView
 from analytics.views import EventView
-from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, UsageView
+from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, PortalView, SubscribeView, UsageView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
-from monitoring.views import ChangeViewSet, MonitoringFeedView, WatchViewSet
+from mailer.views import PreferencesView, ResendWebhookView, UnsubscribeView
+from monitoring.views import CandidateViewSet, ChangeViewSet, MonitoringFeedView, WatchViewSet
 from notifications.views import MarkReadView, NotificationsView
 from projects.views import AssumptionViewSet, DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
 from reports.views import CompetitiveMatrixView, ReportExportView, ReportHistoryView, ReportView
@@ -23,6 +24,7 @@ router.register(r"projects/(?P<project_pk>[^/.]+)/queries", ProjectQueryViewSet,
 router.register(r"projects/(?P<project_pk>[^/.]+)/assumptions", AssumptionViewSet, basename="project-assumption")
 router.register(r"projects/(?P<project_pk>[^/.]+)/watches", WatchViewSet, basename="project-watch")
 router.register(r"projects/(?P<project_pk>[^/.]+)/changes", ChangeViewSet, basename="project-change")
+router.register(r"projects/(?P<project_pk>[^/.]+)/candidates", CandidateViewSet, basename="project-candidate")
 
 
 def health(_request):
@@ -40,10 +42,15 @@ urlpatterns = [
     path("api/research/sources", SourcesView.as_view()),
     path("api/billing/packs", PacksView.as_view()),
     path("api/billing/checkout", CheckoutView.as_view()),
+    path("api/billing/subscribe", SubscribeView.as_view()),
+    path("api/billing/portal", PortalView.as_view()),
     path("api/billing/usage", UsageView.as_view()),
     path("api/billing/webhooks/lemonsqueezy", LemonSqueezyWebhookView.as_view()),
     path("api/analytics/events", EventView.as_view()),
     path("api/notifications", NotificationsView.as_view()),
+    path("api/email/preferences", PreferencesView.as_view()),
+    path("api/email/unsubscribe", UnsubscribeView.as_view()),
+    path("api/email/webhooks/resend", ResendWebhookView.as_view()),
     path("api/notifications/read", MarkReadView.as_view()),
     path("api/monitoring/changes", MonitoringFeedView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),

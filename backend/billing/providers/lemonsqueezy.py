@@ -36,16 +36,16 @@ def _headers() -> dict:
     }
 
 
-def create_checkout(*, variant_id: str, purchase_id: str, user_id: int, email: str, redirect_url: str) -> tuple[str, str]:
-    """Returns (checkout_id, hosted checkout URL). Our purchase id travels in custom data and comes back
-    on the webhook; the webhook still re-checks the variant and user before granting anything."""
+def create_checkout(*, variant_id: str, custom: dict, email: str, redirect_url: str) -> tuple[str, str]:
+    """Returns (checkout_id, hosted checkout URL). `custom` (our ids, as strings) travels with the checkout and
+    comes back on webhooks; the webhook still re-checks the variant and user before granting anything."""
     if not is_configured():
         raise ProviderUnavailable("Payments aren't configured.")
     body = {
         "data": {
             "type": "checkouts",
             "attributes": {
-                "checkout_data": {"email": email, "custom": {"purchase_id": purchase_id, "user_id": str(user_id)}},
+                "checkout_data": {"email": email, "custom": {k: str(v) for k, v in custom.items()}},
                 "product_options": {"redirect_url": redirect_url, "enabled_variants": [int(variant_id)]},
                 "test_mode": settings.LEMONSQUEEZY_TEST_MODE,
             },
@@ -111,3 +111,21 @@ def verify_signature(raw_body: bytes, signature: str) -> bool:
     expected = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
     # Compare bytes: str compare_digest raises on non-ASCII input (an unauthenticated 500).
     return hmac.compare_digest(expected.encode(), signature.encode("latin-1", "replace"))
+
+
+def customer_portal_url(subscription_id: str) -> str:
+    """A fresh, signed customer-portal link for one subscription (update card, change plan, cancel).
+    Fetched on demand: the provider's links expire, so we never store them."""
+    if not is_configured():
+        raise ProviderUnavailable("Payments aren't configured.")
+    try:
+        resp = httpx.get(f"{API}/subscriptions/{subscription_id}", headers=_headers(), timeout=10, trust_env=False)
+        resp.raise_for_status()
+        url = resp.json()["data"]["attributes"]["urls"]["customer_portal"]
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as exc:
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else type(exc).__name__
+        logger.warning("lemonsqueezy portal lookup failed: %s", status)
+        raise ProviderUnavailable("Couldn't open the billing portal. Please try again.") from exc
+    if not isinstance(url, str) or not url.startswith("https://"):
+        raise ProviderUnavailable("Unexpected portal URL.")
+    return url

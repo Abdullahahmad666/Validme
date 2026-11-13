@@ -46,3 +46,26 @@ class Purchase(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+class Subscription(models.Model):
+    """A Lemon Squeezy subscription (Founder / Pro). Created and updated only by signed webhooks."""
+
+    ENTITLED = ("on_trial", "active", "past_due")  # past_due: the provider is retrying payment
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="subscriptions")
+    provider = models.CharField(max_length=20)
+    provider_subscription_id = models.CharField(max_length=80, unique=True)
+    plan = models.CharField(max_length=20)  # founder | pro
+    interval = models.CharField(max_length=10, blank=True)  # month | year
+    variant_id = models.CharField(max_length=40)
+    status = models.CharField(max_length=20)  # on_trial | active | past_due | paused | unpaid | cancelled | expired
+    renews_at = models.DateTimeField(null=True, blank=True)
+    ends_at = models.DateTimeField(null=True, blank=True)  # set when cancelled: access continues until then
+    # The provider's updated_at of the last applied event: older (retried, out-of-order) events are ignored.
+    provider_updated_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]

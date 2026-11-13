@@ -118,7 +118,12 @@ def test_checkout_creates_pending_purchase(api, user, payments, monkeypatch):
     r = api.post("/api/billing/checkout", {"pack": "starter"}, format="json")
     assert r.status_code == 200 and r.json()["url"].startswith("https://")
     p = Purchase.objects.get(user=user)
-    assert p.status == "pending" and seen["purchase_id"] == str(p.id) and seen["variant_id"] == "111"
+    assert (
+        p.status == "pending"
+        and seen["custom"]["purchase_id"] == p.id
+        and seen["custom"]["kind"] == "pack"
+        and seen["variant_id"] == "111"
+    )
     assert api.post("/api/billing/checkout", {"pack": "nope"}, format="json").status_code == 400
 
 

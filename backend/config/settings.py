@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     "analytics",
     "monitoring",
     "notifications",
+    "mailer",
 ]
 
 MIDDLEWARE = [
@@ -137,7 +139,21 @@ SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # Email
-EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+# Email provider: console (prints, default for local dev) | smtp (e.g. Gmail with an app password) | resend.
+EMAIL_PROVIDER = env("EMAIL_PROVIDER", default="console")
+EMAIL_BACKEND = {
+    "console": "django.core.mail.backends.console.EmailBackend",
+    "smtp": "django.core.mail.backends.smtp.EmailBackend",
+    "resend": "mailer.backends.ResendEmailBackend",
+}.get(EMAIL_PROVIDER, "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")  # Gmail: an app password, never the account password
+EMAIL_TIMEOUT = 15
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+RESEND_WEBHOOK_SECRET = env("RESEND_WEBHOOK_SECRET", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=f"{VALIDME_BRAND} <no-reply@localhost>")
 
 # Auth (django-allauth, headless API for the Next.js frontend)
@@ -182,6 +198,12 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_BEAT_SCHEDULE = {
     "recover-stuck-jobs": {"task": "research.tasks.recover_stuck_jobs_task", "schedule": 300.0},
     "monitoring-due-watches": {"task": "monitoring.tasks.run_due_watches", "schedule": 300.0},
+    # Weekly, Monday morning UTC: look for new competitors first, then send the digest that lists them.
+    "detect-new-competitors": {
+        "task": "monitoring.tasks.detect_new_competitors",
+        "schedule": crontab(hour=5, minute=0, day_of_week=1),
+    },
+    "weekly-digest": {"task": "mailer.tasks.send_weekly_digests", "schedule": crontab(hour=8, minute=0, day_of_week=1)},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
 JOB_RUNNING_TIMEOUT_MINUTES = env.int("JOB_RUNNING_TIMEOUT_MINUTES", default=45)
@@ -206,16 +228,16 @@ CREDITS_PER_DEPTH = {"quick": 1, "standard": 2, "deep": 4}
 FREE_SIGNUP_CREDITS = 1
 
 # Plan limits, enforced at launch (billing/plans.py). "paid" = has bought a credit pack.
+# Plans (prices live in Lemon Squeezy and frontend/src/content/pricing.ts; these are the entitlements).
+#   free  : $0             paid (any credit pack): research depths unlocked
+#   founder: $19/mo, $190/yr   pro: $39/mo, $390/yr  (monitoring capacity + monthly credits)
+# max_watches = pages monitored per account; cadences = allowed check frequencies (last = fallback).
+_ALL_DEPTHS = ["quick", "standard", "deep"]
 PLAN_LIMITS = {
-    # max_watches = pages monitored per account; cadences = allowed check frequencies (last = fallback).
     "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3, "max_watches": 3, "cadences": ["weekly"]},
-    "paid": {
-        "depths": ["quick", "standard", "deep"],
-        "max_running": 3,
-        "daily_launches": 20,
-        "max_watches": 50,
-        "cadences": ["daily", "weekly"],
-    },
+    "paid": {"depths": _ALL_DEPTHS, "max_running": 3, "daily_launches": 20, "max_watches": 3, "cadences": ["weekly"]},
+    "founder": {"depths": _ALL_DEPTHS, "max_running": 3, "daily_launches": 20, "max_watches": 20, "cadences": ["daily", "weekly"]},
+    "pro": {"depths": _ALL_DEPTHS, "max_running": 5, "daily_launches": 40, "max_watches": 50, "cadences": ["daily", "weekly"]},
 }
 
 # Monitoring (competitor pages). Locally: `manage.py monitor [--loop]`; in production Celery beat runs it.
@@ -231,7 +253,9 @@ MONITORING_MAX_WATCHES_PER_USER = 50
 # AI summaries of detected changes per account per day, by plan (cost guard; extra changes keep the factual summary).
 MONITORING_AI_DAILY = {
     "free": env.int("MONITORING_AI_DAILY_FREE", default=10),
-    "paid": env.int("MONITORING_AI_DAILY_PAID", default=100),
+    "paid": env.int("MONITORING_AI_DAILY_PAID", default=10),
+    "founder": env.int("MONITORING_AI_DAILY_FOUNDER", default=100),
+    "pro": env.int("MONITORING_AI_DAILY_PRO", default=300),
 }
 
 # Free plan: evidence explorer/search shows this many records per project (reports are never limited).
@@ -247,6 +271,10 @@ LEMONSQUEEZY_WEBHOOK_SECRET = env("LEMONSQUEEZY_WEBHOOK_SECRET", default="")
 LEMONSQUEEZY_TEST_MODE = env.bool("LEMONSQUEEZY_TEST_MODE", default=DEBUG)
 # JSON list of packs: [{"id": "starter", "credits": 6, "variant_id": "123456"}]. Prices live in Lemon Squeezy.
 CREDIT_PACKS = env.json("CREDIT_PACKS", default=[])
+# Subscription plans: variant ids from Lemon Squeezy + credits granted on each paid invoice.
+# [{"id":"founder","monthly_variant_id":"1","yearly_variant_id":"2","monthly_credits":4},
+#  {"id":"pro","monthly_variant_id":"3","yearly_variant_id":"4","monthly_credits":10}]
+SUBSCRIPTION_PLANS = env.json("SUBSCRIPTION_PLANS", default=[])
 
 # Logs go to stdout (the platform collects them). Never log request bodies, headers or keys.
 LOGGING = {

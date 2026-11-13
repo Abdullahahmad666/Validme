@@ -18,7 +18,7 @@ CLIENT_EVENTS: dict[str, set[str]] = {
     "signup_completed": {"method", "verification"},
     "report_viewed": {"tab"},
     "report_exported": {"format"},
-    "checkout_clicked": {"pack"},
+    "checkout_clicked": {"pack", "plan", "interval"},
 }
 # Short slugs only: no "@", no free text, so personal data can't ride along in props.
 _SAFE_VALUE = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")

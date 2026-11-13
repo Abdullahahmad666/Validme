@@ -26,3 +26,12 @@ PLAN_LIMITS = {
 LEMONSQUEEZY_TEST_MODE = True
 CREDIT_PACKS = []
 EVIDENCE_PREVIEW_LIMIT = 100000  # off by default in tests; billing tests set it explicitly
+PLAN_LIMITS.update(
+    {
+        "founder": {**PLAN_LIMITS["paid"], "max_watches": 20},
+        "pro": {**PLAN_LIMITS["paid"], "max_watches": 50},
+    }
+)
+EMAIL_PROVIDER = "locmem"
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+SUBSCRIPTION_PLANS = []

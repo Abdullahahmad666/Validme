@@ -92,3 +92,26 @@ class Change(models.Model):
     class Meta:
         ordering = ["-detected_at", "-id"]
         indexes = [models.Index(fields=["project", "-detected_at"])]
+
+
+class CompetitorCandidate(models.Model):
+    """A product that may compete, spotted by re-running the project's searches. Nothing happens until the
+    founder confirms it (then it becomes a watch) or dismisses it (then it's never suggested again)."""
+
+    class Status(models.TextChoices):
+        NEW = "new"
+        ACCEPTED = "accepted"
+        DISMISSED = "dismissed"
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="candidates")
+    domain = models.CharField(max_length=200)  # registrable host, lowercased, no www.
+    name = models.CharField(max_length=200)  # as titled where we found it (third-party text)
+    url = models.URLField(max_length=500)  # the product's own page
+    source_url = models.URLField(max_length=500)  # where we found it (e.g. the Show HN thread)
+    source = models.CharField(max_length=30)  # hackernews | web_search
+    found_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.NEW)
+
+    class Meta:
+        ordering = ["-found_at", "-id"]
+        constraints = [models.UniqueConstraint(fields=["project", "domain"], name="one_candidate_per_domain")]

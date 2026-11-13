@@ -1,0 +1,23 @@
+{% autoescape off %}{{ brand }} weekly digest ({{ period }})
+{% if changes %}
+Competitor changes ({{ changes_total }})
+{% for c in changes %}
+- {{ c.label }} [{{ c.project }}] ({{ c.significance }})
+  {{ c.summary }}{% if c.ai_summary %}
+  AI summary: {{ c.ai_summary }}{% endif %}
+  See the change: {{ c.link }}{% if c.page %}
+  Page: {{ c.page }}{% endif %}
+{% endfor %}{% if changes_total > changes|length %}
+...and {{ changes_total|add:0 }} in total. See them all: {{ app_url }}/competitors
+{% endif %}{% endif %}{% if candidates %}
+New competitors to review
+{% for k in candidates %}
+- {{ k.name }} ({{ k.domain }}) [{{ k.project }}]
+  Found here: {{ k.source_url }}
+  Review: {{ k.link }}
+{% endfor %}{% endif %}
+Every item links to where we read it. AI summaries are labelled.
+
+Turn off this digest: {{ unsubscribe_url }}
+Email settings: {{ settings_url }}
+{% endautoescape %}

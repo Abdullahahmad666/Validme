@@ -146,7 +146,9 @@ def _check(watch: Watch, now) -> str:
     limit = over_plan_limit(watch)
     if limit is not None:
         watch.last_status = Watch.Status.PAUSED
-        watch.last_error = f"Waiting: your plan watches {limit} page{'s' if limit != 1 else ''}. A credit pack resumes this one."
+        watch.last_error = (
+            f"Waiting: your plan watches {limit} page{'s' if limit != 1 else ''}. A Founder or Pro plan resumes this one."
+        )
         watch.next_run_at = now + CADENCE["weekly"]
         watch.save(update_fields=["last_status", "last_error", "next_run_at"])
         return watch.last_status

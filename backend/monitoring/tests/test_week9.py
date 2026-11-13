@@ -125,7 +125,7 @@ def test_free_plan_watch_limits(api, project, settings, monkeypatch):
     for i in range(3):
         assert api.post(url, {"url": f"https://s{i}.test/"}, format="json").status_code == 201
     r = api.post(url, {"url": "https://s9.test/"}, format="json")
-    assert r.status_code == 400 and "credit pack" in str(r.json())
+    assert r.status_code == 400 and "Founder and Pro" in str(r.json())
 
 
 def test_downgraded_daily_watch_runs_weekly(project, user, settings, monkeypatch):
@@ -194,7 +194,7 @@ def test_watches_over_the_plan_limit_wait_after_a_downgrade(project, user, setti
     monkeypatch.setattr(engine, "fetch_public_page", FakeFetch(page(PAGE_V1)))
     assert engine.check_watch(ws[3].pk) == "paused"  # the 4th oldest waits
     ws[3].refresh_from_db()
-    assert "credit pack" in ws[3].last_error and ws[3].active  # resumes on its own after an upgrade
+    assert "Founder or Pro" in ws[3].last_error and ws[3].active  # resumes on its own after an upgrade
     assert engine.check_watch(ws[0].pk) == "baseline"
 
 

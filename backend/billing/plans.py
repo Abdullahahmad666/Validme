@@ -17,8 +17,26 @@ class PlanLimit(Exception):
         self.message = message
 
 
+def active_subscription(user):
+    """The subscription that currently grants access, if any (cancelled ones keep access until ends_at)."""
+    from django.db.models import Q
+
+    from billing.models import Subscription
+
+    now = timezone.now()
+    return (
+        Subscription.objects.filter(user=user)
+        .filter(Q(status__in=Subscription.ENTITLED) | Q(status="cancelled", ends_at__gt=now))
+        .order_by("-updated_at")
+        .first()
+    )
+
+
 def plan_for(user) -> str:
-    """ "paid" once the account has a paid (not refunded) credit pack; "free" otherwise."""
+    """founder / pro with an entitling subscription; "paid" with a paid (not refunded) credit pack; else "free"."""
+    sub = active_subscription(user)
+    if sub and sub.plan in settings.PLAN_LIMITS:
+        return sub.plan
     return "paid" if Purchase.objects.filter(user=user, status=Purchase.Status.PAID).exists() else "free"
 
 
@@ -28,7 +46,7 @@ def limits_for(user) -> dict:
 
 
 def monitoring_limits(user) -> dict:
-    """Watches per account and allowed cadences, by plan (Week 9 entitlements v1)."""
+    """Watches per account and allowed cadences, by plan (Week 9 entitlements v1, subscriptions in Week 10)."""
     lim = settings.PLAN_LIMITS[plan_for(user)]
     return {"max_watches": lim.get("max_watches", 3), "cadences": lim.get("cadences", ["weekly"])}
 
@@ -41,7 +59,7 @@ def check_launch(user, depth: str) -> None:
     if depth not in lim["depths"]:
         raise PlanLimit(
             "plan_depth",
-            f"{depth.capitalize()} depth needs a credit pack. Free accounts can run Quick research.",
+            f"{depth.capitalize()} depth needs a credit pack or a paid plan. Free accounts can run Quick research.",
         )
     running = ResearchJob.objects.filter(
         project__owner=user, status__in=(ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING)

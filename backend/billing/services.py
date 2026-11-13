@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 import uuid
 
@@ -80,8 +82,7 @@ def start_checkout(user: User, pack_id: str) -> str:
     purchase = Purchase.objects.create(user=user, provider=provider.NAME, pack_id=p["id"], credits=int(p["credits"]))
     checkout_id, url = provider.create_checkout(
         variant_id=str(p["variant_id"]),
-        purchase_id=str(purchase.id),
-        user_id=user.pk,
+        custom={"purchase_id": purchase.id, "user_id": user.pk, "kind": "pack"},
         email=user.email,
         redirect_url=f"{settings.FRONTEND_URL}/billing?checkout=success",
     )
@@ -89,6 +90,147 @@ def start_checkout(user: User, pack_id: str) -> str:
     purchase.save(update_fields=["checkout_id"])
     track("checkout_started", user=user, props={"pack": p["id"]})
     return url
+
+
+# --- Subscriptions ------------------------------------------------------------------------------------
+
+
+def subscription_plans() -> list[dict]:
+    return [
+        p
+        for p in settings.SUBSCRIPTION_PLANS
+        if p.get("id") in ("founder", "pro") and (p.get("monthly_variant_id") or p.get("yearly_variant_id"))
+    ]
+
+
+def plan_for_variant(variant_id) -> tuple[dict, str] | None:
+    """(plan config, "month" | "year") for a Lemon Squeezy variant, or None if it isn't one of our plans."""
+    v = str(variant_id or "")
+    for p in subscription_plans():
+        if v and v == str(p.get("monthly_variant_id", "")):
+            return p, "month"
+        if v and v == str(p.get("yearly_variant_id", "")):
+            return p, "year"
+    return None
+
+
+class AlreadySubscribed(Exception):
+    pass
+
+
+def checkout_sig(user_id, plan_id) -> str:
+    """Binds a subscription checkout to the user who started it: hosted buy links accept any custom data, so
+    without this anyone could attach their subscription to someone else's account."""
+    msg = f"subscription|{user_id}|{plan_id}".encode()
+    return hmac.new(settings.SECRET_KEY.encode(), msg, hashlib.sha256).hexdigest()[:32]
+
+
+def start_subscription_checkout(user: User, plan_id: str, interval: str) -> str:
+    from billing.plans import active_subscription
+
+    if active_subscription(user):
+        raise AlreadySubscribed("You already have a plan. Change or cancel it from the billing portal.")
+    p = next((x for x in subscription_plans() if x["id"] == plan_id), None)
+    variant = p and p.get("monthly_variant_id" if interval == "month" else "yearly_variant_id")
+    if not variant:
+        raise ValueError("Unknown plan.")
+    _, url = provider.create_checkout(
+        variant_id=str(variant),
+        custom={"user_id": user.pk, "kind": "subscription", "plan": plan_id, "sig": checkout_sig(user.pk, plan_id)},
+        email=user.email,
+        redirect_url=f"{settings.FRONTEND_URL}/billing?checkout=success",
+    )
+    track("checkout_started", user=user, props={"plan": plan_id, "interval": interval})
+    return url
+
+
+def _dt(value):
+    from django.utils.dateparse import parse_datetime
+
+    return parse_datetime(value) if isinstance(value, str) and value else None
+
+
+def _subscription_event(sub_id: str, attrs: dict, custom: dict) -> str:
+    from billing.models import Subscription
+
+    mapped = plan_for_variant(attrs.get("variant_id"))
+    if mapped is None:
+        logger.warning("subscription %s has a variant that isn't one of our plans", sub_id)
+        return "ignored unknown variant"
+    plan, interval = mapped
+    with transaction.atomic():
+        sub = Subscription.objects.select_for_update().filter(provider_subscription_id=sub_id).first()
+        if sub is None:
+            # First sight: the user comes from our own checkout's signed custom data and must exist.
+            expected = checkout_sig(custom.get("user_id", ""), custom.get("plan", ""))
+            if not hmac.compare_digest(str(custom.get("sig", "")).encode(), expected.encode()):
+                logger.warning("subscription %s without a valid checkout signature", sub_id)
+                return "ignored unsigned subscription"
+            try:
+                user = User.objects.get(pk=int(custom.get("user_id", "")))
+            except (User.DoesNotExist, ValueError, TypeError):
+                logger.warning("subscription %s without a known user", sub_id)
+                return "ignored unknown user"
+            sub = Subscription(user=user, provider=provider.NAME, provider_subscription_id=sub_id)
+        event_at = _dt(attrs.get("updated_at"))
+        if event_at and sub.provider_updated_at and event_at < sub.provider_updated_at:
+            return "ignored stale event"  # a retried or out-of-order delivery must not undo a newer state
+        sub.plan, sub.interval, sub.variant_id = plan["id"], interval, str(attrs.get("variant_id"))[:40]
+        sub.status = str(attrs.get("status", ""))[:20]
+        sub.renews_at, sub.ends_at = _dt(attrs.get("renews_at")), _dt(attrs.get("ends_at"))
+        sub.provider_updated_at = event_at or sub.provider_updated_at
+        sub.save()
+    track("subscription_updated", user=sub.user, props={"plan": sub.plan, "status": sub.status})
+    return f"subscription {sub.status}"
+
+
+def _invoice_paid(invoice_id: str, attrs: dict) -> str:
+    """Each paid invoice grants that plan's credits once (yearly invoices grant 12 months at once)."""
+    from billing.models import Subscription
+
+    if attrs.get("status") != "paid":
+        return "ignored unpaid invoice"
+    # Plan or interval changes create prorated "updated" invoices: they must not grant another period's credits.
+    if attrs.get("billing_reason") not in GRANTING_REASONS:
+        return f"ignored {attrs.get('billing_reason') or 'unknown'} invoice"
+    try:
+        if int(attrs.get("total") or 0) <= 0:
+            return "ignored zero invoice"
+    except (TypeError, ValueError):
+        return "ignored invoice without total"
+    sub = Subscription.objects.filter(provider_subscription_id=str(attrs.get("subscription_id", ""))).first()
+    if sub is None:
+        raise WebhookRetry(f"invoice {invoice_id} for a subscription we haven't seen yet")
+    plan = next((p for p in subscription_plans() if p["id"] == sub.plan), None)
+    credits = int((plan or {}).get("monthly_credits", 0)) * (12 if sub.interval == "year" else 1)
+    if credits > 0:
+        grant_credits(sub.user, credits, "subscription_credits", idempotency_key=f"sub_credits:{invoice_id}")
+    return f"granted {credits}"
+
+
+GRANTING_REASONS = ("initial", "renewal")
+
+
+def _invoice_refunded(invoice_id: str, attrs: dict) -> str:
+    """Take back the refunded share of what this invoice granted (never more than the balance), once per level."""
+    share = refunded_share(attrs)
+    if share <= 0:
+        return "ignored refund without amount"
+    with transaction.atomic():
+        grant = UsageTransaction.objects.filter(idempotency_key=f"sub_credits:{invoice_id}").first()
+        if grant is None:
+            return "nothing granted for this invoice"
+        user = User.objects.select_for_update().get(pk=grant.user_id)
+        target = int(grant.credits * share)
+        prefix = f"sub_refund:{invoice_id}:"
+        if UsageTransaction.objects.filter(idempotency_key=f"{prefix}{target}").exists():
+            return "already refunded"
+        taken = -sum(UsageTransaction.objects.filter(idempotency_key__startswith=prefix).values_list("credits", flat=True))
+        take = min(max(0, target - taken), user.credits)
+        user.credits -= take
+        user.save(update_fields=["credits"])
+        UsageTransaction.objects.create(user=user, operation="subscription_refund", credits=-take, idempotency_key=f"{prefix}{target}")
+    return f"took back {take}"
 
 
 class WebhookRetry(Exception):
@@ -102,6 +244,11 @@ def handle_webhook(payload: dict) -> str:
     data = payload.get("data") or {}
     attrs = data.get("attributes") or {}
     order_id = str(data.get("id") or "")
+    if data.get("type") in ("subscriptions", "subscription-invoices"):
+        if bool(meta.get("test_mode")) != bool(settings.LEMONSQUEEZY_TEST_MODE):
+            logger.error("webhook %s has mismatched test_mode", event)
+            return "ignored test_mode mismatch"
+        return _handle_subscription_webhook(event, data, meta.get("custom_data") or {})
     if data.get("type") != "orders" or not order_id:
         return f"ignored {event}"
     if bool(meta.get("test_mode")) != bool(settings.LEMONSQUEEZY_TEST_MODE):
@@ -110,10 +257,24 @@ def handle_webhook(payload: dict) -> str:
         logger.error("webhook %s for order %s has mismatched test_mode", event, order_id)
         return "ignored test_mode mismatch"
     custom = meta.get("custom_data") or {}
+    if custom.get("kind") == "subscription":
+        return f"ignored {event} for a subscription order (handled by its invoice events)"
     if event == "order_created" and attrs.get("status") in ("paid", "refunded", "partial_refund"):
         return _order_paid(order_id, custom, attrs)
     if event == "order_refunded":
         return _order_refunded(order_id, attrs, custom)
+    return f"ignored {event}"
+
+
+def _handle_subscription_webhook(event: str, data: dict, custom: dict) -> str:
+    attrs = data.get("attributes") or {}
+    obj_id = str(data.get("id") or "")
+    if data.get("type") == "subscriptions" and event.startswith("subscription_") and obj_id:
+        return _subscription_event(obj_id, attrs, custom)
+    if data.get("type") == "subscription-invoices" and event == "subscription_payment_success" and obj_id:
+        return _invoice_paid(obj_id, attrs)
+    if data.get("type") == "subscription-invoices" and event == "subscription_payment_refunded" and obj_id:
+        return _invoice_refunded(obj_id, attrs)
     return f"ignored {event}"
 
 

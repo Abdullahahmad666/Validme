@@ -15,7 +15,7 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from accounts.models import ApiKey
 from monitoring.engine import next_run
-from monitoring.models import Change, Watch
+from monitoring.models import Change, CompetitorCandidate, Watch
 from monitoring.tasks import check_watch_task
 from projects.models import Project
 from research.providers.fetch import BlockedURL, FetchError, check_url
@@ -77,7 +77,7 @@ class WatchSerializer(serializers.ModelSerializer):
         from billing.plans import monitoring_limits
 
         if value not in monitoring_limits(self.context["request"].user)["cadences"]:
-            raise serializers.ValidationError("Daily checks need a credit pack. Free accounts are checked weekly.")
+            raise serializers.ValidationError("Daily checks come with the Founder and Pro plans. Other accounts are checked weekly.")
         return value
 
 
@@ -118,6 +118,23 @@ class ApiKeysReadOnly(permissions.BasePermission):
         return not isinstance(request.auth, ApiKey) or request.method in permissions.SAFE_METHODS
 
 
+def enforce_watch_caps(user, project: Project, adding: int = 1) -> None:
+    """Plan + safety caps. Locks the user row so creates in two projects at once can't both pass."""
+    from billing.plans import monitoring_limits
+
+    get_user_model().objects.select_for_update().filter(pk=user.pk).first()
+    plan_max = monitoring_limits(user)["max_watches"]
+    total = Watch.objects.filter(project__owner=user).count()
+    if total + adding > plan_max:
+        raise ValidationError(
+            {"watches": f"Your plan can watch {plan_max} page{'s' if plan_max != 1 else ''}. Founder and Pro plans watch more."}
+        )
+    if Watch.objects.filter(project=project).count() + adding > settings.MONITORING_MAX_WATCHES_PER_PROJECT:
+        raise ValidationError({"watches": f"A project can watch at most {settings.MONITORING_MAX_WATCHES_PER_PROJECT} pages."})
+    if total + adding > settings.MONITORING_MAX_WATCHES_PER_USER:
+        raise ValidationError({"watches": f"You can watch at most {settings.MONITORING_MAX_WATCHES_PER_USER} pages in total."})
+
+
 class WatchViewSet(
     mixins.ListModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
 ):
@@ -145,21 +162,7 @@ class WatchViewSet(
         return Watch.objects.filter(project=self._project()).select_related("competitor").annotate(changes_count=Count("changes"))
 
     def _check_caps(self, project: Project, adding: int = 1) -> None:
-        from billing.plans import monitoring_limits
-
-        # Account-wide caps: lock the user row so creates in two projects at once can't both pass.
-        User = get_user_model()
-        User.objects.select_for_update().filter(pk=self.request.user.pk).first()
-        plan_max = monitoring_limits(self.request.user)["max_watches"]
-        total = Watch.objects.filter(project__owner=self.request.user).count()
-        if total + adding > plan_max:
-            raise ValidationError(
-                {"watches": f"Your plan can watch {plan_max} page{'s' if plan_max != 1 else ''}. A credit pack raises the limit."}
-            )
-        if Watch.objects.filter(project=project).count() + adding > settings.MONITORING_MAX_WATCHES_PER_PROJECT:
-            raise ValidationError({"watches": f"A project can watch at most {settings.MONITORING_MAX_WATCHES_PER_PROJECT} pages."})
-        if total + adding > settings.MONITORING_MAX_WATCHES_PER_USER:
-            raise ValidationError({"watches": f"You can watch at most {settings.MONITORING_MAX_WATCHES_PER_USER} pages in total."})
+        enforce_watch_caps(self.request.user, project, adding)
 
     @transaction.atomic
     def perform_create(self, serializer):
@@ -298,3 +301,57 @@ class MonitoringFeedView(generics.ListAPIView):
         if sig in Change.Significance.values:
             qs = qs.filter(significance=sig)
         return qs
+
+
+class CandidateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompetitorCandidate
+        fields = ["id", "domain", "name", "url", "source_url", "source", "found_at", "status"]
+        read_only_fields = fields
+
+
+class CandidateViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """/projects/{id}/candidates[?status=new|accepted|dismissed] — possible new competitors; you decide."""
+
+    serializer_class = CandidateSerializer
+    pagination_class = None  # bounded: at most a few new per project per week
+    permission_classes = [permissions.IsAuthenticated, ApiKeysReadOnly]
+    throttle_scope = "monitoring"
+
+    def get_throttles(self):
+        if self.action in ("accept", "dismiss"):
+            return [*super().get_throttles(), ScopedRateThrottle()]
+        return super().get_throttles()
+
+    def get_queryset(self):
+        project = _owned_project(self.request, self.kwargs["project_pk"])
+        status_ = self.request.query_params.get("status", "new")
+        qs = CompetitorCandidate.objects.filter(project=project)
+        return qs.filter(status=status_) if status_ in CompetitorCandidate.Status.values else qs.filter(status="new")
+
+    def _candidate(self, pk) -> CompetitorCandidate:
+        project = _owned_project(self.request, self.kwargs["project_pk"])
+        return get_object_or_404(CompetitorCandidate, pk=pk, project=project)
+
+    @action(detail=True, methods=["post"])
+    def accept(self, request, project_pk=None, pk=None):
+        """Watch the candidate's page (same URL checks and plan limits as adding a page yourself)."""
+        candidate = self._candidate(pk)
+        if candidate.status != CompetitorCandidate.Status.NEW:
+            raise ValidationError({"status": "Already decided."})
+        url = validate_watch_url(candidate.url)
+        with transaction.atomic():
+            Project.objects.select_for_update().filter(pk=candidate.project_id).first()
+            if not Watch.objects.filter(project=candidate.project, url=url).exists():
+                enforce_watch_caps(request.user, candidate.project)
+                Watch.objects.create(project=candidate.project, url=url, label=candidate.name[:120], next_run_at=timezone.now())
+            candidate.status = CompetitorCandidate.Status.ACCEPTED
+            candidate.save(update_fields=["status"])
+        return Response(CandidateSerializer(candidate).data)
+
+    @action(detail=True, methods=["post"])
+    def dismiss(self, request, project_pk=None, pk=None):
+        candidate = self._candidate(pk)
+        candidate.status = CompetitorCandidate.Status.DISMISSED
+        candidate.save(update_fields=["status"])
+        return Response(CandidateSerializer(candidate).data)
