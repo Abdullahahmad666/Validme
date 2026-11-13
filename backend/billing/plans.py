@@ -27,6 +27,12 @@ def limits_for(user) -> dict:
     return {"plan": plan, **settings.PLAN_LIMITS[plan]}
 
 
+def monitoring_limits(user) -> dict:
+    """Watches per account and allowed cadences, by plan (Week 9 entitlements v1)."""
+    lim = settings.PLAN_LIMITS[plan_for(user)]
+    return {"max_watches": lim.get("max_watches", 3), "cadences": lim.get("cadences", ["weekly"])}
+
+
 def check_launch(user, depth: str) -> None:
     """Raise PlanLimit when this user can't start a job at this depth right now."""
     from research.models import ResearchJob  # local: research imports billing

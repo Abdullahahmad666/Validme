@@ -7,10 +7,11 @@ from billing.plans import limits_for
 class MeSerializer(serializers.ModelSerializer):
     plan = serializers.SerializerMethodField()
     allowed_depths = serializers.SerializerMethodField()
+    monitoring = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "credits", "date_joined", "plan", "allowed_depths"]
+        fields = ["id", "email", "first_name", "last_name", "credits", "date_joined", "plan", "allowed_depths", "monitoring"]
         read_only_fields = ["id", "email", "credits", "date_joined"]
 
     def _limits(self, obj) -> dict:
@@ -23,6 +24,14 @@ class MeSerializer(serializers.ModelSerializer):
 
     def get_allowed_depths(self, obj) -> list[str]:
         return self._limits(obj)["depths"]
+
+    def get_monitoring(self, obj) -> dict:
+        """Watch slots and allowed cadences for this plan, plus how many pages are watched account-wide."""
+        from billing.plans import monitoring_limits
+        from monitoring.models import Watch
+
+        lim = monitoring_limits(obj)
+        return {**lim, "used": Watch.objects.filter(project__owner=obj).count()}
 
 
 class ApiKeySerializer(serializers.ModelSerializer):

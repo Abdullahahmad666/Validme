@@ -80,7 +80,11 @@ class Change(models.Model):
     after = models.ForeignKey(Observation, on_delete=models.SET_NULL, null=True, related_name="+")
     kind = models.CharField(max_length=10, choices=Kind.choices)
     significance = models.CharField(max_length=10, choices=Significance.choices)
-    summary = models.CharField(max_length=300)
+    summary = models.CharField(max_length=300)  # deterministic: the fact
+    # AI conclusion about the diff (rule 2: stored apart, always labelled). Empty when not generated.
+    ai_summary = models.CharField(max_length=300, blank=True)
+    ai_watch_for = models.CharField(max_length=200, blank=True)
+    ai_version = models.CharField(max_length=60, blank=True)
     details = models.JSONField(default=dict)  # prices_added/removed, blocks_added/removed (capped)
     detected_at = models.DateTimeField()
     seen = models.BooleanField(default=False)

@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "billing",
     "analytics",
     "monitoring",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -206,8 +207,15 @@ FREE_SIGNUP_CREDITS = 1
 
 # Plan limits, enforced at launch (billing/plans.py). "paid" = has bought a credit pack.
 PLAN_LIMITS = {
-    "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3},
-    "paid": {"depths": ["quick", "standard", "deep"], "max_running": 3, "daily_launches": 20},
+    # max_watches = pages monitored per account; cadences = allowed check frequencies (last = fallback).
+    "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3, "max_watches": 3, "cadences": ["weekly"]},
+    "paid": {
+        "depths": ["quick", "standard", "deep"],
+        "max_running": 3,
+        "daily_launches": 20,
+        "max_watches": 50,
+        "cadences": ["daily", "weekly"],
+    },
 }
 
 # Monitoring (competitor pages). Locally: `manage.py monitor [--loop]`; in production Celery beat runs it.
@@ -220,6 +228,11 @@ MONITORING_KEEP_CHANGES = 100  # per watch; older changes (and the observations 
 MONITORING_MANUAL_COOLDOWN_MINUTES = 10
 MONITORING_MAX_WATCHES_PER_PROJECT = 20
 MONITORING_MAX_WATCHES_PER_USER = 50
+# AI summaries of detected changes per account per day, by plan (cost guard; extra changes keep the factual summary).
+MONITORING_AI_DAILY = {
+    "free": env.int("MONITORING_AI_DAILY_FREE", default=10),
+    "paid": env.int("MONITORING_AI_DAILY_PAID", default=100),
+}
 
 # Free plan: evidence explorer/search shows this many records per project (reports are never limited).
 EVIDENCE_PREVIEW_LIMIT = env.int("EVIDENCE_PREVIEW_LIMIT", default=10)

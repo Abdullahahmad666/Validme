@@ -34,6 +34,14 @@ def next_run(cadence: str, now=None):
     return (now or timezone.now()) + base + timedelta(seconds=random.uniform(0, base.total_seconds() * 0.1))
 
 
+def effective_cadence(watch: Watch) -> str:
+    """The plan decides how often a watch may run: a downgraded account's daily watch runs weekly."""
+    from billing.plans import monitoring_limits
+
+    allowed = monitoring_limits(watch.project.owner)["cadences"]
+    return watch.cadence if watch.cadence in allowed else allowed[-1]
+
+
 def claim_due(limit: int | None = None) -> tuple[list[int], str]:
     """Lease up to `limit` due watches; returns (ids, lease token).
 
@@ -101,7 +109,7 @@ def _fail(watch: Watch, status: str, message: str, now) -> str:
         watch.last_error = f"Paused after {watch.consecutive_errors} failed checks: {watch.last_error}"[:200]
     else:
         # Back off: 1h, 2h, 4h ... never later than the normal cadence.
-        backoff = min(timedelta(hours=2 ** (watch.consecutive_errors - 1)), CADENCE.get(watch.cadence, CADENCE["weekly"]))
+        backoff = min(timedelta(hours=2 ** (watch.consecutive_errors - 1)), CADENCE[effective_cadence(watch)])
         watch.next_run_at = now + backoff
     watch.save(update_fields=["consecutive_errors", "last_status", "last_error", "last_checked_at", "active", "next_run_at"])
     return watch.last_status
@@ -113,7 +121,7 @@ def check_watch(watch_id: int, lease_token: str | None = None) -> str:
         lease_token=None
     ):
         return "skipped"  # lease expired and re-claimed, or a duplicate delivery
-    watch = Watch.objects.filter(pk=watch_id, active=True).select_related("project").first()
+    watch = Watch.objects.filter(pk=watch_id, active=True).select_related("project__owner").first()
     if watch is None:
         return "skipped"
     now = timezone.now()
@@ -124,7 +132,24 @@ def check_watch(watch_id: int, lease_token: str | None = None) -> str:
         return _fail(watch, Watch.Status.ERROR, "Unexpected error while checking this page.", now)
 
 
+def over_plan_limit(watch: Watch) -> int | None:
+    """After a downgrade (e.g. a refunded pack) the oldest watches up to the plan's limit keep running; the rest
+    wait. Returns the limit when this watch is beyond it, else None."""
+    from billing.plans import monitoring_limits
+
+    limit = monitoring_limits(watch.project.owner)["max_watches"]
+    older = Watch.objects.filter(project__owner=watch.project.owner, active=True, created_at__lt=watch.created_at).count()
+    return limit if older >= limit else None
+
+
 def _check(watch: Watch, now) -> str:
+    limit = over_plan_limit(watch)
+    if limit is not None:
+        watch.last_status = Watch.Status.PAUSED
+        watch.last_error = f"Waiting: your plan watches {limit} page{'s' if limit != 1 else ''}. A credit pack resumes this one."
+        watch.next_run_at = now + CADENCE["weekly"]
+        watch.save(update_fields=["last_status", "last_error", "next_run_at"])
+        return watch.last_status
     try:
         if not _polite(watch.url):
             # Spread retries so many watches on one host don't all come back at the same moment.
@@ -140,7 +165,7 @@ def _check(watch: Watch, now) -> str:
     watch.consecutive_errors = 0
     watch.last_error = ""
     watch.last_checked_at = now
-    watch.next_run_at = next_run(watch.cadence, now)
+    watch.next_run_at = next_run(effective_cadence(watch), now)
     fields = [
         "consecutive_errors",
         "last_error",
@@ -173,10 +198,11 @@ def _check(watch: Watch, now) -> str:
     with transaction.atomic():
         obs = Observation.objects.create(watch=watch, fetched_at=now, final_url=redact(page.url)[:500], content_hash=digest, text=text)
         watch.last_hash = digest
+        change = None
         if d is None:
             watch.last_status = Watch.Status.BASELINE
         elif d["details"]["blocks_added_total"] or d["details"]["blocks_removed_total"] or d["kind"] == "pricing":
-            Change.objects.create(
+            change = Change.objects.create(
                 watch=watch,
                 project=watch.project,
                 before=previous,
@@ -192,7 +218,35 @@ def _check(watch: Watch, now) -> str:
             watch.last_status = Watch.Status.UNCHANGED  # only whitespace/ordering noise
         watch.save(update_fields=fields)
     prune(watch)
+    if change is not None:
+        _after_change(change)
     return watch.last_status
+
+
+def _after_change(change: Change) -> None:
+    """Outside the transaction: optional AI summary of the diff, then an in-app notice. Never fails the check."""
+    from monitoring.summarize import summarize_change
+    from notifications.services import notify
+
+    # Notice first (cheap, never delayed by the AI call); each step isolated so neither can fail the check.
+    if change.significance in (Change.Significance.HIGH, Change.Significance.MEDIUM):
+        watch = change.watch
+        try:
+            notify(
+                change.project.owner,
+                kind="competitor_change",
+                title=f"{watch.label or 'A watched page'}: {'prices changed' if change.kind == 'pricing' else 'page changed'}",
+                body=change.summary,
+                link=f"/projects/{change.project_id}/monitoring?change={change.pk}",
+                project=change.project,
+                source=f"change:{change.pk}",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("notification failed for change %s", change.pk)
+    try:
+        summarize_change(change)
+    except Exception:  # noqa: BLE001 - a summary is optional
+        logger.exception("summary failed for change %s", change.pk)
 
 
 def prune(watch: Watch) -> int:

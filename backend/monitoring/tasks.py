@@ -12,7 +12,7 @@ def run_due_watches() -> int:
     return len(ids)
 
 
-# Own time limits: one check is one bounded fetch + a linear diff, never the long research-job limit.
-@shared_task(acks_late=True, max_retries=0, soft_time_limit=60, time_limit=90)
+# Own time limits: a bounded fetch, a linear diff and at most one bounded AI call; never the research-job limit.
+@shared_task(acks_late=True, max_retries=0, soft_time_limit=150, time_limit=180)  # fetch + optional AI summary
 def check_watch_task(watch_id: int, lease_token: str | None = None) -> str:
     return str(check_watch(watch_id, lease_token))

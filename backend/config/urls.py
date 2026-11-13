@@ -7,7 +7,8 @@ from accounts.views import ApiKeyViewSet, MeView
 from analytics.views import EventView
 from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, UsageView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
-from monitoring.views import ChangeViewSet, WatchViewSet
+from monitoring.views import ChangeViewSet, MonitoringFeedView, WatchViewSet
+from notifications.views import MarkReadView, NotificationsView
 from projects.views import AssumptionViewSet, DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
 from reports.views import CompetitiveMatrixView, ReportExportView, ReportHistoryView, ReportView
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
@@ -42,6 +43,9 @@ urlpatterns = [
     path("api/billing/usage", UsageView.as_view()),
     path("api/billing/webhooks/lemonsqueezy", LemonSqueezyWebhookView.as_view()),
     path("api/analytics/events", EventView.as_view()),
+    path("api/notifications", NotificationsView.as_view()),
+    path("api/notifications/read", MarkReadView.as_view()),
+    path("api/monitoring/changes", MonitoringFeedView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),
     path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),

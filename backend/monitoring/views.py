@@ -1,12 +1,13 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import mixins, permissions, serializers, status, viewsets
+from rest_framework import generics, mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -72,6 +73,13 @@ class WatchSerializer(serializers.ModelSerializer):
     def validate_label(self, value: str) -> str:
         return " ".join(value.split())
 
+    def validate_cadence(self, value: str) -> str:
+        from billing.plans import monitoring_limits
+
+        if value not in monitoring_limits(self.context["request"].user)["cadences"]:
+            raise serializers.ValidationError("Daily checks need a credit pack. Free accounts are checked weekly.")
+        return value
+
 
 class ChangeSerializer(serializers.ModelSerializer):
     watch = serializers.SerializerMethodField()
@@ -80,7 +88,20 @@ class ChangeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Change
-        fields = ["id", "watch", "kind", "significance", "summary", "details", "detected_at", "before_at", "after_url", "seen"]
+        fields = [
+            "id",
+            "watch",
+            "kind",
+            "significance",
+            "summary",
+            "ai_summary",
+            "ai_watch_for",
+            "details",
+            "detected_at",
+            "before_at",
+            "after_url",
+            "seen",
+        ]
         read_only_fields = [f for f in fields if f != "seen"]
 
     def get_watch(self, obj):
@@ -110,7 +131,8 @@ class WatchViewSet(
 
     def get_throttles(self):
         # Anything that can make the server fetch a page is rate-limited per user.
-        if self.action in ("create", "check", "from_report"):
+        resuming = self.action == "partial_update" and isinstance(self.request.data, dict) and self.request.data.get("active") is True
+        if self.action in ("create", "check", "from_report") or resuming:
             return [*super().get_throttles(), ScopedRateThrottle()]
         return super().get_throttles()
 
@@ -123,9 +145,20 @@ class WatchViewSet(
         return Watch.objects.filter(project=self._project()).select_related("competitor").annotate(changes_count=Count("changes"))
 
     def _check_caps(self, project: Project, adding: int = 1) -> None:
+        from billing.plans import monitoring_limits
+
+        # Account-wide caps: lock the user row so creates in two projects at once can't both pass.
+        User = get_user_model()
+        User.objects.select_for_update().filter(pk=self.request.user.pk).first()
+        plan_max = monitoring_limits(self.request.user)["max_watches"]
+        total = Watch.objects.filter(project__owner=self.request.user).count()
+        if total + adding > plan_max:
+            raise ValidationError(
+                {"watches": f"Your plan can watch {plan_max} page{'s' if plan_max != 1 else ''}. A credit pack raises the limit."}
+            )
         if Watch.objects.filter(project=project).count() + adding > settings.MONITORING_MAX_WATCHES_PER_PROJECT:
             raise ValidationError({"watches": f"A project can watch at most {settings.MONITORING_MAX_WATCHES_PER_PROJECT} pages."})
-        if Watch.objects.filter(project__owner=self.request.user).count() + adding > settings.MONITORING_MAX_WATCHES_PER_USER:
+        if total + adding > settings.MONITORING_MAX_WATCHES_PER_USER:
             raise ValidationError({"watches": f"You can watch at most {settings.MONITORING_MAX_WATCHES_PER_USER} pages in total."})
 
     @transaction.atomic
@@ -230,10 +263,38 @@ class ChangeViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.Gen
 
     def get_queryset(self):
         project = _owned_project(self.request, self.kwargs["project_pk"])
-        qs = Change.objects.filter(project=project).select_related("watch", "before", "after")
+        # Only fetched_at/final_url of the observations are shown: never load their page text here.
+        qs = Change.objects.filter(project=project).select_related("watch", "before", "after").defer("before__text", "after__text")
         p = self.request.query_params
         if p.get("watch", "").isdigit() and len(p["watch"]) <= 12:
             qs = qs.filter(watch_id=int(p["watch"]))
         if p.get("significance") in Change.Significance.values:
             qs = qs.filter(significance=p["significance"])
+        return qs
+
+
+class FeedChangeSerializer(ChangeSerializer):
+    project = serializers.SerializerMethodField()
+
+    class Meta(ChangeSerializer.Meta):
+        fields = [*ChangeSerializer.Meta.fields, "project"]
+
+    def get_project(self, obj):
+        return {"id": str(obj.project_id), "name": obj.project.name}
+
+
+class MonitoringFeedView(generics.ListAPIView):
+    """GET /monitoring/changes[?significance=] — recent changes across all your projects."""
+
+    serializer_class = FeedChangeSerializer
+
+    def get_queryset(self):
+        qs = (
+            Change.objects.filter(project__owner=self.request.user)
+            .select_related("watch", "project", "before", "after")
+            .defer("before__text", "after__text")
+        )
+        sig = self.request.query_params.get("significance")
+        if sig in Change.Significance.values:
+            qs = qs.filter(significance=sig)
         return qs
