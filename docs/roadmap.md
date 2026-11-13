@@ -82,11 +82,11 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate: security-reviewer (1 blocker + 8 should-fix fixed: AI daily cap, throttled resume, escaped prompt, price check, notify isolation, downgrade limits, user-row lock, internal links, lighter feed) and ui-reviewer (1 blocker + 10 should-fix fixed)
 
 ### Week 10 — Weekly digest, new competitors, subscriptions
-- [ ] D1 Email provider + digest builder (every item linked to evidence)
-- [ ] D2 Preferences, signed unsubscribe, idempotent sends, bounces
-- [ ] D3 New-competitor detection (saved queries; user confirms)
-- [ ] D4 Lemon Squeezy subscriptions → entitlements
-- [ ] D5 Gate (billing focus)
+- [x] D1 Email provider (console / Gmail SMTP / Resend) + digest builder (every item linked to evidence)
+- [x] D2 Preferences, signed unsubscribe (one-click), idempotent sends, bounces
+- [x] D3 New-competitor detection (saved queries vs recent Show HN; user confirms)
+- [x] D4 Lemon Squeezy subscriptions → entitlements; payments UI; prices decided (Founder $19, Pro $39, packs $19/$49)
+- [x] D5 Gate (billing focus)
 
 ### Week 11 — Opportunity Radar
 - [ ] D1 Signal model + generators (complaint themes, competitor changes, own discussion trends, new competitors)

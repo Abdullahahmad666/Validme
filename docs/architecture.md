@@ -24,7 +24,10 @@ backend/    Django + DRF  (auth, projects, credits, research API)
 | `research` | ResearchJob, ResearchQuery, provider registry, `providers/*` adapters, Celery tasks |
 | `evidence` | Evidence, EvidenceCluster, classification |
 | `reports` | Competitor, Opportunity, DistributionStrategy, Report |
-| `billing` | UsageTransaction (credits, cost in USD), plans |
+| `billing` | UsageTransaction (credits, cost in USD), Purchase, Subscription, plans |
+| `monitoring` | Watch, Observation, Change, CompetitorCandidate |
+| `notifications` | in-app notices |
+| `mailer` | EmailPreference, DigestLog, weekly digest, unsubscribe, bounce webhook |
 
 ## Provider interface
 ```python
@@ -76,13 +79,20 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | POST | `/projects/{id}/watches/{wid}/check` | check now (10-min cooldown per watch) |
 | POST | `/projects/{id}/watches/from-report` | `{competitor_ids}` → watch each competitor's read pricing page (or website) |
 | GET/PATCH | `/projects/{id}/changes?watch=&significance=` | detected changes, newest first; only `seen` is writable |
+| GET | `/projects/{id}/candidates?status=` | possible new competitors (default `new`) |
+| POST | `/projects/{id}/candidates/{cid}/accept` · `/dismiss` | watch it (same URL checks + plan caps) or dismiss; web sessions only |
 | GET | `/monitoring/changes` | recent changes across your projects (owner only) |
 | GET | `/notifications` | your notices + `unread` count |
 | POST | `/notifications/read` | `{ids}` or `{all:true}` (web sessions only) |
-| GET | `/billing/packs` | plan + limits + packs on sale (price label from the payment provider; no provider ids) |
+| GET | `/billing/packs` | plan + limits + current subscription + packs and plans on sale (provider price labels; no provider ids) |
+| POST | `/billing/subscribe` | `{plan: founder\|pro, interval: month\|year}` → hosted checkout (409 if already subscribed, 503 if closed; web sessions only) |
+| POST | `/billing/portal` | fresh link to the provider's customer portal (card, plan change, cancel); 404 without a subscription |
 | POST | `/billing/checkout` | `{pack}` → hosted checkout URL (web sessions only; API keys get 403; throttle `checkout`) |
 | GET | `/billing/usage` | own credit ledger, paginated (credits only, never `cost_usd`) |
 | POST | `/billing/webhooks/lemonsqueezy` | signed webhook (`X-Signature`, HMAC-SHA256); the only path that grants purchased credits |
+| GET/PATCH | `/email/preferences` | `{weekly_digest}` (+ `bounced`, `email` read-only); turning it back on clears `bounced`; web sessions only for PATCH |
+| GET/POST | `/email/unsubscribe?token=` | signed token (no login): GET only redirects to `/unsubscribed` (the page asks, then POSTs); POST unsubscribes (also RFC 8058 one-click) |
+| POST | `/email/webhooks/resend` | Svix-signed (5-min window); `email.bounced` / `email.complained` pause the digest |
 | POST | `/analytics/events` | whitelisted client events, anonymous allowed, throttled; returns 204 |
 | GET | `/evidence?project=&category=a,b&provider=&cluster=&q=&saved=1&duplicates=1` | evidence explorer (originals only by default, `duplicates` count) |
 | PATCH | `/evidence/{id}` | `saved_by_user` only; source text is never editable |
@@ -125,7 +135,7 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 
 ## Billing, limits, recovery and analytics (Week 6)
 - **Payments:** Lemon Squeezy is the merchant of record (tax/VAT, invoices, refunds). `POST /billing/checkout` creates a pending `Purchase` and returns a hosted checkout URL; no payment script runs on our pages. Credits are granted only by the signed `order_created` webhook, after checking the purchase id, the user, the pack's variant and test/live mode. `provider_order_id` is unique and the ledger key `purchase:<order>` is idempotent, so retries never double-credit. `order_refunded` takes back the pack's unspent credits once.
-- **Packs and prices** live in config (`CREDIT_PACKS`) and in Lemon Squeezy. No price is hard-coded; the UI shows the provider's price or "Price shown at checkout". Without configuration, buying is closed.
+- **Packs and prices** live in config (`CREDIT_PACKS`, `SUBSCRIPTION_PLANS`) and in Lemon Squeezy, which decides what is charged. The decided list prices are mirrored for display in `frontend/src/content/pricing.ts` (pricing page, and the in-app fallback before payments are live); in the app the provider's own label always wins. Without configuration, buying is closed.
 - **Plan limits** (`billing/plans.py`, `PLAN_LIMITS`): "free" (no paid pack) runs Quick only; everyone has caps on running jobs and launches per day. Checked at launch under a lock on the user row; 403 `plan_depth`, 429 `too_many_running` / `daily_limit`, nothing charged.
 - **Job recovery:** a job that fails (crash, or no source could be searched) is refunded once (`job_refund:<job>`). `recover_stuck_jobs` runs every 5 minutes via Celery beat (and `manage.py recover_jobs`): PENDING > 15 min or RUNNING > 45 min → FAILED with a visible reason, refunded, project released.
 - **Errors:** API paths return the JSON error envelope for unmatched URLs and crashes (`config/errors.py`); messages never include exception details. Logs go to stdout; httpx request logs are off (their URLs can carry API keys).
@@ -143,7 +153,22 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 - **Production requires a shared cache:** with `DEBUG` off the app refuses to start if `CACHE_URL` is the per-process locmem cache (throttles, the analytics cap and monitoring politeness would silently multiply).
 
 ## Change intelligence & alerts (Week 9)
-- **AI summary of a change** (`monitoring/summarize.py`, prompt `change_summary_v1`): input is the deterministic diff only (prices added/removed, up to 20 text blocks), escaped so page text can't close the `<diff>` tag; stored in `Change.ai_summary` / `ai_watch_for` apart from the factual `summary` and always labelled. Dropped if it mentions a price not in the diff. Low-significance changes aren't summarised; per-account daily cap `MONITORING_AI_DAILY` (free 10, paid 100); cost on the ledger with 0 credits.
+- **AI summary of a change** (`monitoring/summarize.py`, prompt `change_summary_v1`): input is the deterministic diff only (prices added/removed, up to 20 text blocks), escaped so page text can't close the `<diff>` tag; stored in `Change.ai_summary` / `ai_watch_for` apart from the factual `summary` and always labelled. Dropped if it mentions a price not in the diff. Low-significance changes aren't summarised; per-account daily cap `MONITORING_AI_DAILY` (free 10, paid 10, founder 100, pro 300); cost on the ledger with 0 credits.
 - **Notifications** (`notifications` app): one per change (deduped by `source`), notice first then summary, each isolated so neither fails the check; links must be internal app paths; inbox capped at 200 per user. Bell polls once a minute while visible.
-- **Entitlements v1** (`PLAN_LIMITS`): free 3 watched pages, weekly; paid 50, daily or weekly. Enforced on create / from-report / cadence change (user row locked); after a downgrade the oldest watches up to the limit keep running and the rest wait (shown on the page). `/me` returns `monitoring {max_watches, cadences, used}`.
+- **Entitlements v1** (`PLAN_LIMITS`): see Week 10 for the plan table. Enforced on create / from-report / cadence change (user row locked); after a downgrade the oldest watches up to the limit keep running and the rest wait (shown on the page). `/me` returns `monitoring {max_watches, cadences, used}`.
 
+
+## Digest, new competitors and subscriptions (Week 10)
+- **Email provider** (`EMAIL_PROVIDER`): `console` locally; `smtp` for a Gmail account with an app password (fine for testing, ~500/day); `resend` (`mailer/backends.py`, HTTPS API, logs status only). Switching is config only.
+- **Weekly digest** (`mailer/digest.py`, Monday 08:00 via beat, or `manage.py send_digests [--user] [--dry-run]`): last 7 days of high/medium changes (max 15) and new candidates (max 10); every item links to its change or candidate in the app, AI summaries labelled; nothing is sent in a quiet week. Text + HTML (autoescaped, no images or tracking). `DigestLog` is unique per user per ISO week, so a retry or a second worker can't send twice.
+- **Recipients:** active users with a watch whose address is **verified** (allauth `EmailAddress`), digest on, not bounced.
+- **Unsubscribe:** signed token (`django.core.signing`, own salt, user id only) in the link and in `List-Unsubscribe` + `List-Unsubscribe-Post` (one-click). Opening the link changes nothing (mail scanners prefetch links): `/unsubscribed` asks and POSTs; it's noindex and `Referrer-Policy: no-referrer`. **Bounces/complaints** from Resend's Svix-signed webhook mark the address bounced and turn the digest off; re-enabling in Settings clears it.
+- **New-competitor detection** (`monitoring/candidates.py`, Monday 05:00; accept/dismiss share the `monitoring` throttle): the project's enabled queries (competitor-gap first, max 3) against Hacker News "Show HN" posts from the last 60 days (public Algolia API, no AI). Skips known domains (competitors, watched pages, earlier candidates) and hosting/code/social sites; at most 5 new per run, one in-app notice per project per week. The founder accepts (→ Watch, same URL validation and plan caps) or dismisses; nothing is watched automatically.
+- **Subscriptions:** Lemon Squeezy `subscription_*` webhooks upsert a `Subscription` by provider id. On first sight the user comes from our checkout's `custom_data`, which carries an HMAC (`checkout_sig`, SECRET_KEY) of user + plan, so a hand-edited buy link can't attach a subscription to someone else. Unknown variants are ignored, test/live mode must match, and an event older than the stored `provider_updated_at` is ignored (retries can't revive an expired plan). `plan_for`: an entitling subscription (`on_trial`, `active`, `past_due`, or `cancelled` until `ends_at`) → its plan; else a paid pack → `paid`; else `free`. `subscription_payment_success` grants `monthly_credits` (×12 for yearly) once per invoice (`sub_credits:<invoice>`), only for `billing_reason` initial/renewal with a non-zero total (prorated plan-change invoices grant nothing); `subscription_payment_refunded` takes back the refunded share of that grant, capped at the balance, once per level; `order_*` events for subscription orders are ignored; an invoice that arrives before its subscription returns 409 so the provider retries. Plan changes and cancellation happen in the provider's customer portal.
+
+| Plan | Price | Research | Watched pages | Checks | AI change summaries/day | Jobs at once |
+|---|---|---|---|---|---|---|
+| free | $0 | Quick | 3 | weekly | 10 | 1 |
+| paid (any pack) | packs: 6 credits $19, 20 credits $49 | all depths | 3 | weekly | 10 | 3 |
+| founder | $19/mo · $190/yr, 4 credits/mo | all depths | 20 | daily or weekly | 100 | 3 |
+| pro | $39/mo · $390/yr, 10 credits/mo | all depths | 50 | daily or weekly | 300 | 5 |

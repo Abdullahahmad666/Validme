@@ -75,5 +75,13 @@ Search + filter chips (All, Pain points, Buying intent, Feature requests, platfo
 ## P1 — Competitors, Audience & distribution, Billing & usage, Settings
 ## P1 — Competitor monitoring (`/projects/[id]/monitoring`, `/competitors`)
 Watched pages: add a URL (name, weekly/daily by plan), watch competitors from the report (limited to free slots), each row with status in words, last/next check, cadence, Check now (result announced), Pause/Resume, Remove (confirm says it deletes recorded changes). "N of M pages watched"; at the limit the form is disabled with a billing link. Change timeline: filters (page, significance) with a no-match state, cards with the factual summary, a labelled AI summary, price chips (now shown / no longer shown), expandable text blocks exactly as read, link to the page (safeHref). `/competitors`: the same cards across projects. Header bell: unread count, keyboard-reachable items, mark all read.
+Possible new competitors (`#candidates`, shown only when there are some): name, domain, found date, link to the launch post, Watch (disabled at the plan limit) / Dismiss, with a note that a match isn't proof of competition.
+
+## P1 — Plan & credits (`/billing`)
+Balance + current plan; Plans: monthly/yearly toggle (aria-pressed), Free / Founder / Pro cards with the provider's price label (catalog price until payments are live), "Current plan" badge, Choose → hosted checkout, or "Switch in billing portal" when subscribed; subscription line (renews / cancelled until / payment failed) with Manage subscription → customer portal; "Opens at launch" while closed. Credit packs below, then usage history. Return from checkout polls for ~30 s.
+
+## P1 — Settings (`/settings`)
+Email (`#email`): weekly-digest switch (role=switch), the address it goes to, a bounced warning. Then API keys + MCP setup.
+`/unsubscribed` (noindex): confirmation or invalid-link message, link to email settings.
 
 ## P2 — Team workspaces

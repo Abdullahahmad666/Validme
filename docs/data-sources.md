@@ -6,7 +6,7 @@ Rule: **only integrate sources whose terms allow commercial use.** Never show a 
 |---|---|---|
 | Web search API (Brave Search or Exa) | ✅ Priority 1 | ~$5–7 per 1k queries. Bing Search API retired Aug 2025; Google Custom Search JSON API closed to new customers — do not build on either. |
 | Competitor websites (pricing/features pages) | ✅ Priority 1 | Fetch only public pages the user or search surfaced; respect robots.txt; store excerpt + retrieved date. |
-| Hacker News (Algolia HN Search API) | ✅ Priority 1 | Public API, founder-heavy audience. |
+| Hacker News (Algolia HN Search API) | ✅ Priority 1 | Public API, founder-heavy audience. Also used weekly for new-competitor detection (Show HN, last 60 days): the project's research queries are sent as search terms, as in research. |
 | Stack Exchange API | ✅ Priority 1 | Public API with key; content CC BY-SA — keep attribution links. |
 | User-submitted URLs | ✅ Priority 1 | User pastes threads/reviews they found. Fetched once each via the SSRF-safe fetcher; robots.txt respected. |
 | GitHub issues (public repos of competitors / OSS alternatives) | 🟡 Should have | Good for developer-tool ideas. |
