@@ -73,4 +73,7 @@ Same simulator without saving; example numbers labelled; FAQ with FAQPage JSON-L
 Search + filter chips (All, Pain points, Buying intent, Feature requests, platform, date). Evidence card: source title, provider badge, link ↗, published + retrieved dates, excerpt, category, relevance, verification state, related-duplicates count, Save button. Desktop table / mobile cards.
 
 ## P1 — Competitors, Audience & distribution, Billing & usage, Settings
-## P2 — Monitoring dashboard, Team workspaces
+## P1 — Competitor monitoring (`/projects/[id]/monitoring`, `/competitors`)
+Watched pages: add a URL (name, weekly/daily by plan), watch competitors from the report (limited to free slots), each row with status in words, last/next check, cadence, Check now (result announced), Pause/Resume, Remove (confirm says it deletes recorded changes). "N of M pages watched"; at the limit the form is disabled with a billing link. Change timeline: filters (page, significance) with a no-match state, cards with the factual summary, a labelled AI summary, price chips (now shown / no longer shown), expandable text blocks exactly as read, link to the page (safeHref). `/competitors`: the same cards across projects. Header bell: unread count, keyboard-reachable items, mark all read.
+
+## P2 — Team workspaces

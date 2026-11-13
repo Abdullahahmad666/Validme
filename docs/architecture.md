@@ -76,6 +76,9 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | POST | `/projects/{id}/watches/{wid}/check` | check now (10-min cooldown per watch) |
 | POST | `/projects/{id}/watches/from-report` | `{competitor_ids}` → watch each competitor's read pricing page (or website) |
 | GET/PATCH | `/projects/{id}/changes?watch=&significance=` | detected changes, newest first; only `seen` is writable |
+| GET | `/monitoring/changes` | recent changes across your projects (owner only) |
+| GET | `/notifications` | your notices + `unread` count |
+| POST | `/notifications/read` | `{ids}` or `{all:true}` (web sessions only) |
 | GET | `/billing/packs` | plan + limits + packs on sale (price label from the payment provider; no provider ids) |
 | POST | `/billing/checkout` | `{pack}` → hosted checkout URL (web sessions only; API keys get 403; throttle `checkout`) |
 | GET | `/billing/usage` | own credit ledger, paginated (credits only, never `cost_usd`) |
@@ -138,4 +141,9 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 - No AI yet (Week 9 adds summaries of the diff only, labelled).
 - **Hardening (security review):** the diff is a linear multiset difference (no difflib), so a hostile page can't stall a worker, and it runs before any transaction opens; Celery check tasks have their own 60/90 s limits. Claims carry a lease token (a duplicate or stale task can't run a check twice) and take at most one watch per host per cycle. Politeness slots are per host **and** per resolved IP, so wildcard DNS can't multiply requests to one victim. ETag/Last-Modified are stored only when printable ASCII; any unexpected error counts as a failed check (backoff/pause). Changes are capped per watch (`MONITORING_KEEP_CHANGES`). "Check now" claims its cooldown atomically and runs on the task queue; create/check/from-report share the `monitoring` throttle. MCP API keys are read-only on monitoring.
 - **Production requires a shared cache:** with `DEBUG` off the app refuses to start if `CACHE_URL` is the per-process locmem cache (throttles, the analytics cap and monitoring politeness would silently multiply).
+
+## Change intelligence & alerts (Week 9)
+- **AI summary of a change** (`monitoring/summarize.py`, prompt `change_summary_v1`): input is the deterministic diff only (prices added/removed, up to 20 text blocks), escaped so page text can't close the `<diff>` tag; stored in `Change.ai_summary` / `ai_watch_for` apart from the factual `summary` and always labelled. Dropped if it mentions a price not in the diff. Low-significance changes aren't summarised; per-account daily cap `MONITORING_AI_DAILY` (free 10, paid 100); cost on the ledger with 0 credits.
+- **Notifications** (`notifications` app): one per change (deduped by `source`), notice first then summary, each isolated so neither fails the check; links must be internal app paths; inbox capped at 200 per user. Bell polls once a minute while visible.
+- **Entitlements v1** (`PLAN_LIMITS`): free 3 watched pages, weekly; paid 50, daily or weekly. Enforced on create / from-report / cadence change (user row locked); after a downgrade the oldest watches up to the limit keep running and the rest wait (shown on the page). `/me` returns `monitoring {max_watches, cadences, used}`.
 

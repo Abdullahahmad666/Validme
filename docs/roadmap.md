@@ -74,12 +74,12 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D4 Deterministic diffs (prices, text blocks) → Change; watches API (CRUD, check now, from report) + changes feed
 - [x] D5 Gate: security-reviewer (1 blocker + 6 should-fix fixed: linear diff, leases, per-IP politeness, safe validators, capped changes, read-only API keys), 1k-watch claim test, live local run. Dependency lockfile still pending (PyPI timeouts)
 
-### Week 9 — Change intelligence & alerts
-- [ ] D1 LLM summary on diffs only (labelled) + significance rules
-- [ ] D2 Watch management UI
-- [ ] D3 Competitor change timeline UI
-- [ ] D4 In-app notifications + entitlements v1 (watch quota, cadence)
-- [ ] D5 Gate
+### Week 9 — Change intelligence & alerts ✅
+- [x] D1 LLM summary on diffs only (labelled, escaped input, no invented prices, daily cap per plan) + deterministic significance
+- [x] D2 Watch management UI (`/projects/[id]/monitoring`: add, from report, cadence, check now, pause, remove)
+- [x] D3 Competitor change timeline UI (per project + `/competitors` across projects)
+- [x] D4 In-app notifications (bell, mark read) + entitlements v1 (watches per plan, cadence; downgrades wait)
+- [x] D5 Gate: security-reviewer (1 blocker + 8 should-fix fixed: AI daily cap, throttled resume, escaped prompt, price check, notify isolation, downgrade limits, user-row lock, internal links, lighter feed) and ui-reviewer (1 blocker + 10 should-fix fixed)
 
 ### Week 10 — Weekly digest, new competitors, subscriptions
 - [ ] D1 Email provider + digest builder (every item linked to evidence)
