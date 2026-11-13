@@ -1,10 +1,12 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
-import type { AppNotification, Cadence, Change, Significance, Watch } from "@/types/monitoring";
+import type { AppNotification, Cadence, Change, CompetitorCandidate, Significance, Watch } from "@/types/monitoring";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
+  BillingInterval,
   BillingPacks,
+  EmailPreferences,
   DashboardSummary,
   Depth,
   Estimate,
@@ -80,6 +82,14 @@ export const api = {
   me: () => request<Me>("/me"),
   billingPacks: () => request<BillingPacks>("/billing/packs"),
   startCheckout: (pack: string) => request<{ url: string }>("/billing/checkout", { method: "POST", body: json({ pack }) }),
+  subscribe: (plan: "founder" | "pro", interval: BillingInterval) =>
+    request<{ url: string }>("/billing/subscribe", { method: "POST", body: json({ plan, interval }) }),
+  billingPortal: () => request<{ url: string }>("/billing/portal", { method: "POST" }),
+  emailPreferences: () => request<EmailPreferences>("/email/preferences"),
+  unsubscribe: (token: string) =>
+    request<{ unsubscribed: boolean }>(`/email/unsubscribe?${new URLSearchParams({ token })}`, { method: "POST" }),
+  updateEmailPreferences: (body: { weekly_digest: boolean }) =>
+    request<EmailPreferences>("/email/preferences", { method: "PATCH", body: json(body) }),
   sendEvent: (body: { event: string; props: Record<string, unknown>; path: string }) =>
     request<void>("/analytics/events", { method: "POST", body: json(body), keepalive: true }),
   usage: (page = 1) => request<Paginated<UsageEntry>>(`/billing/usage?page=${page}`),
@@ -172,6 +182,10 @@ export const api = {
   },
   markChangeSeen: (projectId: string, id: number) =>
     request<Change>(`/projects/${encodeURIComponent(projectId)}/changes/${id}`, { method: "PATCH", body: json({ seen: true }) }),
+  listCandidates: (projectId: string) =>
+    request<CompetitorCandidate[]>(`/projects/${encodeURIComponent(projectId)}/candidates`),
+  decideCandidate: (projectId: string, id: number, decision: "accept" | "dismiss") =>
+    request<CompetitorCandidate>(`/projects/${encodeURIComponent(projectId)}/candidates/${id}/${decision}`, { method: "POST" }),
   monitoringFeed: (page = 1) => request<Paginated<Change>>(`/monitoring/changes${page > 1 ? `?page=${page}` : ""}`),
   notifications: () => request<Paginated<AppNotification> & { unread: number }>("/notifications"),
   markNotificationsRead: (body: { ids?: number[]; all?: boolean }) =>

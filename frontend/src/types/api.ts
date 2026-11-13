@@ -221,13 +221,43 @@ export type Me = {
   monitoring: { max_watches: number; cadences: ("daily" | "weekly")[]; used: number };
 };
 
-export type Plan = "free" | "paid";
+/** "paid" = has bought a credit pack (no subscription); founder / pro = an active subscription. */
+export type Plan = "free" | "paid" | "founder" | "pro";
 
-export type PlanLimits = { plan: Plan; depths: Depth[]; max_running: number; daily_launches: number };
+export type PlanLimits = {
+  plan: Plan;
+  depths: Depth[];
+  max_running: number;
+  daily_launches: number;
+  max_watches?: number;
+  cadences?: ("daily" | "weekly")[];
+};
 
 export type CreditPack = { id: string; credits: number; price: string | null };
 
-export type BillingPacks = { payments_available: boolean; limits: PlanLimits; packs: CreditPack[] };
+export type BillingInterval = "month" | "year";
+
+export type SubscriptionInfo = {
+  plan: "founder" | "pro";
+  interval: BillingInterval;
+  status: "on_trial" | "active" | "past_due" | "cancelled" | "paused" | "unpaid" | "expired";
+  renews_at: string | null;
+  ends_at: string | null;
+};
+
+/** A plan on sale; prices are the provider's own labels (null = shown at checkout). */
+export type SubscriptionPlan = { id: "founder" | "pro"; monthly_credits: number; month: string | null; year: string | null };
+
+export type BillingPacks = {
+  payments_available: boolean;
+  subscriptions_available: boolean;
+  limits: PlanLimits;
+  subscription: SubscriptionInfo | null;
+  packs: CreditPack[];
+  plans: SubscriptionPlan[];
+};
+
+export type EmailPreferences = { weekly_digest: boolean; bounced: boolean; email: string };
 
 export type UsageEntry = {
   id: number;

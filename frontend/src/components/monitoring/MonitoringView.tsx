@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProject } from "@/hooks/useResearch";
 import { useMe, meKey } from "@/hooks/useSession";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
 import type { Cadence, Significance, Watch, WatchStatus } from "@/types/monitoring";
 
@@ -383,6 +383,80 @@ function Timeline({ projectId, watches }: { projectId: string; watches: Watch[] 
   );
 }
 
+/** Possible new competitors from recent public launches. Nothing is watched until the founder says so. */
+export function Candidates({ projectId, full }: { projectId: string; full: boolean }) {
+  const qc = useQueryClient();
+  const refresh = useRefresh(projectId);
+  const list = useQuery({ queryKey: ["candidates", projectId], queryFn: () => api.listCandidates(projectId) });
+  const decide = useMutation({
+    mutationFn: ({ id, decision }: { id: number; decision: "accept" | "dismiss" }) => api.decideCandidate(projectId, id, decision),
+    onSuccess: (_, { decision }) => {
+      qc.invalidateQueries({ queryKey: ["candidates", projectId] });
+      if (decision === "accept") refresh();
+    },
+  });
+  if (list.isError) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Couldn&apos;t check for possible new competitors.{" "}
+        <button type="button" className="font-medium text-primary underline" onClick={() => list.refetch()}>
+          Try again
+        </button>
+      </p>
+    );
+  }
+  if (!list.data?.length) return null; // quiet until something is found
+  return (
+    <div id="candidates" className="scroll-mt-20">
+      <Panel title="Possible new competitors" aside={<span className="text-xs text-muted-foreground">From recent Show HN launches</span>}>
+        <p className="mb-3 text-sm text-muted-foreground">
+          These launched recently and match your research queries. A match isn&apos;t proof they compete with you: open
+          the launch post, then watch or dismiss.
+        </p>
+        <ul className="divide-y divide-border">
+          {list.data.map((c) => {
+            const busy = decide.isPending && decide.variables?.id === c.id;
+            const post = safeHref(c.source_url);
+            return (
+              <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{c.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {c.domain} · found {fmtDate(c.found_at)}
+                  </p>
+                  {post && (
+                    <a href={post} target="_blank" rel="noopener noreferrer nofollow" className="text-xs text-primary underline">
+                      Launch post<span className="sr-only"> for {c.name} (opens in a new tab)</span>
+                    </a>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={busy || full} onClick={() => decide.mutate({ id: c.id, decision: "accept" })}>
+                    Watch
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => decide.mutate({ id: c.id, decision: "dismiss" })}>
+                    Dismiss
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {full && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Watching is off because you&apos;re at your plan&apos;s page limit. Remove a watched page to watch one of these.
+          </p>
+        )}
+        {decide.isError && (
+          <p role="alert" className="mt-2 text-xs text-destructive-text">
+            {apiMessage(decide.error, "Couldn't save that. Please try again.")}
+          </p>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 export function MonitoringView({ projectId }: { projectId: string }) {
   const project = useProject(projectId);
   const me = useMe();
@@ -440,10 +514,16 @@ export function MonitoringView({ projectId }: { projectId: string }) {
           {full && (
             <p className="rounded-control bg-warning/10 p-3 text-sm text-warning-text">
               You&apos;re watching as many pages as your plan allows.{" "}
-              <Link href="/billing" className="font-medium underline">
-                A credit pack raises the limit
-              </Link>
-              , or remove a page below.
+              {me.data?.plan === "pro" ? (
+                "Remove a page below to watch another."
+              ) : (
+                <>
+                  <Link href="/billing" className="font-medium underline">
+                    {me.data?.plan === "founder" ? "Pro watches more pages" : "Founder and Pro plans watch more pages"}
+                  </Link>
+                  , or remove a page below.
+                </>
+              )}
             </p>
           )}
           <AddWatch projectId={projectId} canDaily={canDaily} full={full} />
@@ -466,6 +546,8 @@ export function MonitoringView({ projectId }: { projectId: string }) {
           )}
         </div>
       </Panel>
+
+      <Candidates projectId={projectId} full={full} />
 
       <Timeline projectId={projectId} watches={list} />
     </div>

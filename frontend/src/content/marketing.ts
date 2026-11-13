@@ -4,6 +4,15 @@
  * Anything that looks like data here is SAMPLE data and every component that renders it
  * shows a visible "Sample data" label.
  */
+import {
+  PACK_PRICES,
+  PAID_PRICES_SENTENCE,
+  PLAN_PRICES,
+  usd,
+  WATCHES_PER_PROJECT,
+  watchesLabel,
+  yearlySavingMonths,
+} from "@/content/pricing";
 import { BRAND_NAME } from "@/lib/brand";
 
 export const NAV_LINKS = [
@@ -139,54 +148,72 @@ export const USE_CASES = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Pricing — placeholders until prices are finalised (no invented numbers).
+// Pricing — numbers come from src/content/pricing.ts (the catalog that matches Lemon Squeezy).
+// Features listed here must match what the backend enforces (PLAN_LIMITS) and what every plan can use today.
 // ---------------------------------------------------------------------------
+const F = PLAN_PRICES.founder;
+const P = PLAN_PRICES.pro;
+const FREE = PLAN_PRICES.free;
+
 export const PLANS = [
   {
     id: "free",
     name: "Free",
     price: "$0",
+    period: "",
     priceNote: "No card required",
     blurb: "See how evidence-backed validation works.",
     allowance: "1 Quick report after you verify your email",
     cta: "Start free",
-    features: ["Basic idea assessment", "Limited evidence preview", "Sample opportunity report"],
+    features: [
+      "Quick research depth",
+      "Evidence explorer preview",
+      `Watch ${watchesLabel(FREE.watches)}, checked weekly`,
+      `Up to ${FREE.aiSummariesPerDay} AI change summaries a day`,
+      "Weekly digest email",
+    ],
     recommended: false,
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: null,
-    priceNote: "Pricing announced at launch",
-    blurb: "Full research for founders validating seriously.",
-    allowance: "More research credits each month (allowance set at launch)",
-    cta: "Start free, upgrade later",
+    id: "founder",
+    name: F.name,
+    price: usd(F.month!),
+    period: "/month",
+    priceNote: `or ${usd(F.year!)}/year (${yearlySavingMonths(F)} months free)`,
+    blurb: "Validate seriously and keep an eye on the market.",
+    allowance: `${F.monthlyCredits} research credits every month`,
+    cta: "Start free, upgrade in the app",
     features: [
+      "Quick, Standard and Deep research",
       "Full evidence explorer",
-      "Competitor intelligence",
-      "Audience analysis",
-      "Distribution strategies",
-      "Exportable reports",
+      `Watch ${watchesLabel(F.watches)}, checked daily`,
+      `Up to ${F.aiSummariesPerDay} AI change summaries a day`,
+      "Cancel any time",
     ],
     recommended: true,
   },
   {
-    id: "advanced",
-    name: "Advanced",
-    price: null,
-    priceNote: "Pricing announced at launch",
-    blurb: "Deeper research across several ideas.",
-    allowance: "Higher research allowance (set at launch)",
-    cta: "Start free, upgrade later",
+    id: "pro",
+    name: P.name,
+    price: usd(P.month!),
+    period: "/month",
+    priceNote: `or ${usd(P.year!)}/year (${yearlySavingMonths(P)} months free)`,
+    blurb: "For founders researching and tracking several ideas.",
+    allowance: `${P.monthlyCredits} research credits every month`,
+    cta: "Start free, upgrade in the app",
     features: [
-      "Everything in Pro",
-      "Deeper research configurations",
-      "More saved projects",
-      "Advanced comparisons and exports",
+      `Everything in ${F.name}`,
+      `Watch ${watchesLabel(P.watches)}, checked daily`,
+      `Up to ${P.aiSummariesPerDay} AI change summaries a day`,
+      `${P.maxRunning} research jobs at once`,
+      "Cancel any time",
     ],
     recommended: false,
   },
 ] as const;
+
+/** One-off credit packs, for founders who'd rather not subscribe. */
+export const PACKS = PACK_PRICES.map((p) => ({ ...p, label: usd(p.price) }));
 
 export const CREDIT_EXPLAINER = [
   { depth: "Quick", credits: 1, body: "A fast read on demand and the obvious competitors." },
@@ -194,15 +221,31 @@ export const CREDIT_EXPLAINER = [
   { depth: "Deep", credits: 4, body: "The widest search budget for ideas you're close to committing to." },
 ] as const;
 
-export const PLAN_COMPARISON: { feature: string; free: string; pro: string; advanced: string }[] = [
-  { feature: "Research credits", free: "1 Quick report", pro: "Set at launch", advanced: "Set at launch" },
-  { feature: "Research depth", free: "Quick", pro: "Quick, Standard, Deep", advanced: "Quick, Standard, Deep" },
-  { feature: "Evidence explorer", free: "Preview", pro: "Full", advanced: "Full" },
-  { feature: "Competitor intelligence", free: "Summary", pro: "Full", advanced: "Full" },
-  { feature: "Audience & distribution", free: "—", pro: "Included", advanced: "Included" },
-  { feature: "Report export", free: "—", pro: "Markdown / PDF", advanced: "Markdown / PDF" },
-  { feature: "Saved projects", free: "Limited", pro: "More", advanced: "Most" },
-  { feature: "Idea comparisons", free: "—", pro: "—", advanced: "Included" },
+export const PLAN_COMPARISON: { feature: string; free: string; founder: string; pro: string }[] = [
+  {
+    feature: "Research credits",
+    free: "1 Quick report",
+    founder: `${F.monthlyCredits} per month`,
+    pro: `${P.monthlyCredits} per month`,
+  },
+  { feature: "Research depth", free: "Quick", founder: "Quick, Standard, Deep", pro: "Quick, Standard, Deep" },
+  { feature: "Evidence explorer", free: "Preview", founder: "Full", pro: "Full" },
+  {
+    feature: "Competitor pages watched",
+    free: String(FREE.watches),
+    founder: String(F.watches),
+    pro: `${P.watches} (up to ${WATCHES_PER_PROJECT} per project)`,
+  },
+  { feature: "Page checks", free: "Weekly", founder: "Daily or weekly", pro: "Daily or weekly" },
+  {
+    feature: "AI change summaries per day",
+    free: String(FREE.aiSummariesPerDay),
+    founder: String(F.aiSummariesPerDay),
+    pro: String(P.aiSummariesPerDay),
+  },
+  { feature: "Weekly digest email", free: "Included", founder: "Included", pro: "Included" },
+  { feature: "Research jobs at once", free: String(FREE.maxRunning), founder: String(F.maxRunning), pro: String(P.maxRunning) },
+  { feature: "Report export", free: "Markdown / PDF", founder: "Markdown / PDF", pro: "Markdown / PDF" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -239,11 +282,11 @@ export const FAQS = [
   },
   {
     q: "How much does market research cost?",
-    a: "Reports use credits: Quick = 1, Standard = 2, Deep = 4. Your first Quick report is free after you verify your email. Paid plan prices will be published before they launch.",
+    a: `Reports use credits: Quick = 1, Standard = 2, Deep = 4. Your first Quick report is free after you verify your email. ${PAID_PRICES_SENTENCE}, with research credits included each month; one-off credit packs start at ${usd(PACK_PRICES[0].price)}.`,
   },
   {
     q: "Can I cancel my subscription?",
-    a: "Paid plans haven't launched yet, so there's nothing to cancel today. Cancellation terms will be shown clearly before you subscribe to anything.",
+    a: "Yes, any time, from Manage subscription on the Plan & credits page. You keep your plan until the end of the period you've paid for, and research credits you already have don't expire.",
   },
   {
     q: "Is my idea private?",

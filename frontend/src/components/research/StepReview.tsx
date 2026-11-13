@@ -217,10 +217,10 @@ export function StepReview() {
           <Alert role="status">
             <AlertTriangle aria-hidden />
             <AlertDescription>
-              {depth.label} depth needs a credit pack; free accounts run Quick research. Go back to step 3 to switch to
+              {depth.label} depth needs a plan or a credit pack; free accounts run Quick research. Go back to step 3 to switch to
               Quick, or{" "}
               <Link href="/billing" className="font-medium underline">
-                see credit packs
+                see plans and packs
               </Link>
               .
             </AlertDescription>
@@ -234,7 +234,7 @@ export function StepReview() {
               {problem.message}{" "}
               {(problem.kind === "plan" || problem.kind === "credits") && (
                 <Link href="/billing" className="font-medium underline">
-                  See credit packs
+                  See plans and packs
                 </Link>
               )}
               {problem.kind === "conflict" && (

@@ -208,7 +208,7 @@ export function StepConfigure() {
                         {d.credits} credit{d.credits > 1 ? "s" : ""}
                       </span>
                       <span className="mt-2 text-xs leading-relaxed text-muted-foreground">{d.body}</span>
-                      {locked && <span className="mt-2 text-xs font-medium text-primary">Unlocked by any credit pack</span>}
+                      {locked && <span className="mt-2 text-xs font-medium text-primary">Unlocked by a plan or any credit pack</span>}
                     </button>
                   );
                 })}

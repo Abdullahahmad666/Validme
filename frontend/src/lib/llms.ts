@@ -4,7 +4,7 @@
  * Facts only: no claims beyond what the product does today.
  */
 import { GLOSSARY_TERMS } from "@/content/glossary";
-import { CREDIT_EXPLAINER, FAQS, FEATURES, PLANS, SOURCES, STEPS } from "@/content/marketing";
+import { CREDIT_EXPLAINER, FAQS, FEATURES, PACKS, PLANS, SOURCES, STEPS } from "@/content/marketing";
 import { PAGE_KEYS, PAGES } from "@/content/seo";
 import { BRAND_NAME, BRAND_TAGLINE } from "@/lib/brand";
 import { absoluteUrl } from "@/lib/seo";
@@ -20,7 +20,7 @@ function header(): string[] {
     "- Original evidence, AI interpretation and user assumptions are kept separate and labelled.",
     "- Missing data is reported as \"unavailable\" rather than estimated.",
     `- Sources searched: ${SOURCES.filter((s) => s.status === "supported").map((s) => s.name).join(", ")}. Rolling out: ${SOURCES.filter((s) => s.status === "limited").map((s) => s.name).join(", ")}.`,
-    `- Pricing: research uses credits (${CREDIT_EXPLAINER.map((c) => `${c.depth} = ${c.credits}`).join(", ")}). Free plan: ${PLANS[0].allowance}. Paid plan prices are not yet published.`,
+    `- Pricing: research uses credits (${CREDIT_EXPLAINER.map((c) => `${c.depth} = ${c.credits}`).join(", ")}). Free plan: ${PLANS[0].allowance}. ${PLANS.slice(1).map((p) => `${p.name}: ${p.price}${p.period} (${p.priceNote})`).join("; ")}. One-off credit packs: ${PACKS.map((p) => `${p.credits} credits for ${p.label}`).join(", ")}.`,
     "- No automated outreach: it shows where customers are; it never contacts anyone.",
     "",
   ];
@@ -59,7 +59,7 @@ export function buildLlmsFullTxt(): string {
     ...FEATURES.flatMap((f) => [`### ${f.eyebrow}`, "", f.body, "", ...f.points.map((pt) => `- ${pt}`), ""]),
     "## Plans",
     "",
-    ...PLANS.map((p) => `- **${p.name}** (${p.price ?? "price to be announced"}): ${p.blurb} ${p.allowance}. Includes: ${p.features.join(", ")}.`),
+    ...PLANS.map((p) => `- **${p.name}** (${p.price}${p.period}): ${p.blurb} ${p.allowance}. Includes: ${p.features.join(", ")}.`),
     "",
     "## Frequently asked questions",
     "",

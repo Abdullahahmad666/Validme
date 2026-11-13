@@ -115,7 +115,7 @@ export function RerunPanel({ projectId, onClose }: { projectId: string; onClose:
         {est.data
           ? est.data.allowed
             ? `Costs ${est.data.credits} credit${est.data.credits === 1 ? "" : "s"}. Balance ${est.data.balance} → ${Math.max(est.data.balance_after, 0)}.`
-            : "This depth needs a credit pack. Free accounts run Quick research."
+            : "This depth needs a plan or a credit pack. Free accounts run Quick research."
           : est.isError
             ? "Couldn't load the estimate."
             : "Checking credits…"}

@@ -43,6 +43,18 @@ export type Change = {
   project?: { id: string; name: string };
 };
 
+/** A possible new competitor found in recent public launches (Show HN). Never watched until the founder accepts. */
+export type CompetitorCandidate = {
+  id: number;
+  domain: string;
+  name: string;
+  url: string;
+  source_url: string;
+  source: "hackernews";
+  found_at: string;
+  status: "new" | "accepted" | "dismissed";
+};
+
 export type AppNotification = {
   id: number;
   kind: string;

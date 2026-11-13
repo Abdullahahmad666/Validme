@@ -46,6 +46,10 @@ export default function PrivacyPage() {
               <li>To run the research you request and produce your reports.</li>
               <li>To keep your account secure, prevent abuse (for example rate limits) and enforce plan allowances.</li>
               <li>To send account emails such as email verification and password resets.</li>
+              <li>
+                If you watch competitor pages, to send a weekly digest of what changed. It goes only to a verified
+                address, has no tracking pixels, and you can turn it off in Settings or from the link in every email.
+              </li>
             </ul>
             <p>We don&apos;t sell your data, and we don&apos;t use your ideas for advertising.</p>
 
@@ -56,6 +60,10 @@ export default function PrivacyPage() {
               <li>an AI model provider, to interpret, classify and summarise collected evidence;</li>
               <li>the public APIs of supported communities (for example Hacker News), which receive search queries only.</li>
             </ul>
+            <p>
+              Payments are handled by Lemon Squeezy, our merchant of record. You enter card details on their checkout, never
+              on our pages; we receive your order and subscription status, not your card number.
+            </p>
             <p>
               We also rely on infrastructure providers (hosting, database and email delivery). The specific providers will
               be listed here before public launch.

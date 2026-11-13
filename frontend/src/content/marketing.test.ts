@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CREDIT_EXPLAINER, FOOTER_COLUMNS, PLANS, SOURCES } from "@/content/marketing";
+import { PLAN_PRICES } from "@/content/pricing";
 
 const SRC = path.resolve(__dirname, "..");
 
@@ -32,12 +33,14 @@ describe("marketing content honesty", () => {
     for (const s of SOURCES) expect(["supported", "limited"]).toContain(s.status);
   });
 
-  it("only shows a price for the free plan until real prices exist", () => {
-    for (const plan of PLANS) {
-      if (plan.id === "free") expect(plan.price).toBe("$0");
-      else expect(plan.price).toBeNull();
-    }
-    expect(PLANS.filter((p) => p.recommended).map((p) => p.id)).toEqual(["pro"]);
+  it("plan prices come from the pricing catalog and nothing is unlimited", () => {
+    expect(PLANS.map((p) => [p.id, p.price])).toEqual([
+      ["free", "$0"],
+      ["founder", `$${PLAN_PRICES.founder.month}`],
+      ["pro", `$${PLAN_PRICES.pro.month}`],
+    ]);
+    expect(PLANS.filter((p) => p.recommended).map((p) => p.id)).toEqual(["founder"]);
+    expect(PLANS[1].priceNote).toContain("$190/year (2 months free)");
     expect(JSON.stringify(PLANS).toLowerCase()).not.toContain("unlimited");
   });
 

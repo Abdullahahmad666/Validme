@@ -287,7 +287,7 @@ export function EvidenceExplorer() {
                 report still links every source it cites.
               </span>
               <Link href="/billing" className="font-medium text-primary underline">
-                Any credit pack unlocks all of them
+                A plan or any credit pack unlocks all of them
               </Link>
             </p>
           )}

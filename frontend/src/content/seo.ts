@@ -7,6 +7,7 @@
  * Social images (/og/<key>/og.png, /og/<key>/x.png), sitemap, breadcrumbs and llms.txt are
  * generated from this entry automatically. `src/content/seo.test.ts` fails if a page is missing.
  */
+import { PAID_PRICES_SENTENCE } from "@/content/pricing";
 import type { MetadataRoute } from "next";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -47,7 +48,7 @@ export const PAGES = {
   pricing: {
     path: "/pricing",
     title: "Pricing",
-    description: "Start free with one Quick report. Compare Free, Pro and Advanced plans for evidence-backed startup idea validation and market research.",
+    description: `Start free with one Quick report. ${PAID_PRICES_SENTENCE}, with research credits and competitor monitoring included.`,
     og: { eyebrow: "Pricing", headline: "Choose how deeply you want to research.", subline: "Start free with one Quick report. No card required." },
     schemaType: "WebPage",
     label: "Pricing",

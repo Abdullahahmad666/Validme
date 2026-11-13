@@ -47,7 +47,24 @@ export default function HomePage() {
             operatingSystem: "Web",
             description: PAGES.home.description,
             publisher: { "@id": ORG_ID },
-            offers: { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD", description: PLANS[0].allowance },
+            offers: PLANS.map((p) => ({
+              "@type": "Offer",
+              name: p.name,
+              price: p.price.replace("$", ""),
+              priceCurrency: "USD",
+              description: p.allowance,
+              ...(p.period
+                ? {
+                    priceSpecification: {
+                      "@type": "UnitPriceSpecification",
+                      price: p.price.replace("$", ""),
+                      priceCurrency: "USD",
+                      unitCode: "MON",
+                      referenceQuantity: { "@type": "QuantitativeValue", value: 1, unitCode: "MON" },
+                    },
+                  }
+                : {}),
+            })),
           },
           {
             "@type": "HowTo",
