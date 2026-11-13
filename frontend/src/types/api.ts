@@ -218,6 +218,7 @@ export type Me = {
   date_joined: string;
   plan: Plan;
   allowed_depths: Depth[];
+  monitoring: { max_watches: number; cadences: ("daily" | "weekly")[]; used: number };
 };
 
 export type Plan = "free" | "paid";

@@ -175,6 +175,9 @@ export function ReportView({ projectId }: { projectId: string }) {
               <RefreshCw aria-hidden /> Re-run
             </Button>
           )}
+          <Button asChild variant="outline">
+            <Link href={`/projects/${projectId}/monitoring`}>Monitoring</Link>
+          </Button>
           <Button asChild variant="ghost">
             <Link href={`/projects/${projectId}/progress`}>Research details</Link>
           </Button>

@@ -1,5 +1,6 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
+import type { AppNotification, Cadence, Change, Significance, Watch } from "@/types/monitoring";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
@@ -146,6 +147,35 @@ export const api = {
     request<void>(`/projects/${encodeURIComponent(projectId)}/assumptions/${id}`, { method: "DELETE" }),
   compareProjects: (ids: string[]) =>
     request<{ results: CompareRow[] }>(`/projects/compare?ids=${ids.map(encodeURIComponent).join(",")}`),
+  listWatches: (projectId: string) => request<Watch[]>(`/projects/${encodeURIComponent(projectId)}/watches`),
+  createWatch: (projectId: string, body: { url: string; label?: string; cadence?: Cadence }) =>
+    request<Watch>(`/projects/${encodeURIComponent(projectId)}/watches`, { method: "POST", body: json(body) }),
+  updateWatch: (projectId: string, id: number, body: Partial<Pick<Watch, "label" | "cadence" | "active">>) =>
+    request<Watch>(`/projects/${encodeURIComponent(projectId)}/watches/${id}`, { method: "PATCH", body: json(body) }),
+  deleteWatch: (projectId: string, id: number) =>
+    request<void>(`/projects/${encodeURIComponent(projectId)}/watches/${id}`, { method: "DELETE" }),
+  checkWatch: (projectId: string, id: number) =>
+    request<{ queued: boolean; result: string | null; watch: Watch }>(`/projects/${encodeURIComponent(projectId)}/watches/${id}/check`, {
+      method: "POST",
+    }),
+  watchFromReport: (projectId: string, competitorIds: number[]) =>
+    request<{ created: number; skipped: number }>(`/projects/${encodeURIComponent(projectId)}/watches/from-report`, {
+      method: "POST",
+      body: json({ competitor_ids: competitorIds }),
+    }),
+  listChanges: (projectId: string, params: { watch?: number; significance?: Significance; page?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.watch) q.set("watch", String(params.watch));
+    if (params.significance) q.set("significance", params.significance);
+    if (params.page && params.page > 1) q.set("page", String(params.page));
+    return request<Paginated<Change>>(`/projects/${encodeURIComponent(projectId)}/changes${q.size ? `?${q}` : ""}`);
+  },
+  markChangeSeen: (projectId: string, id: number) =>
+    request<Change>(`/projects/${encodeURIComponent(projectId)}/changes/${id}`, { method: "PATCH", body: json({ seen: true }) }),
+  monitoringFeed: (page = 1) => request<Paginated<Change>>(`/monitoring/changes${page > 1 ? `?page=${page}` : ""}`),
+  notifications: () => request<Paginated<AppNotification> & { unread: number }>("/notifications"),
+  markNotificationsRead: (body: { ids?: number[]; all?: boolean }) =>
+    request<{ updated: number }>("/notifications/read", { method: "POST", body: json(body) }),
   getUnitEconomics: (projectId: string) =>
     request<{ inputs: UnitInputs | null; updated_at: string | null }>(`/projects/${encodeURIComponent(projectId)}/unit-economics`),
   saveUnitEconomics: (projectId: string, inputs: UnitInputs) =>

@@ -1,4 +1,5 @@
 import { UserMenu } from "@/components/layout/UserMenu";
+import { NotificationBell } from "@/components/monitoring/NotificationBell";
 import { BrandLink } from "@/components/shared/BrandLogo";
 import { BRAND_NAME } from "@/lib/brand";
 
@@ -7,7 +8,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur sm:px-6 md:justify-end lg:px-8">
       <BrandLink href="/dashboard" label={`${BRAND_NAME} dashboard`} className="md:hidden" />
-      <UserMenu />
+      <div className="flex items-center gap-1">
+        <NotificationBell />
+        <UserMenu />
+      </div>
     </header>
   );
 }
