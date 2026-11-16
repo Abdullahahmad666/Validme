@@ -47,7 +47,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Credits, packs, server-side limits, payment provider (merchant of record: Lemon Squeezy; packs + prices configured there), free-plan evidence preview, partial refunds
 - [x] Error handling, job recovery, security review, analytics (first-party)
 - [x] Pre-deploy gate: dependency scans (pip-audit, npm audit) and `perf_check` (p95 + query budgets) in every ship-check; vitest 5
-- [ ] Pre-deploy: hashed Python lockfile (`backend/requirements.lock`)
+- [x] Pre-deploy: hashed Python lockfile (`backend/requirements.lock`, installed with `--require-hashes`)
 - [ ] Deploy (Vercel + Render or Railway)
 
 ## Marketing site
