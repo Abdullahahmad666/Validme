@@ -35,3 +35,7 @@ PLAN_LIMITS.update(
 EMAIL_PROVIDER = "locmem"
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 SUBSCRIPTION_PLANS = []
+
+# Tasks queued with .delay() run inline in tests (no broker).
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True  # a failing task fails the test

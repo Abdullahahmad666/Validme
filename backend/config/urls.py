@@ -11,6 +11,7 @@ from mailer.views import PreferencesView, ResendWebhookView, UnsubscribeView
 from monitoring.views import CandidateViewSet, ChangeViewSet, MonitoringFeedView, WatchViewSet
 from notifications.views import MarkReadView, NotificationsView
 from projects.views import AssumptionViewSet, DashboardSummaryView, ProjectQueryViewSet, ProjectViewSet
+from radar.views import ScoreHistoryView, SignalViewSet
 from reports.views import CompetitiveMatrixView, ReportExportView, ReportHistoryView, ReportView
 from research.views import EstimateView, ResearchJobViewSet, SourcesView
 
@@ -25,6 +26,7 @@ router.register(r"projects/(?P<project_pk>[^/.]+)/assumptions", AssumptionViewSe
 router.register(r"projects/(?P<project_pk>[^/.]+)/watches", WatchViewSet, basename="project-watch")
 router.register(r"projects/(?P<project_pk>[^/.]+)/changes", ChangeViewSet, basename="project-change")
 router.register(r"projects/(?P<project_pk>[^/.]+)/candidates", CandidateViewSet, basename="project-candidate")
+router.register(r"projects/(?P<project_pk>[^/.]+)/signals", SignalViewSet, basename="project-signal")
 
 
 def health(_request):
@@ -53,6 +55,7 @@ urlpatterns = [
     path("api/email/webhooks/resend", ResendWebhookView.as_view()),
     path("api/notifications/read", MarkReadView.as_view()),
     path("api/monitoring/changes", MonitoringFeedView.as_view()),
+    path("api/projects/<str:project_pk>/score-history", ScoreHistoryView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),
     path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),

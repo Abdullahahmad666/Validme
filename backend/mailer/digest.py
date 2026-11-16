@@ -22,6 +22,7 @@ from mailer.tokens import unsubscribe_token
 logger = logging.getLogger(__name__)
 MAX_CHANGES = 15
 MAX_CANDIDATES = 10
+MAX_SIGNALS = 5
 SIGNIFICANCE_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
@@ -54,7 +55,15 @@ def build_digest(user, now=None) -> dict | None:
         .select_related("project")
         .order_by("-found_at")[:MAX_CANDIDATES]
     )
-    if not changes and not candidates:
+    from radar.models import Signal
+    from radar.services import basis
+
+    signals = list(
+        Signal.objects.filter(project__owner=user, status__in=(Signal.Status.NEW, Signal.Status.SEEN), discovered_at__gte=since)
+        .select_related("project")
+        .order_by("-rank", "-discovered_at")[:MAX_SIGNALS]
+    )
+    if not changes and not candidates and not signals:
         return None
     return {
         "app_url": app,
@@ -74,6 +83,18 @@ def build_digest(user, now=None) -> dict | None:
                 "page": _safe_url(c.watch.url),
             }
             for c in changes[:MAX_CHANGES]
+        ],
+        "signals": [
+            {
+                "title": s.title,
+                "type": s.type,
+                "confidence": s.confidence,
+                "project": s.project.name,
+                "basis": basis(s),
+                "ai_rationale": s.ai_rationale,
+                "link": f"{app}/projects/{s.project_id}/radar?signal={s.pk}",
+            }
+            for s in signals
         ],
         "candidates": [
             {
@@ -105,7 +126,9 @@ def send_digest(user, *, now=None, dry_run: bool = False) -> str:
     period = period_for(now)
     try:
         with transaction.atomic():
-            log = DigestLog.objects.create(user=user, period=period, items=len(content["changes"]) + len(content["candidates"]))
+            log = DigestLog.objects.create(
+                user=user, period=period, items=len(content["changes"]) + len(content["candidates"]) + len(content["signals"])
+            )
     except IntegrityError:
         return "already_sent"  # another worker (or a retry) owns this week's send
 

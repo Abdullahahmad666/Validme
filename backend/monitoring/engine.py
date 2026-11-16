@@ -245,6 +245,13 @@ def _after_change(change: Change) -> None:
             )
         except Exception:  # noqa: BLE001
             logger.exception("notification failed for change %s", change.pk)
+    if change.significance == Change.Significance.HIGH:
+        try:
+            from radar.services import signal_for_change
+
+            signal_for_change(change)
+        except Exception:  # noqa: BLE001
+            logger.exception("radar signal failed for change %s", change.pk)
     try:
         summarize_change(change)
     except Exception:  # noqa: BLE001 - a summary is optional

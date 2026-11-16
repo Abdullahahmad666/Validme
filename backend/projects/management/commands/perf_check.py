@@ -148,6 +148,9 @@ def _endpoints(ids: dict) -> list[str]:
         f"/api/projects/{p}/watches",
         f"/api/projects/{p}/changes",
         f"/api/projects/{p}/candidates",
+        f"/api/projects/{p}/signals",
+        f"/api/projects/{p}/signals?status=all&type=opportunity",
+        f"/api/projects/{p}/score-history",
         "/api/monitoring/changes",
         "/api/notifications",
         "/api/billing/packs",
@@ -253,5 +256,19 @@ def _seed(n_evidence: int) -> dict:
         )
     UsageTransaction.objects.bulk_create(
         UsageTransaction(user=user, job=jobs[0], operation="research_job", credits=-1) for _ in range(80)
+    )
+    # Radar: signals from the seeded evidence, changes and an accepted candidate; a year of weekly snapshots.
+    from radar import services as radar
+    from radar.models import ScoreSnapshot
+
+    CompetitorCandidate.objects.filter(project=main).update(status="accepted")
+    radar.after_report(jobs[0])
+    for c in Change.objects.filter(project=main, significance="high")[:20]:
+        radar.signal_for_change(c)
+    ScoreSnapshot.objects.bulk_create(
+        ScoreSnapshot(
+            project=main, source="revalidation", score=50 + i % 10, confidence="medium", created_at=timezone.now() - timedelta(weeks=i)
+        )
+        for i in range(1, 52)
     )
     return {"user": user, "project": main.pk, "other_project": projects[1].pk}

@@ -47,7 +47,7 @@ def summarize_change(change: Change) -> bool:
     """Fill change.ai_summary when worth it and possible. Returns True if a summary was stored."""
     if change.significance == Change.Significance.LOW or change.ai_summary or not llm.is_configured():
         return False
-    if not _under_daily_cap(change):
+    if not under_daily_ai_cap(change.project.owner):
         return False
     template, version = prompts.load("change_summary_v1")
     watch = change.watch
@@ -78,13 +78,21 @@ def summarize_change(change: Change) -> bool:
     return True
 
 
-def _under_daily_cap(change: Change) -> bool:
-    """Per-account daily cap on AI summaries (a page that changes on every visit can't run up AI cost)."""
+# Operations that count against the per-account daily AI cap: change summaries and Radar rationales.
+AI_CAPPED_OPERATIONS = ("monitoring_summary", "radar_rationale")
+
+
+def under_daily_ai_cap(owner) -> bool:
+    """Per-account daily cap on AI write-ups (a page that changes on every visit can't run up AI cost)."""
+    from django.db.models import Q
+
     from billing.plans import plan_for
 
-    owner = change.project.owner
     since = timezone.now() - timedelta(days=1)
-    used = UsageTransaction.objects.filter(user=owner, operation__startswith="monitoring_summary", created_at__gte=since).count()
+    capped = Q()
+    for op in AI_CAPPED_OPERATIONS:
+        capped |= Q(operation__startswith=op)
+    used = UsageTransaction.objects.filter(capped, user=owner, created_at__gte=since).count()
     return used < settings.MONITORING_AI_DAILY.get(plan_for(owner), 0)
 
 

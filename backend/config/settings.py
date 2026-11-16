@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "monitoring",
     "notifications",
     "mailer",
+    "radar",
 ]
 
 MIDDLEWARE = [
@@ -111,6 +112,8 @@ REST_FRAMEWORK = {
         "analytics": env("THROTTLE_ANALYTICS", default="120/hour"),
         # Creating watches / check now / from report: each can make the server fetch pages.
         "monitoring": env("THROTTLE_MONITORING", default="30/hour"),
+        # Radar "Check now": re-scores all stored evidence of a project (no network, but not cheap).
+        "radar_refresh": env("THROTTLE_RADAR_REFRESH", default="6/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
     # Throttles key on the client IP the proxy appended (X-Forwarded-For), not on a header the client controls.
@@ -203,6 +206,8 @@ CELERY_BEAT_SCHEDULE = {
         "task": "monitoring.tasks.detect_new_competitors",
         "schedule": crontab(hour=5, minute=0, day_of_week=1),
     },
+    # Then re-score every researched project and look for Radar signals, so the digest includes them.
+    "radar-revalidate": {"task": "radar.tasks.revalidate_all", "schedule": crontab(hour=6, minute=0, day_of_week=1)},
     "weekly-digest": {"task": "mailer.tasks.send_weekly_digests", "schedule": crontab(hour=8, minute=0, day_of_week=1)},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)

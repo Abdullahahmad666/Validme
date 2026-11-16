@@ -43,6 +43,11 @@ def run_research_job(self, job_id: str) -> str:
             .exists()
         )
         track("first_report_completed" if first else "report_completed", user=job.project.owner, props={"depth": job.depth})
+        from radar import services as radar
+        from radar.tasks import enqueue_rationales
+
+        radar.after_report(job)  # score snapshot + Radar signals; never fails the job
+        enqueue_rationales(job.project_id)
     settle_project(job)
     return job.status
 

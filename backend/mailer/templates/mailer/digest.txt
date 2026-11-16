@@ -9,7 +9,14 @@ Competitor changes ({{ changes_total }})
   Page: {{ c.page }}{% endif %}
 {% endfor %}{% if changes_total > changes|length %}
 ...and {{ changes_total|add:0 }} in total. See them all: {{ app_url }}/competitors
-{% endif %}{% endif %}{% if candidates %}
+{% endif %}{% endif %}{% if signals %}
+Opportunity Radar
+{% for s in signals %}
+- {{ s.title }} [{{ s.project }}] ({{ s.type }}, {{ s.confidence }} confidence)
+  Based on: {{ s.basis }}{% if s.ai_rationale %}
+  AI view: {{ s.ai_rationale }}{% endif %}
+  Open: {{ s.link }}
+{% endfor %}{% endif %}{% if candidates %}
 New competitors to review
 {% for k in candidates %}
 - {{ k.name }} ({{ k.domain }}) [{{ k.project }}]

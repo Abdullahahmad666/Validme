@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.conf import settings
@@ -20,6 +21,8 @@ from monitoring.tasks import check_watch_task
 from projects.models import Project
 from research.providers.fetch import BlockedURL, FetchError, check_url
 from research.views import parse_uuid
+
+logger = logging.getLogger(__name__)
 
 
 def _owned_project(request, project_pk) -> Project:
@@ -347,6 +350,12 @@ class CandidateViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
                 Watch.objects.create(project=candidate.project, url=url, label=candidate.name[:120], next_run_at=timezone.now())
             candidate.status = CompetitorCandidate.Status.ACCEPTED
             candidate.save(update_fields=["status"])
+        try:
+            from radar.services import signal_for_candidate
+
+            signal_for_candidate(candidate)
+        except Exception:  # noqa: BLE001 - the watch is created; the signal is a bonus
+            logger.exception("radar signal failed for candidate %s", candidate.pk)
         return Response(CandidateSerializer(candidate).data)
 
     @action(detail=True, methods=["post"])

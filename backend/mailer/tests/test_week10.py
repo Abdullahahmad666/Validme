@@ -78,7 +78,7 @@ def test_digest_queries_dont_grow_with_changes(user, project, django_assert_max_
 
     for i in range(12):
         _change(project, label=f"Page {i}")
-    with django_assert_max_num_queries(2):  # changes + candidates, whatever the count
+    with django_assert_max_num_queries(3):  # changes + signals + candidates, whatever the count
         assert len(build_digest(user)["changes"]) == 12
 
 
