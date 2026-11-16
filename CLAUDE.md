@@ -29,6 +29,9 @@ docs/        product + design source of truth
 | Frontend | `cd frontend && npm install && npm run dev` |
 | Frontend checks | `cd frontend && npm run lint && npm run typecheck && npm test` |
 | MCP server tests | `cd mcp-server && pip install -e . && pytest` |
+| Dependency scans | `cd backend && pip-audit -r requirements.lock` · `cd frontend && npm audit --omit=dev` |
+| Performance check | `cd backend && python manage.py perf_check --evidence 2000 --strict` (PostgreSQL, rolled back) |
+| Install pinned (deploy) | `cd backend && pip install --require-hashes -r requirements.lock` |
 
 ## Non-negotiable rules
 1. **No fabricated evidence or numbers.** Every finding must reference stored `Evidence` rows. Missing data → "unavailable".

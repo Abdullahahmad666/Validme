@@ -46,6 +46,8 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 ## Week 6 — Billing, hardening, deploy
 - [x] Credits, packs, server-side limits, payment provider (merchant of record: Lemon Squeezy; packs + prices configured there), free-plan evidence preview, partial refunds
 - [x] Error handling, job recovery, security review, analytics (first-party)
+- [x] Pre-deploy gate: dependency scans (pip-audit, npm audit) and `perf_check` (p95 + query budgets) in every ship-check; vitest 5
+- [ ] Pre-deploy: hashed Python lockfile (`backend/requirements.lock`)
 - [ ] Deploy (Vercel + Render or Railway)
 
 ## Marketing site
@@ -53,7 +55,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Pricing, sample report, about, contact, glossary, privacy/terms/cookies (drafts), coming-soon blog/guides/feedback
 - [x] SEO: metadata, OG image, sitemap, robots, JSON-LD; analytics abstraction (no vendor)
 - [ ] Product walkthrough video/animation for the demo slot (`DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
-- [ ] Final plan prices + allowances; decide subscriptions vs credit packs (PRD §9 favours packs)
+- [x] Final plan prices + allowances: both — Founder $19/mo, Pro $39/mo subscriptions plus $19/$49 credit packs (Week 10)
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
 - [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`
 
