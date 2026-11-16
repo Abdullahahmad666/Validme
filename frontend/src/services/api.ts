@@ -1,6 +1,7 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
 import type { AppNotification, Cadence, Change, CompetitorCandidate, Significance, Watch } from "@/types/monitoring";
+import type { ScoreSnapshot, Signal, SignalFeedback, SignalType } from "@/types/radar";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
@@ -186,6 +187,23 @@ export const api = {
     request<CompetitorCandidate[]>(`/projects/${encodeURIComponent(projectId)}/candidates`),
   decideCandidate: (projectId: string, id: number, decision: "accept" | "dismiss") =>
     request<CompetitorCandidate>(`/projects/${encodeURIComponent(projectId)}/candidates/${id}/${decision}`, { method: "POST" }),
+  listSignals: (projectId: string, params: { status?: string; type?: SignalType; page?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set("status", params.status);
+    if (params.type) q.set("type", params.type);
+    if (params.page && params.page > 1) q.set("page", String(params.page));
+    return request<Paginated<Signal>>(`/projects/${encodeURIComponent(projectId)}/signals${q.size ? `?${q}` : ""}`);
+  },
+  updateSignal: (projectId: string, id: number, body: { status?: "seen" | "dismissed" | "acted"; feedback?: SignalFeedback }) =>
+    request<Signal>(`/projects/${encodeURIComponent(projectId)}/signals/${id}`, { method: "PATCH", body: json(body) }),
+  markSignalsSeen: (projectId: string, ids: number[]) =>
+    request<{ updated: number }>(`/projects/${encodeURIComponent(projectId)}/signals/seen`, { method: "POST", body: json({ ids }) }),
+  refreshRadar: (projectId: string) =>
+    request<{ snapshot: number | null; new_signals: number }>(`/projects/${encodeURIComponent(projectId)}/signals/refresh`, {
+      method: "POST",
+    }),
+  scoreHistory: (projectId: string) =>
+    request<{ count: number; results: ScoreSnapshot[] }>(`/projects/${encodeURIComponent(projectId)}/score-history`),
   monitoringFeed: (page = 1) => request<Paginated<Change>>(`/monitoring/changes${page > 1 ? `?page=${page}` : ""}`),
   notifications: () => request<Paginated<AppNotification> & { unread: number }>("/notifications"),
   markNotificationsRead: (body: { ids?: number[]; all?: boolean }) =>

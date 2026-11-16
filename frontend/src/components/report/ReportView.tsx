@@ -176,6 +176,9 @@ export function ReportView({ projectId }: { projectId: string }) {
             </Button>
           )}
           <Button asChild variant="outline">
+            <Link href={`/projects/${projectId}/radar`}>Opportunity Radar</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href={`/projects/${projectId}/monitoring`}>Monitoring</Link>
           </Button>
           <Button asChild variant="ghost">

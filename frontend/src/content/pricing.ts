@@ -19,6 +19,7 @@ export type PlanPrice = {
   monthlyCredits: number;
   watches: number;
   dailyChecks: boolean;
+  /** MONITORING_AI_DAILY: change summaries and Radar write-ups together. */
   aiSummariesPerDay: number;
   maxRunning: number;
 };

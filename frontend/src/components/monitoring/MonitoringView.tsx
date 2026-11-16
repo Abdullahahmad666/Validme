@@ -496,7 +496,11 @@ export function MonitoringView({ projectId }: { projectId: string }) {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Competitor monitoring</h1>
         <p className="mt-1 text-muted-foreground">
           We re-read the pages you watch and record what changed: prices first, then text. Every change shows exactly what we
-          read and when.
+          read and when. Significant changes also appear in the{" "}
+          <Link href={`/projects/${projectId}/radar`} className="font-medium text-primary underline">
+            Opportunity Radar
+          </Link>
+          .
         </p>
       </header>
 

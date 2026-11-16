@@ -167,7 +167,8 @@ function Plans() {
                 <li>
                   {watchesLabel(p.watches)}, checked {p.dailyChecks ? "daily" : "weekly"}
                 </li>
-                <li>Up to {p.aiSummariesPerDay} AI change summaries a day</li>
+                <li>Up to {p.aiSummariesPerDay} AI summaries a day</li>
+                <li>Opportunity Radar</li>
                 <li>Weekly digest email</li>
               </ul>
               {id !== "free" && (
