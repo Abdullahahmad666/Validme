@@ -91,11 +91,11 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate (billing focus)
 
 ### Week 11 — Opportunity Radar
-- [ ] D1 Signal model + generators (complaint themes, competitor changes, own discussion trends, new competitors)
-- [ ] D2 Deterministic relevance/impact/confidence; AI rationale labelled
-- [ ] D3 Radar UI (evidence, source, date, action; dismiss/acted)
-- [ ] D4 Revalidation + score snapshots; Radar in digest
-- [ ] D5 Gate (research-quality focus)
+- [x] D1 Signal model + generators (complaint themes, competitor changes, own discussion trends, new competitors)
+- [x] D2 Deterministic relevance/impact/confidence; AI rationale labelled
+- [x] D3 Radar UI (evidence, source, date, action; dismiss/acted; feedback)
+- [x] D4 Revalidation + score snapshots; Radar in digest
+- [x] D5 Gate (research-quality focus)
 
 ### Week 12 — Distribution data v2
 - [ ] D1 YouTube Data API provider (size / relevance / activity separate; 30-day expiry)
