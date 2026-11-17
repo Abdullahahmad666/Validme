@@ -105,11 +105,11 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate
 
 ### Week 13 — Validation Lab 1: landing page + waitlist
-- [ ] D1 Separate origin, structured-block pages, publish rules
-- [ ] D2 Block editor UI
-- [ ] D3 Waitlist form (honeypot, rate limits, consent, encrypted emails, retention)
-- [ ] D4 First-party page analytics
-- [ ] D5 Gate (XSS, abuse, PII, origin isolation)
+- [x] D1 Separate origin, structured-block pages, publish rules
+- [x] D2 Block editor UI (AI copy suggestions labelled)
+- [x] D3 Waitlist form (honeypot, rate limits, consent, encrypted emails, retention)
+- [x] D4 First-party page analytics
+- [x] D5 Gate (XSS, abuse, PII, origin isolation)
 
 ### Week 14 — Validation Lab 2: surveys + price tests
 - [ ] D1 Survey builder + public survey page

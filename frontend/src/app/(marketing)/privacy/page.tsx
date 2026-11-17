@@ -91,6 +91,30 @@ export default function PrivacyPage() {
               be listed here before public launch.
             </p>
 
+            <h2>If you join a waitlist on a test page</h2>
+            <p>
+              Founders can publish simple test pages with a waitlist. These pages are on a separate web address from{" "}
+              {BRAND_NAME}, set no cookies and run no tracking scripts. If you join one:
+            </p>
+            <ul>
+              <li>
+                we store your email address encrypted, with the time you agreed and the consent wording you saw. We don&apos;t
+                store your IP address;
+              </li>
+              <li>
+                only the founder who made the page can see it, and only to tell you about that product (they can&apos;t message
+                you through {BRAND_NAME});
+              </li>
+              <li>it&apos;s deleted automatically after the period shown on the form (at most a year), or sooner on request;</li>
+              <li>
+                pages count views and sign-ups per day, nothing about you. If a page uses Cloudflare Turnstile to block bots,
+                Cloudflare processes your visit to check it.
+              </li>
+            </ul>
+            <p>
+              To have your email removed, <Link href="/contact">contact us</Link> with the page address and we&apos;ll delete it.
+            </p>
+
             <h2>Who can see your projects</h2>
             <p>
               Your projects, evidence and reports are visible only to your account. Every request to our API is checked

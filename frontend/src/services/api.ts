@@ -2,6 +2,7 @@ import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
 import type { AppNotification, Cadence, Change, CompetitorCandidate, Significance, Watch } from "@/types/monitoring";
 import type { Distribution, RefreshResult } from "@/types/distribution";
+import type { Block, LabPage, LabSignup, LabStats } from "@/types/lab";
 import type { ScoreSnapshot, Signal, SignalFeedback, SignalType } from "@/types/radar";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
@@ -203,6 +204,25 @@ export const api = {
     request<{ snapshot: number | null; new_signals: number }>(`/projects/${encodeURIComponent(projectId)}/signals/refresh`, {
       method: "POST",
     }),
+  labPages: (projectId: string) => request<LabPage[]>(`/projects/${encodeURIComponent(projectId)}/lab-pages`),
+  labPage: (projectId: string, id: number) => request<LabPage>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}`),
+  createLabPage: (projectId: string, body: { title: string; blocks: Block[] }) =>
+    request<LabPage>(`/projects/${encodeURIComponent(projectId)}/lab-pages`, { method: "POST", body: json(body) }),
+  updateLabPage: (projectId: string, id: number, body: Partial<Pick<LabPage, "title" | "slug" | "blocks" | "retention_days">>) =>
+    request<LabPage>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}`, { method: "PATCH", body: json(body) }),
+  deleteLabPage: (projectId: string, id: number) =>
+    request<void>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}`, { method: "DELETE" }),
+  setLabPagePublished: (projectId: string, id: number, publish: boolean) =>
+    request<LabPage>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}/${publish ? "publish" : "unpublish"}`, { method: "POST" }),
+  labStats: (projectId: string, id: number) => request<LabStats>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}/stats`),
+  labSignups: (projectId: string, id: number) =>
+    request<{ results: LabSignup[] }>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}/signups`),
+  deleteLabSignups: (projectId: string, id: number, body: { ids?: number[]; all?: boolean }) =>
+    request<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}/signups/delete`, { method: "POST", body: json(body) }),
+  labSuggest: (projectId: string) =>
+    request<{ blocks: Block[]; ai: true }>(`/projects/${encodeURIComponent(projectId)}/lab-suggest`, { method: "POST" }),
+  labSlug: (slug: string, pageId?: number) =>
+    request<{ available: boolean; reason: string }>(`/lab/slug?${new URLSearchParams({ slug, ...(pageId ? { page: String(pageId) } : {}) })}`),
   distribution: (projectId: string) => request<Distribution>(`/projects/${encodeURIComponent(projectId)}/distribution`),
   refreshDistribution: (projectId: string, sources: ("youtube" | "keywords")[] = ["youtube", "keywords"]) =>
     request<RefreshResult>(`/projects/${encodeURIComponent(projectId)}/distribution/refresh`, {
