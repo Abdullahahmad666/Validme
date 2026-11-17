@@ -1,0 +1,609 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, ChevronRight, Download, ExternalLink, Lock, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useId, useState } from "react";
+import { fmtDate } from "@/components/evidence/EvidenceCard";
+import { QuestionFields } from "@/components/lab/QuestionFields";
+import { SampleWarning } from "@/components/lab/SampleWarning";
+import { AiLabel, HBar, Panel } from "@/components/report/parts";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { ErrorState } from "@/components/shared/ErrorState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { labKeys, useAssumptions, useLabSurvey, useSurveyResponses, useSurveyResults } from "@/hooks/useLab";
+import { emptyQuestion, moveItem, nextQuestionId, pct, QUESTION_LABELS, RETENTION_OPTIONS, slugify, structureOf } from "@/lib/lab";
+import { cn, safeHref } from "@/lib/utils";
+import { API_URL, api, ApiError } from "@/services/api";
+import type { Question, QuestionType, Survey } from "@/types/lab";
+import type { Assumption } from "@/types/report";
+
+type Draft = Pick<Survey, "title" | "intro" | "slug" | "questions" | "ask_email" | "retention_days">;
+
+export const SURVEY_STATUS = {
+  draft: { label: "Draft", style: "bg-muted text-muted-strong" },
+  published: { label: "Live", style: "bg-success/10 text-success-text" },
+  closed: { label: "Closed", style: "bg-warning/10 text-warning-text" },
+  unpublished: { label: "Unpublished", style: "bg-warning/10 text-warning-text" },
+} as const;
+
+export function SurveyStatusBadge({ status }: { status: Survey["status"] }) {
+  return <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", SURVEY_STATUS[status].style)}>{SURVEY_STATUS[status].label}</span>;
+}
+
+function errorList(err: unknown): string[] {
+  if (!(err instanceof ApiError)) return ["Something went wrong. Please try again."];
+  const d = err.details as Record<string, unknown> | undefined;
+  const flat = (v: unknown): string[] => (Array.isArray(v) ? v.flatMap(flat) : typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(flat) : []);
+  const fromDetails = d ? flat(d.details ?? d) : [];
+  return fromDetails.length ? fromDetails.slice(0, 6) : [err.message];
+}
+
+function Results({ projectId, surveyId, assumptions }: { projectId: string; surveyId: number; assumptions: Assumption[] }) {
+  const results = useSurveyResults(projectId, surveyId);
+  const byId = new Map(assumptions.map((a) => [a.id, a.text]));
+  return (
+    <Panel title="Results" as="h2" aside={<span className="text-xs text-muted-foreground">Counted by us: no cookies or tracking scripts</span>}>
+      {results.isPending ? (
+        <Skeleton className="h-24" />
+      ) : results.isError ? (
+        <ErrorState title="Couldn't load the results" onRetry={() => results.refetch()} />
+      ) : (
+        <>
+          <dl className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-control bg-muted/50 p-3">
+              <dt className="text-xs text-muted-foreground">Answers</dt>
+              <dd className="text-2xl font-semibold tabular-nums">{results.data.responses}</dd>
+            </div>
+            <div className="rounded-control bg-muted/50 p-3">
+              <dt className="text-xs text-muted-foreground">Views</dt>
+              <dd className="text-2xl font-semibold tabular-nums">{results.data.views}</dd>
+            </div>
+            <div className="rounded-control bg-muted/50 p-3">
+              <dt className="text-xs text-muted-foreground">Response rate</dt>
+              <dd className="text-2xl font-semibold tabular-nums">
+                {results.data.response_rate === null ? <span className="text-base text-muted-foreground">No views yet</span> : pct(results.data.response_rate, 1)}
+              </dd>
+            </div>
+          </dl>
+          <SampleWarning sample={results.data.sample} />
+          {results.data.responses === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">No answers yet. Share the survey&apos;s link with people you think have the problem.</p>
+          ) : (
+            <ol className="mt-4 flex flex-col gap-5">
+              {results.data.questions.map((q, i) => (
+                <li key={q.id}>
+                  <h3 className="text-sm font-semibold">
+                    {i + 1}. {q.prompt}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {q.answered} answered{q.assumption_id && byId.get(q.assumption_id) ? ` · tests: “${byId.get(q.assumption_id)}”` : ""}
+                  </p>
+                  {q.options && (
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {q.options.map((o) => (
+                        <HBar key={o.label} label={`${o.label} · ${pct(o.share)}`} value={o.count} max={q.answered} />
+                      ))}
+                    </ul>
+                  )}
+                  {q.distribution && (
+                    <>
+                      <ul className="mt-2 flex flex-col gap-2">
+                        {q.distribution.map((d) => (
+                          <HBar
+                            key={d.value}
+                            label={d.value === 1 ? `1 · ${q.low_label}` : d.value === 5 ? `5 · ${q.high_label}` : String(d.value)}
+                            value={d.count}
+                            max={q.answered}
+                          />
+                        ))}
+                      </ul>
+                      <p className="mt-1 text-xs text-muted-foreground">Median: {q.median ?? "—"}</p>
+                    </>
+                  )}
+                  {q.type === "text" && <p className="mt-1 text-sm text-muted-foreground">Typed answers are listed under Answers.</p>}
+                  {q.note && <p className="mt-1 text-xs text-muted-foreground">{q.note}</p>}
+                  {q.answered > 0 && q.sample.level !== results.data.sample.level && <SampleWarning sample={q.sample} />}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">{results.data.note}</p>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
+  const qc = useQueryClient();
+  const list = useSurveyResponses(projectId, survey.id);
+  const [confirmAll, setConfirmAll] = useState(false);
+  const del = useMutation({
+    mutationFn: (body: { ids?: number[]; all?: boolean }) => api.deleteLabSurveyResponses(projectId, survey.id, body),
+    onSuccess: () => {
+      setConfirmAll(false);
+      qc.invalidateQueries({ queryKey: labKeys.responses(projectId, survey.id) });
+      qc.invalidateQueries({ queryKey: labKeys.results(projectId, survey.id) });
+      qc.invalidateQueries({ queryKey: labKeys.survey(projectId, survey.id) });
+      qc.invalidateQueries({ queryKey: labKeys.surveys(projectId) });
+    },
+  });
+  const rows = list.data?.results ?? [];
+  return (
+    <Panel
+      title="Answers"
+      as="h2"
+      aside={
+        rows.length > 0 ? (
+          <a href={`${API_URL}/projects/${encodeURIComponent(projectId)}/lab-surveys/${survey.id}/responses-export`} className="inline-flex min-h-11 items-center gap-1 text-sm text-primary underline">
+            <Download className="size-4" aria-hidden /> Export CSV
+          </a>
+        ) : undefined
+      }
+    >
+      <p className="mb-2 text-sm text-muted-foreground">
+        Typed answers and emails are stored encrypted and deleted automatically after {survey.retention_days} days. People agreed to
+        share their answers with you{survey.ask_email ? " and, if they left an email, to be contacted about this survey" : ""}. If someone
+        asks to be removed, delete their answers here.
+      </p>
+      {list.isPending ? (
+        <Skeleton className="h-16" />
+      ) : list.isError ? (
+        <ErrorState title="Couldn't load the answers" onRetry={() => list.refetch()} />
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No answers yet.</p>
+      ) : (
+        <>
+          <ul className="divide-y divide-border">
+            {rows.map((r) => (
+              <li key={r.id} className="flex items-start justify-between gap-2 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">
+                    {fmtDate(r.submitted_at)} · deleted after {fmtDate(r.expires_at)}
+                    {r.email ? (
+                      <>
+                        {" · "}
+                        <span className="break-all font-medium text-foreground">{r.email}</span>
+                      </>
+                    ) : null}
+                  </p>
+                  <dl className="mt-1 grid gap-1">
+                    {r.answers.map((a) => (
+                      <div key={a.id}>
+                        <dt className="text-xs text-muted-foreground">{a.prompt}</dt>
+                        <dd className="whitespace-pre-line break-words">{a.answer ?? <span className="text-muted-foreground">No answer</span>}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <Button size="icon" variant="ghost" className="size-11 shrink-0" disabled={del.isPending} onClick={() => del.mutate({ ids: [r.id] })} aria-label={`Delete the answers from ${fmtDate(r.submitted_at)}`}>
+                  <Trash2 aria-hidden />
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {confirmAll ? (
+              <>
+                <span className="text-sm">Delete all {rows.length} answers permanently?</span>
+                <Button variant="destructive" className="min-h-11" disabled={del.isPending} onClick={() => del.mutate({ all: true })}>
+                  Delete all
+                </Button>
+                <Button variant="ghost" className="min-h-11" onClick={() => setConfirmAll(false)}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button variant="outline" className="min-h-11" onClick={() => setConfirmAll(true)}>
+                Delete all…
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      {del.isError && (
+        <p role="alert" className="mt-2 text-sm text-destructive-text">
+          Couldn&apos;t delete. Please try again.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+/** An inert approximation of the public survey, which the server renders on the pages origin. */
+export function SurveyPreview({ draft, consent }: { draft: Draft; consent: string }) {
+  return (
+    <div className="rounded-card border border-border bg-background p-5 text-sm" aria-label="Survey preview">
+      <p className="text-2xl font-bold leading-tight">{draft.title || "Your survey"}</p>
+      {draft.intro && <p className="mt-2 whitespace-pre-line text-muted-foreground">{draft.intro}</p>}
+      {draft.questions.length === 0 && <p className="mt-4 text-muted-foreground">Add questions to see the survey.</p>}
+      <ol className="mt-4 flex flex-col gap-3">
+        {draft.questions.map((q, i) => (
+          <li key={q.id} className="rounded-control border border-border bg-card p-3">
+            <p className="font-semibold">
+              {i + 1}. {q.prompt || "Question"}
+              {q.required && <span className="text-destructive-text"> *</span>}
+            </p>
+            {q.help && <p className="text-xs text-muted-foreground">{q.help}</p>}
+            {(q.type === "single" || q.type === "multi") && (
+              <ul className="mt-1">
+                {(q.options ?? []).map((o, j) => (
+                  <li key={j}>
+                    {q.type === "single" ? "○" : "☐"} {o || "Option"}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {q.type === "scale" && (
+              <p className="mt-1 text-muted-foreground">
+                1 ({q.low_label || "Not at all"}) · 2 · 3 · 4 · 5 ({q.high_label || "Very much"})
+              </p>
+            )}
+            {q.type === "text" && <div className="mt-1 h-12 rounded-control border border-border bg-background" />}
+          </li>
+        ))}
+      </ol>
+      {draft.ask_email && <div className="mt-3 rounded-control border border-border bg-background px-3 py-2 text-muted-foreground">Email address (optional)</div>}
+      <p className="mt-3 text-xs text-muted-foreground">☐ {consent}</p>
+      <span className="mt-2 inline-block rounded-control bg-primary px-4 py-2 font-semibold text-primary-foreground">Send answers</span>
+      <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">
+        Footer added to every survey: an early test by an independent founder, with links to privacy, getting a copy or deletion, and
+        reporting the survey.
+      </p>
+    </div>
+  );
+}
+
+function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
+  const qc = useQueryClient();
+  const router = useRouter();
+  const ids = { title: useId(), intro: useId(), slug: useId(), retention: useId(), email: useId(), add: useId() };
+  const assumptions = useAssumptions(projectId);
+  const openAssumptions = (assumptions.data ?? []).filter((a) => a.status !== "contradicted");
+  const [draft, setDraft] = useState<Draft>({
+    title: survey.title,
+    intro: survey.intro,
+    slug: survey.slug,
+    questions: survey.questions,
+    ask_email: survey.ask_email,
+    retention_days: survey.retention_days,
+  });
+  const [dirty, setDirty] = useState(false);
+  const [slugNote, setSlugNote] = useState("");
+  const [addType, setAddType] = useState<QuestionType>("single");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const live = survey.status === "published" || survey.status === "closed";
+  const locked = survey.responses > 0;
+  const structureChanged = locked && structureOf(draft.questions) !== structureOf(survey.questions);
+  const edit = (patch: Partial<Draft>) => {
+    setDraft((d) => ({ ...d, ...patch }));
+    setDirty(true);
+  };
+  const setQuestion = (i: number, q: Question) => edit({ questions: draft.questions.map((x, j) => (j === i ? q : x)) });
+  const refresh = (s: Survey) => {
+    qc.setQueryData(labKeys.survey(projectId, survey.id), s);
+    qc.invalidateQueries({ queryKey: labKeys.surveys(projectId) });
+  };
+  const body = () => ({ ...draft, slug: draft.slug || null });
+  const save = useMutation({
+    mutationFn: () => api.updateLabSurvey(projectId, survey.id, body()),
+    onSuccess: (s) => {
+      setDirty(false);
+      refresh(s);
+    },
+  });
+  const state = useMutation({
+    mutationFn: async (action: "publish" | "close" | "unpublish") => {
+      if (action === "publish" && dirty) await api.updateLabSurvey(projectId, survey.id, body());
+      return api.setLabSurveyState(projectId, survey.id, action);
+    },
+    onSuccess: (s) => {
+      setDirty(false);
+      refresh(s);
+    },
+  });
+  const suggest = useMutation({ mutationFn: () => api.labSurveySuggest(projectId) });
+  const remove = useMutation({
+    mutationFn: () => api.deleteLabSurvey(projectId, survey.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: labKeys.surveys(projectId) });
+      router.push(`/projects/${projectId}/lab`);
+    },
+  });
+  const checkSlug = async () => {
+    if (!draft.slug) return setSlugNote("");
+    try {
+      const r = await api.labSlug(draft.slug, { survey: survey.id });
+      setSlugNote(r.available ? "Available" : r.reason);
+    } catch {
+      setSlugNote("");
+    }
+  };
+  const addSuggested = (questions: Question[]) => {
+    let next = [...draft.questions];
+    for (const q of questions) {
+      if (next.length >= 12) break;
+      next = [...next, { ...q, id: nextQuestionId(next) }];
+    }
+    edit({ questions: next });
+    suggest.reset();
+  };
+  const assumptionText = (id?: number | null) => (assumptions.data ?? []).find((a) => a.id === id)?.text;
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="flex flex-col gap-5">
+        <Panel title="Survey" as="h2" aside={<SurveyStatusBadge status={survey.status} />}>
+          <div className="grid gap-3">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={ids.title}>Title</Label>
+              <Input id={ids.title} className="h-11" value={draft.title} maxLength={80} onChange={(e) => edit({ title: e.target.value })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={ids.intro}>Introduction (optional)</Label>
+              <Textarea id={ids.intro} value={draft.intro} maxLength={400} onChange={(e) => edit({ intro: e.target.value })} aria-describedby={`${ids.intro}-hint`} />
+              <p id={`${ids.intro}-hint`} className="text-xs text-muted-foreground">
+                Who you are and why you&apos;re asking, in a sentence or two. {draft.intro.length}/400
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={ids.slug}>Web address</Label>
+              <div className="flex items-center gap-1 text-sm">
+                <span className="max-w-[45%] shrink-0 truncate text-muted-foreground" title={survey.base_url}>{survey.base_url}</span>
+                <Input
+                  id={ids.slug}
+                  className="h-11"
+                  value={draft.slug ?? ""}
+                  maxLength={48}
+                  disabled={live}
+                  placeholder={slugify(draft.title) || "your-survey"}
+                  onChange={(e) => edit({ slug: slugify(e.target.value) || null })}
+                  onBlur={checkSlug}
+                  aria-describedby={`${ids.slug}-hint`}
+                />
+              </div>
+              <p id={`${ids.slug}-hint`} className={cn("text-xs", slugNote && slugNote !== "Available" ? "text-destructive-text" : "text-muted-foreground")}>
+                {live ? "Unpublish to change the address (links people have would break)." : slugNote || "Lowercase letters, numbers and hyphens."}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={ids.retention}>Keep answers for</Label>
+                <select id={ids.retention} className="h-11 rounded-control border border-input bg-background px-3 text-sm" value={draft.retention_days} onChange={(e) => edit({ retention_days: Number(e.target.value) })}>
+                  {RETENTION_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d} days
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label htmlFor={ids.email} className="flex min-h-11 items-center gap-2 self-end text-sm">
+                <input id={ids.email} type="checkbox" className="size-5 accent-primary" checked={draft.ask_email} disabled={locked} onChange={(e) => edit({ ask_email: e.target.checked })} />
+                Ask for an optional email
+              </label>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shown to people before they answer. Without an email, answers can&apos;t be traced back to anyone.
+              {locked ? " The email setting is fixed once people have answered under it." : ""}
+            </p>
+          </div>
+        </Panel>
+
+        <Panel title="Questions" as="h2">
+          {locked && (
+            <p className="mb-3 flex items-start gap-1.5 rounded-control bg-muted/50 p-2 text-sm">
+              <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+              People have answered, so questions, answer types and options are fixed (answers point at them). You can still fix wording.
+              Delete the answers to change the rest.
+            </p>
+          )}
+          {!locked && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Button variant="outline" className="min-h-11" onClick={() => suggest.mutate()} disabled={suggest.isPending || draft.questions.length >= 12}>
+                <Sparkles aria-hidden /> {suggest.isPending ? "Writing…" : "Suggest questions from my assumptions"}
+              </Button>
+            </div>
+          )}
+          {suggest.isError && (
+            <p role="alert" className="mb-3 text-sm text-destructive-text">
+              {suggest.error instanceof ApiError ? suggest.error.message : "Couldn't get suggestions."}
+            </p>
+          )}
+          {suggest.isSuccess && (
+            <div className="mb-4 rounded-control bg-ai/[0.06] p-3 text-sm">
+              <AiLabel>AI suggestion: edit before publishing</AiLabel>
+              <p className="mt-1 text-muted-foreground">
+                One neutral question per assumption, about what people do today rather than whether they&apos;d buy. Check each one reads
+                fairly.
+              </p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {suggest.data.questions.map((q) => (
+                  <li key={q.id}>
+                    <span className="font-medium">{q.prompt}</span> <span className="text-xs text-muted-foreground">({QUESTION_LABELS[q.type]})</span>
+                    {assumptionText(q.assumption_id) && <span className="block text-xs text-muted-foreground">Tests: &ldquo;{assumptionText(q.assumption_id)}&rdquo;</span>}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button className="min-h-11" onClick={() => addSuggested(suggest.data.questions)}>
+                  Add these questions
+                </Button>
+                <Button variant="ghost" className="min-h-11" onClick={() => suggest.reset()}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+          {draft.questions.length === 0 && <p className="mb-3 text-sm text-muted-foreground">No questions yet. Keep it short: three to six questions get more answers.</p>}
+          <ol className="flex flex-col gap-3">
+            {draft.questions.map((q, i) => (
+              <li key={q.id} className="rounded-control border border-border p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">
+                    Question {i + 1} <span className="font-normal text-muted-foreground">· {QUESTION_LABELS[q.type]}</span>
+                  </h3>
+                  {!locked && (
+                    <span className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="size-11" onClick={() => edit({ questions: moveItem(draft.questions, i, i - 1) })} disabled={i === 0} aria-label={`Move question ${i + 1} up`}>
+                        <ArrowUp aria-hidden />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="size-11" onClick={() => edit({ questions: moveItem(draft.questions, i, i + 1) })} disabled={i === draft.questions.length - 1} aria-label={`Move question ${i + 1} down`}>
+                        <ArrowDown aria-hidden />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="size-11" onClick={() => edit({ questions: draft.questions.filter((_, j) => j !== i) })} aria-label={`Remove question ${i + 1}`}>
+                        <Trash2 aria-hidden />
+                      </Button>
+                    </span>
+                  )}
+                </div>
+                <QuestionFields question={q} onChange={(nq) => setQuestion(i, nq)} assumptions={openAssumptions} locked={locked} />
+              </li>
+            ))}
+          </ol>
+          {!locked && draft.questions.length < 12 && (
+            <div className="mt-3 flex flex-wrap items-end gap-2">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor={ids.add} className="text-xs">
+                  Add a question
+                </Label>
+                <select id={ids.add} className="h-11 rounded-control border border-input bg-background px-3 text-sm" value={addType} onChange={(e) => setAddType(e.target.value as QuestionType)}>
+                  {(Object.keys(QUESTION_LABELS) as QuestionType[]).map((t) => (
+                    <option key={t} value={t}>
+                      {QUESTION_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button variant="outline" className="min-h-11" onClick={() => edit({ questions: [...draft.questions, emptyQuestion(addType, nextQuestionId(draft.questions))] })}>
+                Add
+              </Button>
+            </div>
+          )}
+          {structureChanged && (
+            <p role="alert" className="mt-3 text-sm text-destructive-text">
+              These changes would no longer match the stored answers and can&apos;t be saved.
+            </p>
+          )}
+        </Panel>
+
+        <div className="sticky bottom-16 z-10 flex flex-wrap items-center gap-2 rounded-card border border-border bg-card p-3 shadow-sm lg:bottom-4">
+          <Button className="min-h-11" onClick={() => save.mutate()} disabled={!dirty || save.isPending || structureChanged}>
+            {save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}
+          </Button>
+          {survey.status === "published" ? (
+            <>
+              <Button variant="outline" className="min-h-11" onClick={() => state.mutate("close")} disabled={state.isPending}>
+                Close survey
+              </Button>
+              <Button variant="outline" className="min-h-11" onClick={() => state.mutate("unpublish")} disabled={state.isPending}>
+                Unpublish
+              </Button>
+            </>
+          ) : survey.status === "closed" ? (
+            <>
+              <Button variant="outline" className="min-h-11" onClick={() => state.mutate("publish")} disabled={state.isPending}>
+                Reopen
+              </Button>
+              <Button variant="outline" className="min-h-11" onClick={() => state.mutate("unpublish")} disabled={state.isPending}>
+                Unpublish
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" className="min-h-11" onClick={() => state.mutate("publish")} disabled={state.isPending || structureChanged}>
+              {state.isPending ? "Publishing…" : dirty ? "Save and publish" : "Publish"}
+            </Button>
+          )}
+          {survey.url && safeHref(survey.url) && (
+            <a href={safeHref(survey.url)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1 text-sm text-primary underline">
+              Open live survey <ExternalLink className="size-3.5" aria-hidden />
+              <span className="sr-only">(opens in a new tab)</span>
+            </a>
+          )}
+          <span className="ml-auto">
+            {confirmDelete ? (
+              <span className="flex flex-wrap items-center gap-2 text-sm">
+                Delete the survey and its answers?
+                <Button variant="destructive" className="min-h-11" onClick={() => remove.mutate()} disabled={remove.isPending}>
+                  Delete
+                </Button>
+                <Button variant="ghost" className="min-h-11" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </Button>
+              </span>
+            ) : (
+              <Button variant="ghost" className="min-h-11" onClick={() => setConfirmDelete(true)}>
+                Delete survey…
+              </Button>
+            )}
+          </span>
+          {(save.isError || state.isError || remove.isError) && (
+            <ul role="alert" className="w-full list-disc pl-5 text-sm text-destructive-text">
+              {errorList(save.error ?? state.error ?? remove.error).map((m) => (
+                <li key={m}>{m}</li>
+              ))}
+            </ul>
+          )}
+          {state.isSuccess && (
+            <p role="status" className="w-full text-sm text-muted-foreground">
+              {survey.status === "published"
+                ? "Your survey is live."
+                : survey.status === "closed"
+                  ? "Closed: the address now says the survey takes no more answers."
+                  : "Unpublished: its address now shows “not found”."}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-5">
+        <section aria-labelledby="survey-preview-h">
+          <h2 id="survey-preview-h" className="mb-2 font-semibold">
+            Preview
+          </h2>
+          <SurveyPreview draft={draft} consent={survey.consent_preview} />
+          {dirty && <p className="mt-1 text-xs text-muted-foreground">The consent text updates when you save.</p>}
+        </section>
+        <Results projectId={projectId} surveyId={survey.id} assumptions={assumptions.data ?? []} />
+        <Answers projectId={projectId} survey={survey} />
+      </div>
+    </div>
+  );
+}
+
+export function SurveyEditor({ projectId, surveyId }: { projectId: string; surveyId: number }) {
+  const survey = useLabSurvey(projectId, surveyId);
+  if (survey.isError && survey.error instanceof ApiError && survey.error.status === 404) {
+    return <EmptyState title="Survey not found" body="It may have been deleted, or it belongs to another account." actionHref={`/projects/${projectId}/lab`} actionLabel="Validation Lab" />;
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <nav aria-label="Breadcrumb">
+        <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+          <li className="flex items-center gap-1.5">
+            <Link href={`/projects/${projectId}/lab`} className="hover:text-foreground">
+              Validation Lab
+            </Link>
+            <ChevronRight className="size-3.5" aria-hidden />
+          </li>
+          <li aria-current="page" className="max-w-[16rem] truncate font-medium text-foreground">
+            {survey.data?.title ?? "Survey"}
+          </li>
+        </ol>
+      </nav>
+      <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{survey.data?.title ?? "Survey"}</h1>
+      {survey.isPending ? (
+        <Skeleton className="h-96" aria-busy="true" />
+      ) : survey.isError ? (
+        <ErrorState title="Couldn't load the survey" onRetry={() => survey.refetch()} />
+      ) : (
+        <Editor key={survey.data.updated_at} projectId={projectId} survey={survey.data} />
+      )}
+    </div>
+  );
+}

@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { BLOCK_LABELS, hasLink, moveItem } from "@/lib/lab";
-import type { Block } from "@/types/lab";
+import { BLOCK_LABELS, copyVariant, hasLink, MAX_VARIANTS, moveItem, VARIANT_NAMES, variantsOf, withVariants } from "@/lib/lab";
+import type { Block, PriceItem } from "@/types/lab";
 
 function Field({
   label,
@@ -66,6 +66,44 @@ function ListControls({ onUp, onDown, onRemove, label }: { onUp: () => void; onD
 }
 
 /** Edit one block's plain-text fields. Lengths match the server's limits (backend/lab/blocks.py). */
+function PriceItems({ items, onChange, prefix }: { items: PriceItem[]; onChange: (items: PriceItem[]) => void; prefix: string }) {
+  const set = (i: number, patch: Partial<PriceItem>) => onChange(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  return (
+    <>
+      {items.map((it, i) => (
+        <fieldset key={i} className="grid gap-2 rounded-control border border-border p-3">
+          <legend className="flex w-full items-center justify-between px-1 text-xs font-medium">
+            {prefix} {i + 1}
+            <ListControls
+              label={`${prefix.toLowerCase()} ${i + 1}`}
+              onUp={() => onChange(moveItem(items, i, i - 1))}
+              onDown={() => onChange(moveItem(items, i, i + 1))}
+              onRemove={() => items.length > 1 && onChange(items.filter((_, j) => j !== i))}
+            />
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Field label="Name" value={it.name} max={40} required onChange={(v) => set(i, { name: v })} />
+            <Field label="Price" value={it.price} max={20} required onChange={(v) => set(i, { price: v })} />
+            <Field label="Period" value={it.period ?? ""} max={20} onChange={(v) => set(i, { period: v })} />
+          </div>
+          <Field
+            label="Features, one per line"
+            value={(it.features ?? []).join("\n")}
+            max={6 * 81}
+            multiline
+            onChange={(v) => set(i, { features: v.split("\n").map((f) => f.slice(0, 80)).filter((f, k, a) => f.trim() || k === a.length - 1).slice(0, 6) })}
+          />
+        </fieldset>
+      ))}
+      {items.length < 3 && (
+        <Button type="button" variant="outline" className="min-h-11 justify-self-start" onClick={() => onChange([...items, { name: "Option", price: "$0", period: "/month", features: [] }])}>
+          <Plus aria-hidden /> Add a price point
+        </Button>
+      )}
+    </>
+  );
+}
+
 export function BlockFields({ block, onChange }: { block: Block; onChange: (b: Block) => void }) {
   switch (block.type) {
     case "hero":
@@ -120,50 +158,48 @@ export function BlockFields({ block, onChange }: { block: Block; onChange: (b: B
           )}
         </div>
       );
-    case "pricing":
+    case "pricing": {
+      const variants = variantsOf(block);
+      const setVariant = (v: number, items: PriceItem[]) => onChange(withVariants(block, variants.map((x, j) => (j === v ? items : x))));
       return (
         <div className="grid gap-3">
           <Field label="Heading" value={block.heading ?? ""} max={80} onChange={(v) => onChange({ ...block, heading: v })} />
           <p className="text-xs text-muted-foreground">
             The page always adds: &ldquo;Not available yet: these are prices being tested, and nothing is charged.&rdquo;
           </p>
-          {block.items.map((it, i) => (
-            <fieldset key={i} className="grid gap-2 rounded-control border border-border p-3">
-              <legend className="flex w-full items-center justify-between px-1 text-xs font-medium">
-                Price point {i + 1}
-                <ListControls
-                  label={`price point ${i + 1}`}
-                  onUp={() => onChange({ ...block, items: moveItem(block.items, i, i - 1) })}
-                  onDown={() => onChange({ ...block, items: moveItem(block.items, i, i + 1) })}
-                  onRemove={() => block.items.length > 1 && onChange({ ...block, items: block.items.filter((_, j) => j !== i) })}
-                />
-              </legend>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <Field label="Name" value={it.name} max={40} required onChange={(v) => onChange({ ...block, items: block.items.map((x, j) => (j === i ? { ...x, name: v } : x)) })} />
-                <Field label="Price" value={it.price} max={20} required onChange={(v) => onChange({ ...block, items: block.items.map((x, j) => (j === i ? { ...x, price: v } : x)) })} />
-                <Field label="Period" value={it.period ?? ""} max={20} onChange={(v) => onChange({ ...block, items: block.items.map((x, j) => (j === i ? { ...x, period: v } : x)) })} />
-              </div>
-              <Field
-                label="Features, one per line"
-                value={(it.features ?? []).join("\n")}
-                max={6 * 81}
-                multiline
-                onChange={(v) =>
-                  onChange({
-                    ...block,
-                    items: block.items.map((x, j) => (j === i ? { ...x, features: v.split("\n").map((f) => f.slice(0, 80)).filter((f, k, a) => f.trim() || k === a.length - 1).slice(0, 6) } : x)),
-                  })
-                }
-              />
-            </fieldset>
+          {variants.map((items, v) => (
+            <div key={v} className={variants.length > 1 ? "grid gap-2 rounded-control border border-dashed border-border p-3" : "grid gap-2"}>
+              {variants.length > 1 && (
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold">Variant {VARIANT_NAMES[v]}</h4>
+                  {v > 0 && (
+                    <Button type="button" variant="ghost" className="min-h-11" onClick={() => onChange(withVariants(block, variants.filter((_, j) => j !== v)))}>
+                      <Trash2 aria-hidden /> Remove variant {VARIANT_NAMES[v]}
+                    </Button>
+                  )}
+                </div>
+              )}
+              <PriceItems items={items} prefix={variants.length > 1 ? `Variant ${VARIANT_NAMES[v]}, price point` : "Price point"} onChange={(next) => setVariant(v, next)} />
+            </div>
           ))}
-          {block.items.length < 3 && (
-            <Button type="button" variant="outline" className="min-h-11 justify-self-start" onClick={() => onChange({ ...block, items: [...block.items, { name: "Option", price: "$0", period: "/month", features: [] }] })}>
-              <Plus aria-hidden /> Add a price point
-            </Button>
+          {variants.length < MAX_VARIANTS && (
+            <div className="grid gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 justify-self-start"
+                onClick={() => onChange(withVariants(block, [...variants, copyVariant(variants[0])]))}
+              >
+                <Plus aria-hidden /> Test another price (add variant {VARIANT_NAMES[variants.length]})
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Each visitor sees one variant. Change only the prices so the results compare like with like.
+              </p>
+            </div>
           )}
         </div>
       );
+    }
     case "faq":
       return (
         <div className="grid gap-3">

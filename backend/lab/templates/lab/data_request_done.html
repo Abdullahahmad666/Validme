@@ -1,0 +1,32 @@
+{% extends "lab/base.html" %}
+{% block title %}Your data{% endblock %}
+{% block content %}
+{% if invalid %}
+  <h1>This link doesn't work</h1>
+  <p>It may have expired (links last 24 hours) or been copied incompletely. <a href="/data-request">Ask again</a>.</p>
+{% elif confirm %}
+  <h1>{% if kind == "delete" %}Delete your data?{% else %}See a copy of your data?{% endif %}</h1>
+  <p>{% if kind == "delete" %}This permanently deletes every waitlist sign-up and survey answer stored with your email. The founders are told to delete any copy they downloaded.{% else %}This shows every waitlist sign-up and survey answer stored with your email.{% endif %}</p>
+  <form method="post" action="/data-request/confirm">
+    <input type="hidden" name="t" value="{{ token }}">
+    <button class="btn" type="submit">{% if kind == "delete" %}Delete everything{% else %}Show my data{% endif %}</button>
+  </form>
+{% elif copy %}
+  <h1>Your data</h1>
+  {% if items %}
+  <p>Everything stored with your email on {{ brand }} test pages and surveys. Save or print this page if you want to keep it.</p>
+  {% for it in items %}
+  <section class="card">
+    <h2>{{ it.what }}: {{ it.where }}</h2>
+    <p>Given {{ it.when|date:"j M Y" }} · deleted automatically after {{ it.until|date:"j M Y" }}</p>
+    {% if it.answers %}<table><thead><tr><th scope="col">Question</th><th scope="col">Your answer</th></tr></thead><tbody>{% for a in it.answers %}<tr><td>{{ a.q }}</td><td>{{ a.a }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+  </section>
+  {% endfor %}
+  {% else %}
+  <p>Nothing is stored with your email any more (it may have been deleted or expired).</p>
+  {% endif %}
+{% else %}
+  <h1>Deleted</h1>
+  <p role="status">{% if deleted %}We deleted {{ deleted }} item{{ deleted|pluralize }} stored with your email. The founders have been told to delete any copies they downloaded.{% else %}Nothing was stored with your email any more.{% endif %}</p>
+{% endif %}
+{% endblock %}

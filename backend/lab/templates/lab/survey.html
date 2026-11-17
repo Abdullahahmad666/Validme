@@ -1,0 +1,44 @@
+{% extends "lab/base.html" %}
+{% block title %}{{ survey.title }}{% endblock %}
+{% block content %}
+<section>
+  <h1>{{ survey.title }}</h1>
+  {% if survey.intro %}<p class="lead">{{ survey.intro|linebreaksbr }}</p>{% endif %}
+</section>
+{% if done %}
+  <p class="ok" role="status">Thank you, your answers were sent. You only hear back from the person behind this survey if you left your email.</p>
+{% elif closed %}
+  <p class="note" role="status">This survey is closed and no longer takes answers. Thank you for your interest.</p>
+{% else %}
+<form method="post" action="/s/{{ survey.slug }}/answer" novalidate>
+  {% if error %}<p class="err" role="alert" id="form-error">{{ error }}</p>{% endif %}
+  <p class="help">Questions marked <span class="req" aria-hidden="true">*</span><span class="hp">with an asterisk</span> are required.</p>
+  {% for q in questions %}
+  <fieldset{% if q.id in missing %} aria-invalid="true" aria-describedby="form-error"{% endif %}>
+    <legend>{{ forloop.counter }}. {{ q.prompt }}{% if q.required %} <span class="req" aria-hidden="true">*</span><span class="hp">(required)</span>{% endif %}</legend>
+    {% if q.help %}<p class="help">{{ q.help }}</p>{% endif %}
+    {% if q.type == "single" %}
+      {% for o in q.options %}<label class="opt"><input type="radio" name="{{ q.id }}" value="{{ forloop.counter0 }}"{% if forloop.counter0 in q.picked %} checked{% endif %}> {{ o }}</label>{% endfor %}
+    {% elif q.type == "multi" %}
+      {% for o in q.options %}<label class="opt"><input type="checkbox" name="{{ q.id }}" value="{{ forloop.counter0 }}"{% if forloop.counter0 in q.picked %} checked{% endif %}> {{ o }}</label>{% endfor %}
+    {% elif q.type == "scale" %}
+      <div class="scale">{% for n in scale %}<label class="opt"><input type="radio" name="{{ q.id }}" value="{{ n }}"{% if n in q.picked %} checked{% endif %}> {{ n }}</label>{% endfor %}</div>
+      <div class="ends"><span>1 = {{ q.low_label|default:"Not at all" }}</span><span>5 = {{ q.high_label|default:"Very much" }}</span></div>
+    {% else %}
+      <label class="hp" for="t-{{ q.id }}">Your answer</label>
+      <textarea id="t-{{ q.id }}" name="{{ q.id }}" rows="3" maxlength="1000">{{ q.value|default:"" }}</textarea>
+    {% endif %}
+  </fieldset>
+  {% endfor %}
+  {% if survey.ask_email %}
+  <label for="email">Email address (optional)</label>
+  <input id="email" type="email" name="email" maxlength="254" autocomplete="email" value="{{ email|default:"" }}"{% if error_field == "email" %} aria-invalid="true" aria-describedby="form-error"{% endif %}>
+  {% endif %}
+  <div class="hp" aria-hidden="true"><label for="hp">Leave this empty</label><input id="hp" name="hp_extra" tabindex="-1" autocomplete="off"></div>
+  <input type="hidden" name="token" value="{{ token }}">
+  <label class="consent"><input type="checkbox" name="consent" value="yes" required{% if error_field == "consent" %} aria-invalid="true" aria-describedby="form-error"{% endif %}> <span>{{ consent }} <a href="{{ privacy_url }}" rel="noopener noreferrer" target="_blank">Privacy</a></span></label>
+  {% if turnstile_site_key %}<div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>{% endif %}
+  <button class="btn" type="submit">Send answers</button>
+</form>
+{% endif %}
+{% endblock %}

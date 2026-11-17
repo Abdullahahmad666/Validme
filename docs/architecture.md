@@ -30,7 +30,7 @@ backend/    Django + DRF  (auth, projects, credits, research API)
 | `mailer` | EmailPreference, DigestLog, weekly digest, unsubscribe, bounce webhook |
 | `radar` | Signal, ScoreSnapshot, signal generators, revalidation |
 | `distribution` | YouTubeChannel (30-day expiry), KeywordMetric, ProviderCall (coverage + cost) |
-| `lab` | LabPage (blocks), WaitlistSignup (encrypted), LabDailyStat; public pages on `LAB_HOST` |
+| `lab` | LabPage (blocks), WaitlistSignup (encrypted), LabDailyStat, LabVariantStat, Survey, SurveyResponse (typed text + email encrypted), SurveyDailyStat, DataRequest, DataRequestNotice; public pages on `LAB_HOST` |
 
 ## Provider interface
 ```python
@@ -87,12 +87,19 @@ Each stage writes a `JobStage` row so the progress screen shows real status (no 
 | GET | `/monitoring/changes` | recent changes across your projects (owner only) |
 | GET/POST/PATCH/DELETE | `/projects/{id}/lab-pages` | founder's test pages (cap per plan `LAB_PAGES`, 403 over it); blocks validated (plain text, lengths, no links); slug can't change while published |
 | POST | `/projects/{id}/lab-pages/{pid}/publish` · `/unpublish` | publish needs a verified email, a hero, a waitlist, a title and a slug (400 `not_ready` with every problem) |
-| GET | `/projects/{id}/lab-pages/{pid}/stats` | views, sign-ups, conversion (null with no views), current sign-ups, last 30 days |
+| GET | `/projects/{id}/lab-pages/{pid}/stats` | views, sign-ups, conversion (null with no views), current sign-ups, last 30 days, `sample` note, `price_test` (per variant + comparisons, or null) |
 | GET | `/projects/{id}/lab-pages/{pid}/signups` · `/signups-export` | decrypted waitlist (max 500) · CSV (formula cells neutralised, no-store) |
 | POST | `/projects/{id}/lab-pages/{pid}/signups/delete` | `{ids}` or `{all:true}`, permanent |
 | POST | `/projects/{id}/lab-suggest` | AI copy for hero/problem/benefits/FAQ (labelled; refused if it has numbers, links or claims); `ai` throttle; shares the daily AI allowance |
-| GET | `/lab/slug?slug=&page=` | is a web address free |
-| GET/POST | **LAB_HOST only:** `/p/{slug}` · `/p/{slug}/join` · `/robots.txt` | the public page (server-rendered) and the waitlist form post (303 back) |
+| GET | `/lab/slug?slug=&page=\|survey=` | is a web address free (pages and surveys share one set of addresses) |
+| GET/POST/PATCH/DELETE | `/projects/{id}/lab-surveys` | surveys (cap per plan `LAB_SURVEYS`); questions validated; once answered, ids/types/options/order and `ask_email` are fixed (400) |
+| POST | `/projects/{id}/lab-surveys/{sid}/publish` · `/close` · `/unpublish` | publish needs a verified email, a title, a slug and ≥ 1 question; closed = address stays, takes no answers |
+| GET | `/projects/{id}/lab-surveys/{sid}/results` · `/stats` | aggregates only (counts, shares, scale distribution + median, typed answers counted) with `sample` notes · daily views/answers |
+| GET | `/projects/{id}/lab-surveys/{sid}/responses` · `/responses-export` | decrypted answers + optional email (max 500) · CSV (formula cells neutralised, no-store); web sessions only |
+| POST | `/projects/{id}/lab-surveys/{sid}/responses/delete` | `{ids}` or `{all:true}`, permanent |
+| POST | `/projects/{id}/lab-survey-suggest` | AI questions, one per open assumption (labelled, linked to it; leading/PII/link questions dropped); `ai` throttle |
+| GET/POST | `/projects/{id}/lab-notices` | respondents' confirmed deletions affecting this project · mark seen |
+| GET/POST | **LAB_HOST only:** `/p/{slug}` · `/p/{slug}/join` · `/p/{slug}/choose` · `/s/{slug}` · `/s/{slug}/answer` · `/data-request` · `/data-request/confirm` · `/robots.txt` | public page, waitlist post, price "Choose" post, survey and its post, respondent data requests |
 | GET/PATCH | `/projects/{id}/signals?status=open\|new\|seen\|acted\|dismissed\|all&type=` | Radar signals, strongest first (paginated; up to 6 evidence records each + total); PATCH `{status: seen\|dismissed\|acted, feedback}` only |
 | POST | `/projects/{id}/signals/seen` | `{ids}` → mark this project's new signals seen |
 | POST | `/projects/{id}/signals/refresh` | re-score stored evidence and look for signals now (no research, no credits; `radar_refresh` throttle, one at a time per project → 429 `busy`; web sessions only) |
@@ -218,6 +225,15 @@ Per job: `search_cost + llm_input_cost + llm_output_cost`, stored on `UsageTrans
 - **Analytics:** `LabDailyStat` per page per day — views (GET without `joined`/`error`, bots skipped by user agent) and sign-ups. Conversion = sign-ups ÷ views, null without views. No cookies, so repeat visitors can't be told apart (said in the UI).
 - **AI copy** (`lab/suggest.py`, prompt `lab_copy_v1`): from the idea, audience and theme names; refused if it contains any digit or number word, links, or testimonial/award/"trusted by" claims; labelled in the editor; counts against the shared daily AI allowance.
 - **Editor UI:** `/projects/[id]/lab` (list, new page from the idea's name) and `/projects/[id]/lab/[pageId]` (title, web address with availability check, retention, block forms with reorder/remove/add, AI suggestion panel, sticky save/publish bar, live preview with the same consent text, results and waitlist panels). Linked from the report's Project tools.
+
+## Validation Lab 2: surveys and price tests (Week 14)
+- **Surveys** (`lab/surveys.py`, JSON Schema like blocks): ≤ 12 questions, each `{id q1–q99, type single|multi|scale|text, prompt ≤ 200, help, options 2–8 (choice only, distinct), low/high labels (scale 1–5), required, assumption_id}`; plain text, no links; `assumption_id` must be one of the project's assumptions (rule 2: the assumption stays the founder's, answers are a separate result). Once a survey has answers, its structure (ids, types, options, order) and `ask_email` can't change; wording can. Plan cap `LAB_SURVEYS` (free 1, paid 1, founder 3, pro 10).
+- **Public survey** (`lab/public_surveys.py`, `/s/{slug}`): same guards as the waitlist (signed survey-bound token ≥ 3 s, honeypot, per hashed IP+survey 5/h and per IP 20/h, per survey 500/h counted only for valid answers, optional Turnstile). Choices are stored as option numbers (anything not offered is ignored); typed answers as one Fernet token; the optional email encrypted + HMAC (only to find it for data requests). Consent `lab-survey-consent-v1` includes retention and, with the email field, that anonymous answers can't be found later. Errors re-render the form with the person's answers (from the POST, not stored). Closed surveys show a notice. Daily purge at 03:50 (`purge_expired_responses`).
+- **Price test:** a pricing block may carry `test_variants` (B, C; A = `items`), only one such block per page. Without cookies the variant is `sha256(hashed IP | page | day) % n` (stable for reloads; can differ across days/networks, said in the UI); only that variant's prices are in the HTML. The form token carries the variant (signed), so sign-ups are attributed to what was seen; "Choose <plan>" is a POST to `/p/{slug}/choose` (token ≥ 1 s old), counted once per client per page per day, then `?picked=` shows "It isn't available yet and nothing is charged". `LabVariantStat` per variant per day (views, clicks, signups); `WaitlistSignup.variant`.
+- **Results and sample size:** every count comes with `sample_note(n)` — none / too_small (< 10) / small (< 30) / ok — and the worst-case 95% margin `1.96·√(0.25/n)`. Rates are null without a denominator. Variant comparisons use a two-proportion z-test and say `not_enough_data` unless both variants have ≥ 100 views, `no_clear_difference` below |z| 1.96, otherwise which is higher "among the people you reached". No combined score.
+- **Respondent data requests** (`lab/data_requests.py`, linked from every Lab footer): email + copy/delete. The answer is always the same, and the email is queued (encrypted in the queue) whether or not anything matches; the task emails a signed link (`h` = email HMAC, `k` = kind, 24 h) only when there's a match, at most once per address per hour. The link's GET shows a confirm button; POST shows the copy (page/survey titles, dates, answers in words) or deletes every sign-up and survey response with that HMAC, logs a `DataRequest` (counts only, no address) and creates a `DataRequestNotice` per affected project so the founder also cleans any CSV they exported (shown on the Lab page until marked read). Founders can still delete one or all from the app, and export CSV.
+- **AI questions** (`lab/suggest.py::suggest_questions`, prompt `lab_survey_v1`): input is the idea and up to 8 open assumptions, each in its own tag, escaped. Output keeps only questions about given assumption ids that pass the schema, link check and a leading/PII-wording filter; ids are reassigned; labelled in the editor; counted against the shared AI allowance.
+- **UI:** Lab list adds Surveys and deletion notices; survey editor `/projects/[id]/lab/surveys/[surveyId]` (survey settings, question cards, AI panel, sticky bar with Publish/Close/Reopen/Unpublish/Delete, preview with the saved consent text, Results with bars and sample warnings, Answers with export/delete). Page editor: variants inside the pricing block, price-test table and comparisons in Results.
 
 ## Dependencies and performance (pre-deploy)
 - **Python:** `backend/requirements.txt` holds the ranges; `backend/requirements.lock` pins every package with hashes (pip-tools). Deploys install with `pip install --require-hashes -r requirements.lock`; `pip-audit -r requirements.lock` runs in every gate.

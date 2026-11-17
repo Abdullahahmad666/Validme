@@ -19,8 +19,19 @@ from rest_framework.views import APIView
 
 from accounts.models import ApiKey, User
 from lab import crypto
-from lab.blocks import clean_blocks, clean_text, publish_problems, slug_problem, text_problem, validate_blocks
-from lab.models import LabDailyStat, LabPage, RetiredSlug
+from lab.blocks import (
+    clean_blocks,
+    clean_text,
+    price_test,
+    publish_problems,
+    slug_problem,
+    slug_taken,
+    text_problem,
+    validate_blocks,
+    variant_label,
+)
+from lab.models import DataRequestNotice, LabDailyStat, LabPage, LabVariantStat, RetiredSlug
+from lab.surveys import compare_rates, sample_note
 from monitoring.views import ApiKeysReadOnly, _owned_project
 
 MAX_BODY_BYTES = 64 * 1024
@@ -134,7 +145,7 @@ class LabPageSerializer(serializers.ModelSerializer):
         problem = slug_problem(v)
         if problem:
             raise serializers.ValidationError(problem)
-        if LabPage.objects.filter(slug=v).exists():
+        if slug_taken(v, page_id=self.instance.pk if self.instance else None):
             raise serializers.ValidationError("That address is taken.")
         return v
 
@@ -248,6 +259,8 @@ class LabPageViewSet(viewsets.ModelViewSet):
                 "current_signups": page.signups.filter(expires_at__gt=timezone.now()).count(),  # after deletions and retention
                 "daily": rows,
                 "since": since,
+                "sample": sample_note(views, "views"),
+                "price_test": _price_test_results(page),
             }
         )
 
@@ -304,6 +317,77 @@ class LabPageViewSet(viewsets.ModelViewSet):
         return Response({"deleted": n})
 
 
+def _price_test_results(page: LabPage) -> dict | None:
+    """Per variant: views, "choose" clicks and sign-ups as shown on the page, with rates only where there's a
+    denominator, and a comparison that says "can't tell yet" until both groups are big enough and clearly apart."""
+    test = price_test(page.blocks)
+    rows = {
+        r["variant"]: r
+        for r in LabVariantStat.objects.filter(page=page)
+        .values("variant")
+        .annotate(views=Sum("views"), clicks=Sum("clicks"), signups=Sum("signups"))
+    }
+    if test is None and not rows:
+        return None
+    n = len(test["variants"]) if test else max(rows) + 1
+    variants = []
+    for v in range(n):
+        r = rows.get(v, {})
+        views, clicks, signups = r.get("views") or 0, r.get("clicks") or 0, r.get("signups") or 0
+        items = test["variants"][v] if test and v < len(test["variants"]) else []
+        variants.append(
+            {
+                "variant": variant_label(v),
+                "prices": [{"name": i.get("name"), "price": i.get("price"), "period": i.get("period", "")} for i in items],
+                "views": views,
+                "clicks": clicks,
+                "signups": signups,
+                "click_rate": round(clicks / views, 4) if views else None,
+                "signup_rate": round(signups / views, 4) if views else None,
+                "sample": sample_note(views, "views"),
+            }
+        )
+    comparisons = []
+    for metric in ("signups", "clicks"):
+        a = variants[0]
+        for b in variants[1:]:
+            result = compare_rates((a[metric], a["views"]), (b[metric], b["views"]))
+            comparisons.append({"metric": metric, "a": a["variant"], "b": b["variant"], **result})
+    return {
+        "active": test is not None,
+        "variants": variants,
+        "comparisons": comparisons,
+        "note": (
+            "Each visitor sees one variant, picked from their network and the day (no cookies), so a person can see "
+            "another variant on another day or network. Differences are only called when both variants have at least "
+            "100 views and the gap is clear at the 95% level."
+        ),
+    }
+
+
+class NoticesView(APIView):
+    """GET /projects/{id}/lab-notices — respondents who had their data deleted (so the founder cleans exports too).
+    POST marks them seen."""
+
+    permission_classes = [permissions.IsAuthenticated, ApiKeysReadOnly]
+
+    def get(self, request, project_pk: str):
+        project = _owned_project(request, project_pk)
+        qs = DataRequestNotice.objects.filter(project=project)[:50]
+        return Response(
+            {
+                "results": [
+                    {"id": n.id, "source": n.source, "removed": n.removed, "created_at": n.created_at, "seen": n.seen} for n in qs
+                ]
+            }
+        )
+
+    def post(self, request, project_pk: str):
+        project = _owned_project(request, project_pk)
+        n = DataRequestNotice.objects.filter(project=project, seen=False).update(seen=True)
+        return Response({"marked": n})
+
+
 class SuggestView(APIView):
     """POST /projects/{id}/lab-suggest — AI copy for hero, problem, benefits and FAQ (labelled; web sessions only)."""
 
@@ -325,7 +409,7 @@ class SuggestView(APIView):
 
 
 class SlugCheckView(APIView):
-    """GET /lab/slug?slug= — is this web address free? (signed-in users only)"""
+    """GET /lab/slug?slug=&page=|survey= — is this web address free? (signed-in users only)"""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -335,8 +419,14 @@ class SlugCheckView(APIView):
         if problem:
             return Response({"available": False, "reason": problem})
         own = request.query_params.get("page", "")
-        qs = LabPage.objects.filter(slug=slug)
-        if own.isdigit():
-            qs = qs.exclude(pk=int(own), project__owner=request.user)  # the founder's own page keeps its address
-        taken = qs.exists()
+        own_survey = request.query_params.get("survey", "")
+        # The founder's own page or survey keeps its address.
+        page_id = int(own) if own.isdigit() and LabPage.objects.filter(pk=int(own), project__owner=request.user).exists() else None
+        survey_id = None
+        if own_survey.isdigit():
+            from lab.models import Survey
+
+            if Survey.objects.filter(pk=int(own_survey), project__owner=request.user).exists():
+                survey_id = int(own_survey)
+        taken = slug_taken(slug, page_id=page_id, survey_id=survey_id)
         return Response({"available": not taken, "reason": "That address is taken." if taken else ""})

@@ -1,4 +1,4 @@
-"""Field-level encryption for respondents' e-mail addresses.
+"""Field-level encryption for respondents' e-mail addresses and typed survey answers.
 
 LAB_ENCRYPTION_KEYS: comma-separated Fernet keys, newest first (MultiFernet: encrypt with the first, decrypt with any,
 so keys can be rotated). Production refuses to start without one (config/settings.py); for local development only, a
@@ -42,6 +42,11 @@ def normalize(email: str) -> str:
 
 def encrypt(email: str) -> str:
     return _box().encrypt(normalize(email).encode()).decode()
+
+
+def encrypt_text(text: str) -> str:
+    """Anything a respondent typed (survey answers), kept exactly as written."""
+    return _box().encrypt(text.encode()).decode()
 
 
 def decrypt(token: str) -> str | None:

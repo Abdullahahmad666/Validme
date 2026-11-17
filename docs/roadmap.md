@@ -112,10 +112,10 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate (XSS, abuse, PII, origin isolation)
 
 ### Week 14 — Validation Lab 2: surveys + price tests
-- [ ] D1 Survey builder + public survey page
-- [ ] D2 Pricing smoke test (variants, honest "not available yet")
-- [ ] D3 Results dashboard with sample-size warnings
-- [ ] D4 Export, deletion, respondent data requests
+- [x] D1 Survey builder + public survey page
+- [x] D2 Pricing smoke test (variants, honest "not available yet")
+- [x] D3 Results dashboard with sample-size warnings
+- [x] D4 Export, deletion, respondent data requests
 - [ ] D5 Gate
 
 ### Week 15 — Close the loop

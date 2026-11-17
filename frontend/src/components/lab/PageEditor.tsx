@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronRight, Download, ExternalLink, Sparkles, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, ChevronRight, Download, ExternalLink, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
@@ -16,10 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BLOCK_LABELS, emptyBlock, moveItem, RETENTION_OPTIONS, slugify } from "@/lib/lab";
+import { SampleWarning } from "@/components/lab/SampleWarning";
+import { BLOCK_LABELS, comparisonText, emptyBlock, moveItem, pct, RETENTION_OPTIONS, slugify } from "@/lib/lab";
 import { cn, safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
-import type { Block, BlockType, LabPage } from "@/types/lab";
+import type { Block, BlockType, LabPage, PriceTestResults } from "@/types/lab";
 
 type Draft = Pick<LabPage, "title" | "slug" | "blocks" | "retention_days">;
 
@@ -57,14 +58,69 @@ function Stats({ projectId, pageId }: { projectId: string; pageId: number }) {
               </dd>
             </div>
           </dl>
+          <SampleWarning sample={stats.data.sample} />
           <p className="mt-2 text-xs text-muted-foreground">
             Views count page loads (bots and repeat loads after joining excluded); without cookies we can&apos;t tell repeat
             visitors apart. {stats.data.current_signups} sign-up{stats.data.current_signups === 1 ? " is" : "s are"} stored now
             (after deletions and expiry). Small numbers say little: a handful of sign-ups isn&apos;t proof of demand.
           </p>
+          {stats.data.price_test && <PriceTest result={stats.data.price_test} />}
         </>
       )}
     </Panel>
+  );
+}
+
+function PriceTest({ result }: { result: PriceTestResults }) {
+  return (
+    <div className="mt-4">
+      <h3 className="text-sm font-semibold">Price test{result.active ? "" : " (ended: variants were removed from the page)"}</h3>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[28rem] text-left text-sm">
+          <caption className="sr-only">Views, choose clicks and sign-ups per price variant</caption>
+          <thead className="text-xs text-muted-foreground">
+            <tr>
+              <th scope="col" className="py-1 pr-2 font-medium">Variant</th>
+              <th scope="col" className="py-1 pr-2 font-medium">Prices shown</th>
+              <th scope="col" className="py-1 pr-2 text-right font-medium">Views</th>
+              <th scope="col" className="py-1 pr-2 text-right font-medium">Chose a price</th>
+              <th scope="col" className="py-1 text-right font-medium">Signed up</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {result.variants.map((v) => (
+              <tr key={v.variant}>
+                <th scope="row" className="py-2 pr-2 font-semibold">{v.variant}</th>
+                <td className="py-2 pr-2">{v.prices.length ? v.prices.map((p) => `${p.name} ${p.price}${p.period ? ` ${p.period}` : ""}`).join(" · ") : "Unavailable"}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{v.views}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">
+                  {v.clicks} <span className="text-xs text-muted-foreground">({pct(v.click_rate, 1)})</span>
+                </td>
+                <td className="py-2 text-right tabular-nums">
+                  {v.signups} <span className="text-xs text-muted-foreground">({pct(v.signup_rate, 1)})</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul className="mt-2 flex flex-col gap-1 text-sm">
+        {result.comparisons.map((c) => (
+          <li key={`${c.metric}-${c.b}`} className="flex items-start gap-1.5">
+            {c.verdict === "a_higher" || c.verdict === "b_higher" ? (
+              <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success-text" aria-hidden />
+            ) : (
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-text" aria-hidden />
+            )}
+            {comparisonText(c)}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {result.note} &ldquo;—&rdquo; means no views yet. A click on &ldquo;Choose&rdquo; is interest, not a payment: nothing is
+        charged.
+      </p>
+    </div>
   );
 }
 
@@ -194,7 +250,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
   const checkSlug = async () => {
     if (!draft.slug) return setSlugNote("");
     try {
-      const r = await api.labSlug(draft.slug, page.id);
+      const r = await api.labSlug(draft.slug, { page: page.id });
       setSlugNote(r.available ? "Available" : r.reason);
     } catch {
       setSlugNote("");
@@ -206,7 +262,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-5">
         <Panel title="Page" as="h2" aside={<StatusBadge status={page.status} />}>
           <div className="grid gap-3">

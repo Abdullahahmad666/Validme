@@ -2,7 +2,7 @@ import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
 import type { AppNotification, Cadence, Change, CompetitorCandidate, Significance, Watch } from "@/types/monitoring";
 import type { Distribution, RefreshResult } from "@/types/distribution";
-import type { Block, LabPage, LabSignup, LabStats } from "@/types/lab";
+import type { Block, DataNotice, LabPage, LabSignup, LabStats, Question, Survey, SurveyResponseRow, SurveyResults } from "@/types/lab";
 import type { ScoreSnapshot, Signal, SignalFeedback, SignalType } from "@/types/radar";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
@@ -221,8 +221,34 @@ export const api = {
     request<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/lab-pages/${id}/signups/delete`, { method: "POST", body: json(body) }),
   labSuggest: (projectId: string) =>
     request<{ blocks: Block[]; ai: true }>(`/projects/${encodeURIComponent(projectId)}/lab-suggest`, { method: "POST" }),
-  labSlug: (slug: string, pageId?: number) =>
-    request<{ available: boolean; reason: string }>(`/lab/slug?${new URLSearchParams({ slug, ...(pageId ? { page: String(pageId) } : {}) })}`),
+  labSlug: (slug: string, own?: { page?: number; survey?: number }) =>
+    request<{ available: boolean; reason: string }>(
+      `/lab/slug?${new URLSearchParams({ slug, ...(own?.page ? { page: String(own.page) } : {}), ...(own?.survey ? { survey: String(own.survey) } : {}) })}`,
+    ),
+  labSurveys: (projectId: string) => request<Survey[]>(`/projects/${encodeURIComponent(projectId)}/lab-surveys`),
+  labSurvey: (projectId: string, id: number) => request<Survey>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}`),
+  createLabSurvey: (projectId: string, body: { title: string; questions: Question[] }) =>
+    request<Survey>(`/projects/${encodeURIComponent(projectId)}/lab-surveys`, { method: "POST", body: json(body) }),
+  updateLabSurvey: (
+    projectId: string,
+    id: number,
+    body: Partial<Pick<Survey, "title" | "intro" | "slug" | "questions" | "ask_email" | "retention_days">>,
+  ) => request<Survey>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}`, { method: "PATCH", body: json(body) }),
+  deleteLabSurvey: (projectId: string, id: number) =>
+    request<void>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}`, { method: "DELETE" }),
+  setLabSurveyState: (projectId: string, id: number, action: "publish" | "close" | "unpublish") =>
+    request<Survey>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/${action}`, { method: "POST" }),
+  labSurveyResults: (projectId: string, id: number) =>
+    request<SurveyResults>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/results`),
+  labSurveyResponses: (projectId: string, id: number) =>
+    request<{ results: SurveyResponseRow[] }>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/responses`),
+  deleteLabSurveyResponses: (projectId: string, id: number, body: { ids?: number[]; all?: boolean }) =>
+    request<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/responses/delete`, { method: "POST", body: json(body) }),
+  labSurveySuggest: (projectId: string) =>
+    request<{ questions: Question[]; ai: true }>(`/projects/${encodeURIComponent(projectId)}/lab-survey-suggest`, { method: "POST" }),
+  labNotices: (projectId: string) => request<{ results: DataNotice[] }>(`/projects/${encodeURIComponent(projectId)}/lab-notices`),
+  markLabNoticesSeen: (projectId: string) =>
+    request<{ marked: number }>(`/projects/${encodeURIComponent(projectId)}/lab-notices`, { method: "POST" }),
   distribution: (projectId: string) => request<Distribution>(`/projects/${encodeURIComponent(projectId)}/distribution`),
   refreshDistribution: (projectId: string, sources: ("youtube" | "keywords")[] = ["youtube", "keywords"]) =>
     request<RefreshResult>(`/projects/${encodeURIComponent(projectId)}/distribution/refresh`, {

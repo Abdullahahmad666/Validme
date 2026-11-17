@@ -29,7 +29,8 @@ from django.views.decorators.http import require_GET, require_POST
 from rest_framework.throttling import BaseThrottle
 
 from lab import crypto
-from lab.models import LabDailyStat, LabPage, WaitlistSignup
+from lab.blocks import price_test
+from lab.models import LabDailyStat, LabPage, LabVariantStat, WaitlistSignup
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +78,50 @@ def _bump(page: LabPage, field: str) -> None:
     LabDailyStat.objects.filter(page=page, day=today).update(**{field: F(field) + 1})
 
 
-def _token(page: LabPage) -> str:
-    return signing.dumps({"p": page.pk, "t": int(time.time())}, salt=TOKEN_SALT)
+def _token(page: LabPage, variant: int | None = None) -> str:
+    data = {"p": page.pk, "t": int(time.time())}
+    if variant is not None:
+        data["v"] = variant  # signed, so a sign-up is counted for the price the person actually saw
+    return signing.dumps(data, salt=TOKEN_SALT)
 
 
-def _token_ok(raw: str, page: LabPage) -> bool:
+def _token_data(raw: str, page: LabPage, *, min_age: int = TOKEN_MIN_AGE) -> dict | None:
     try:
         data = signing.loads(raw or "", salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE)
     except signing.BadSignature:
-        return False
-    return isinstance(data, dict) and data.get("p") == page.pk and time.time() - int(data.get("t", 0)) >= TOKEN_MIN_AGE
+        return None
+    if not isinstance(data, dict) or data.get("p") != page.pk or time.time() - int(data.get("t", 0)) < min_age:
+        return None
+    return data
+
+
+def _token_ok(raw: str, page: LabPage) -> bool:
+    return _token_data(raw, page) is not None
+
+
+def _variant_for(request, page: LabPage, n: int) -> int:
+    """Which price variant this visitor sees, without cookies: from the hashed client address (kept only in memory),
+    the page and the day. Reloads show the same prices; another network or another day may show another variant."""
+    digest = hashlib.sha256(f"{_ip_key(request)}|{page.pk}|{timezone.localdate()}".encode()).digest()
+    return digest[0] % n
+
+
+def _bump_variant(page: LabPage, variant: int, field: str) -> None:
+    today = timezone.localdate()
+    LabVariantStat.objects.get_or_create(page=page, variant=variant, day=today)
+    LabVariantStat.objects.filter(page=page, variant=variant, day=today).update(**{field: F(field) + 1})
+
+
+def _with_variant(blocks: list, test: dict | None, variant: int | None) -> list:
+    """The page's blocks with the price-test block showing one variant's prices (and no variant data leaked)."""
+    if test is None or variant is None:
+        return blocks
+    out = list(blocks)
+    shown = {k: v for k, v in out[test["index"]].items() if k != "test_variants"}
+    shown["items"] = test["variants"][variant]
+    shown["choosable"] = True
+    out[test["index"]] = shown
+    return out
 
 
 def _hit(key: str, limit: int, seconds: int) -> bool:
@@ -99,9 +134,11 @@ def _hit(key: str, limit: int, seconds: int) -> bool:
     return n > limit
 
 
-def _rate_limited(request, page: LabPage) -> bool:
+def _rate_limited(request, page: LabPage | str) -> bool:
+    """Per client per page/survey, and per client overall. `page` is a page, or a key such as "s12" for a survey."""
     ip = _ip_key(request)
-    keys = {"ip-page": f"lab:rl:{ip}:{page.pk}", "ip": f"lab:rl:{ip}"}
+    scope = page if isinstance(page, str) else page.pk
+    keys = {"ip-page": f"lab:rl:{ip}:{scope}", "ip": f"lab:rl:{ip}"}
     return any(_hit(keys[scope], limit, seconds) for scope, limit, seconds in LIMITS)
 
 
@@ -144,32 +181,34 @@ def footer_text() -> str:
     return FOOTER_TEXT.format(brand=settings.VALIDME_BRAND)
 
 
-def deletion_link(page: LabPage) -> str:
-    """Where a respondent asks for deletion: a mailto to the support inbox, or the contact page in development."""
-    from urllib.parse import quote
-
-    if settings.CONTACT_EMAIL:
-        subject = quote(f"Delete my email from page {page.slug}")
-        return f"mailto:{settings.CONTACT_EMAIL}?subject={subject}"
-    return f"{settings.FRONTEND_URL.rstrip('/')}/contact"
+def deletion_link(_page=None) -> str:
+    """Where a respondent asks for a copy or deletion of their data: the self-serve form on this origin (Week 14)."""
+    return "/data-request"
 
 
-def _context(request, page: LabPage, **extra) -> dict:
+def base_context(request, slug: str = "") -> dict:
+    """What every page on this origin needs: nonce, footer, privacy / data-request / report links."""
     app = settings.FRONTEND_URL.rstrip("/")
+    subject = f"Report%20{slug}" if slug else "Report%20a%20page"
     return {
-        "page": page,
-        "blocks": page.blocks,
         "nonce": getattr(request, "csp_nonce", ""),
-        "token": _token(page),
-        "consent": consent_text(page.retention_days),
         "footer": footer_text(),
         "brand": settings.VALIDME_BRAND,
         "privacy_url": f"{app}/privacy",
-        "delete_url": deletion_link(page),
-        "report_url": (
-            f"mailto:{settings.CONTACT_EMAIL}?subject=Report%20page%20{page.slug}" if settings.CONTACT_EMAIL else f"{app}/contact"
-        ),
+        "delete_url": deletion_link(),
+        "report_url": f"mailto:{settings.CONTACT_EMAIL}?subject={subject}" if settings.CONTACT_EMAIL else f"{app}/contact",
         "turnstile_site_key": settings.TURNSTILE_SITE_KEY,
+    }
+
+
+def _context(request, page: LabPage, *, variant: int | None = None, **extra) -> dict:
+    test = price_test(page.blocks)
+    return {
+        **base_context(request, page.slug or ""),
+        "page": page,
+        "blocks": _with_variant(page.blocks, test, variant),
+        "token": _token(page, variant),
+        "consent": consent_text(page.retention_days),
         **extra,
     }
 
@@ -186,15 +225,48 @@ def page_view(request, slug: str):
     joined = request.GET.get("joined") == "1"
     code = request.GET.get("error", "")
     error = ERRORS.get(code, "")
+    test = price_test(page.blocks)
+    variant = _variant_for(request, page, len(test["variants"])) if test else None
+    picked = None
+    raw_pick = request.GET.get("picked", "")
+    if test and raw_pick.isdigit() and int(raw_pick) < len(test["variants"][variant]):
+        picked = test["variants"][variant][int(raw_pick)].get("name")
     ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
-    if not joined and not error and ua and not any(b in ua for b in BOT_UA):
+    if not joined and not error and picked is None and ua and not any(b in ua for b in BOT_UA):
         # First-party count only: no cookie, no stored IP, no visitor id. One view per client per page per day (the
         # hashed address lives only in the cache), so reloads and scripted hits don't inflate the numbers.
         if cache.add(f"lab:v:{_ip_key(request)}:{page.pk}:{timezone.localdate()}", 1, 86400):
             _bump(page, "views")
+            if variant is not None:
+                _bump_variant(page, variant, "views")
     # Which field the error is about, so the form can mark it (aria-invalid) and point to the message.
     field = {"email": "email", "consent": "consent"}.get(code, "") if error else ""
-    return render(request, "lab/page.html", _context(request, page, joined=joined, error=error, error_field=field))
+    ctx = _context(request, page, variant=variant, joined=joined, error=error, error_field=field, picked=picked)
+    return render(request, "lab/page.html", ctx)
+
+
+@csrf_exempt  # no cookies on this origin; the signed, page-bound token says which variant the person saw
+@require_POST
+def choose(request, slug: str):
+    """A visitor pressed "Choose" on a price being tested. Counted once per client per option per day, then sent to the
+    waitlist with an honest note: it isn't available and nothing is charged."""
+    page = _published(slug)
+    if page is None:
+        return _not_found(request)
+    back = f"/p/{page.slug}"
+    test = price_test(page.blocks)
+    data = _token_data(request.POST.get("token", ""), page, min_age=1)
+    raw = request.POST.get("option", "")
+    if test is None or data is None or not isinstance(data.get("v"), int) or not 0 <= data["v"] < len(test["variants"]):
+        return HttpResponseRedirect(f"{back}#join", status=303)
+    variant = data["v"]
+    if not raw.isdigit() or int(raw) >= len(test["variants"][variant]):
+        return HttpResponseRedirect(f"{back}#join", status=303)
+    ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
+    once = f"lab:c:{_ip_key(request)}:{page.pk}:{variant}:{timezone.localdate()}"
+    if ua and not any(b in ua for b in BOT_UA) and cache.add(once, 1, 86400):
+        _bump_variant(page, variant, "clicks")
+    return HttpResponseRedirect(f"{back}?picked={int(raw)}#join", status=303)
 
 
 @csrf_exempt  # no cookies or sessions on this origin; protected by the signed, page-bound form token instead
@@ -206,8 +278,11 @@ def join(request, slug: str):
     back = f"/p/{page.slug}"
     if request.POST.get("hp_extra"):  # honeypot: invisible to people, filled by bots. Look successful, store nothing.
         return HttpResponseRedirect(f"{back}?joined=1#join", status=303)
-    if not _token_ok(request.POST.get("token", ""), page):
+    token = _token_data(request.POST.get("token", ""), page)
+    if token is None:
         return HttpResponseRedirect(f"{back}?error=expired#join", status=303)
+    test = price_test(page.blocks)
+    variant = token.get("v") if test and isinstance(token.get("v"), int) and 0 <= token["v"] < len(test["variants"]) else None
     if _rate_limited(request, page):
         return HttpResponseRedirect(f"{back}?error=busy#join", status=303)
     email = (request.POST.get("email") or "").strip()
@@ -233,8 +308,11 @@ def join(request, slug: str):
                 consent_version=CONSENT_VERSION,
                 consented_at=now,
                 expires_at=now + timedelta(days=page.retention_days),
+                variant=variant,
             )
         _bump(page, "signups")
+        if variant is not None:
+            _bump_variant(page, variant, "signups")
     except IntegrityError:
         pass  # already on the list: same answer as a new sign-up, so nobody can test whether an address joined
     return HttpResponseRedirect(f"{back}?joined=1#join", status=303)

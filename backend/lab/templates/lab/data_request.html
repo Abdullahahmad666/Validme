@@ -1,0 +1,26 @@
+{% extends "lab/base.html" %}
+{% block title %}Your data{% endblock %}
+{% block content %}
+<section>
+  <h1>Get a copy of your data, or delete it</h1>
+  <p class="lead">If you joined a waitlist or left your email in a survey on a {{ brand }} test page, you can get a copy of what's stored or have it deleted.</p>
+  <p>We'll email a confirmation link to the address. Nothing happens until you open it. Survey answers given without an email can't be linked to you, so they can't be found this way.</p>
+</section>
+{% if sent %}
+  <p class="ok" role="status">Thanks. If we hold anything for that address, we've emailed it a confirmation link (valid for 24 hours). Check your inbox and spam folder.</p>
+{% else %}
+<form method="post" action="/data-request">
+  {% if error %}<p class="err" role="alert" id="form-error">{{ error }}</p>{% endif %}
+  <label for="email">Email address</label>
+  <input id="email" type="email" name="email" required maxlength="254" autocomplete="email" value="{{ email|default:"" }}"{% if error_field == "email" %} aria-invalid="true" aria-describedby="form-error"{% endif %}>
+  <fieldset{% if error_field == "kind" %} aria-invalid="true" aria-describedby="form-error"{% endif %}>
+    <legend>What would you like?</legend>
+    <label class="opt"><input type="radio" name="kind" value="copy" required{% if kind == "copy" %} checked{% endif %}> Send me a copy</label>
+    <label class="opt"><input type="radio" name="kind" value="delete"{% if kind == "delete" %} checked{% endif %}> Delete everything</label>
+  </fieldset>
+  <div class="hp" aria-hidden="true"><label for="hp">Leave this empty</label><input id="hp" name="hp_extra" tabindex="-1" autocomplete="off"></div>
+  <input type="hidden" name="token" value="{{ token }}">
+  <button class="btn" type="submit">Email me a confirmation link</button>
+</form>
+{% endif %}
+{% endblock %}

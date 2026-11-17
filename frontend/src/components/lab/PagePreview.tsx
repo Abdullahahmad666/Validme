@@ -46,6 +46,12 @@ export function PagePreview({ blocks, retentionDays }: { blocks: Block[]; retent
             return (
               <section key={i} className="mb-6">
                 <p className="mb-2 text-lg font-semibold">{b.heading || "Pricing we're considering"}</p>
+                {b.test_variants && b.test_variants.length > 0 && (
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
+                    Price test: each visitor sees one of {b.test_variants.length + 1} variants, with a &ldquo;Choose&rdquo; button on each
+                    price. Showing variant A.
+                  </p>
+                )}
                 <ul className="grid gap-2 sm:grid-cols-3">
                   {b.items.map((it, j) => (
                     <li key={j} className="rounded-control border border-border bg-card p-3">

@@ -24,6 +24,24 @@ def _block(kind: str, props: dict, required: list[str]) -> dict:
     }
 
 
+MAX_VARIANTS = 3
+PRICE_ITEMS = {
+    "type": "array",
+    "minItems": 1,
+    "maxItems": 3,
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": _text(40, 1),
+            "price": _text(20, 1),
+            "period": _text(20),
+            "features": {"type": "array", "maxItems": 6, "items": _text(80, 1)},
+        },
+        "required": ["name", "price"],
+        "additionalProperties": False,
+    },
+}
+
 SCHEMA = {
     "type": "array",
     "maxItems": MAX_BLOCKS,
@@ -53,22 +71,9 @@ SCHEMA = {
                 "pricing",
                 {
                     "heading": _text(80),
-                    "items": {
-                        "type": "array",
-                        "minItems": 1,
-                        "maxItems": 3,
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": _text(40, 1),
-                                "price": _text(20, 1),
-                                "period": _text(20),
-                                "features": {"type": "array", "maxItems": 6, "items": _text(80, 1)},
-                            },
-                            "required": ["name", "price"],
-                            "additionalProperties": False,
-                        },
-                    },
+                    "items": PRICE_ITEMS,
+                    # Price test (Week 14): variants B and C. Variant A is `items`. Each visitor sees one variant.
+                    "test_variants": {"type": "array", "minItems": 1, "maxItems": MAX_VARIANTS - 1, "items": PRICE_ITEMS},
                 },
                 ["items"],
             ),
@@ -162,6 +167,11 @@ RESERVED_SLUGS = {
     "report",
     "join",
     "p",
+    "s",
+    "survey",
+    "answer",
+    "choose",
+    "data-request",
 }
 
 
@@ -213,7 +223,21 @@ def validate_blocks(blocks) -> list[str]:
         if _LINKY.search(text):
             problems.append("Links, web addresses and e-mail addresses aren't allowed in page text.")
             break
+    if sum(1 for b in blocks if b.get("type") == "pricing" and b.get("test_variants")) > 1:
+        problems.append("Only one price block can test variants.")
     return problems
+
+
+def price_test(blocks: list) -> dict | None:
+    """The pricing block that tests variants, as {index, variants: [items A, items B, ...]}, or None."""
+    for i, b in enumerate(blocks or []):
+        if isinstance(b, dict) and b.get("type") == "pricing" and b.get("test_variants"):
+            return {"index": i, "variants": [b["items"], *b["test_variants"]][:MAX_VARIANTS]}
+    return None
+
+
+def variant_label(n: int) -> str:
+    return "ABC"[n] if 0 <= n < MAX_VARIANTS else "?"
 
 
 # Words that make an address look official or like a login/payment page, anywhere in it.
@@ -264,6 +288,19 @@ def slug_problem(slug: str) -> str | None:
     if RetiredSlug.objects.filter(slug=slug).exists():
         return "That address was used before and can't be reused."
     return None
+
+
+def slug_taken(slug: str, *, page_id: int | None = None, survey_id: int | None = None) -> bool:
+    """Pages (/p/) and surveys (/s/) share one set of addresses, so a link can't be confused with another one."""
+    from lab.models import LabPage, Survey
+
+    pages = LabPage.objects.filter(slug=slug)
+    surveys = Survey.objects.filter(slug=slug)
+    if page_id is not None:
+        pages = pages.exclude(pk=page_id)
+    if survey_id is not None:
+        surveys = surveys.exclude(pk=survey_id)
+    return pages.exists() or surveys.exists()
 
 
 def publish_problems(page) -> list[str]:

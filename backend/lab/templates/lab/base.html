@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>{% if error %}Error: {% endif %}{% block title %}{% endblock %}</title>
+<style nonce="{{ nonce }}">
+:root{--fg:#0f172a;--muted:#475569;--line:#e2e8f0;--field:#64748b;--bg:#f8fafc;--card:#fff;--accent:#2b59c3;--accent-fg:#fff;--ok:#15803d;--err:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--fg:#e2e8f0;--muted:#94a3b8;--line:#334155;--field:#94a3b8;--bg:#0b1120;--card:#111827;--accent:#7aa2ff;--accent-fg:#0b1120;--ok:#4ade80;--err:#f87171}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:40px 16px 24px}
+section{margin:0 0 40px}
+h1{font-size:clamp(28px,6vw,44px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 12px}h3{font-size:17px;margin:0 0 4px}
+p{margin:0 0 12px;color:var(--muted)}.lead{font-size:19px}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:12px 20px;font:inherit;font-size:16px;font-weight:600;line-height:1.2;text-decoration:none;cursor:pointer;min-height:44px}
+.btn:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.price{font-size:28px;font-weight:700;color:var(--fg);margin:4px 0}.price small{font-size:14px;font-weight:400;color:var(--muted)}
+ul.f{margin:8px 0 0;padding-left:18px;color:var(--muted)}
+.grid+.note{margin-top:12px}
+.note{font-size:14px;border-left:3px solid var(--accent);padding:8px 12px;background:var(--card)}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:0 0 8px}
+summary{cursor:pointer;font-weight:600}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+form.bare{background:none;border:0;padding:0}
+label{display:block;font-weight:600;margin:0 0 6px}
+input[type=email]{width:100%;font:inherit;padding:12px;border:1px solid var(--field);border-radius:10px;background:var(--bg);color:var(--fg);min-height:44px}
+[aria-invalid=true]{border-color:var(--err);outline:2px solid var(--err)}
+.consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted);margin:14px 0}
+.consent input{margin-top:2px;width:22px;height:22px;flex:none;accent-color:var(--accent)}
+.consent a,footer a{display:inline-block;padding:10px 2px;min-height:44px}
+.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.ok{color:var(--ok);font-weight:600}.err{color:var(--err);font-weight:600}
+footer{max-width:860px;margin:0 auto;padding:24px 16px 40px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+footer a{color:var(--muted)}
+fieldset{border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 16px;background:var(--card)}
+legend{font-weight:600;padding:0 6px;color:var(--fg)}
+.opt{display:flex;gap:10px;align-items:center;min-height:44px;font-weight:400;color:var(--fg);margin:0}
+.opt input{width:22px;height:22px;flex:none;accent-color:var(--accent)}
+.scale{display:flex;flex-wrap:wrap;gap:8px}.scale .opt{border:1px solid var(--line);border-radius:10px;padding:0 12px}
+.ends{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+textarea,input[type=text]{width:100%;font:inherit;padding:12px;border:1px solid var(--field);border-radius:10px;background:var(--bg);color:var(--fg);min-height:44px}
+.req{color:var(--err)}.help{font-size:14px;margin:0 0 8px}
+.choose{margin-top:12px;background:transparent;color:var(--accent);border:2px solid var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--line);padding:8px 4px;text-align:left;vertical-align:top}
+</style>
+</head>
+<body>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <p>{{ footer }}</p>
+  <p><a href="{{ privacy_url }}" rel="noopener noreferrer" target="_blank">How we handle your data</a> · <a href="{{ delete_url }}">Get a copy or delete your data</a> · <a href="{{ report_url }}" rel="noopener noreferrer">Report this page</a></p>
+</footer>
+{% if turnstile_site_key %}<script nonce="{{ nonce }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
+</body>
+</html>

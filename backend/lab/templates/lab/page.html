@@ -1,45 +1,6 @@
-{% load lab_extras %}<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
-<title>{% if error %}Error: {% endif %}{{ page.title }}</title>
-<style nonce="{{ nonce }}">
-:root{--fg:#0f172a;--muted:#475569;--line:#e2e8f0;--field:#64748b;--bg:#f8fafc;--card:#fff;--accent:#2b59c3;--accent-fg:#fff;--ok:#15803d;--err:#b91c1c}
-@media (prefers-color-scheme:dark){:root{--fg:#e2e8f0;--muted:#94a3b8;--line:#334155;--field:#94a3b8;--bg:#0b1120;--card:#111827;--accent:#7aa2ff;--accent-fg:#0b1120;--ok:#4ade80;--err:#f87171}}
-*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:860px;margin:0 auto;padding:40px 16px 24px}
-section{margin:0 0 40px}
-h1{font-size:clamp(28px,6vw,44px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
-h2{font-size:22px;margin:0 0 12px}h3{font-size:17px;margin:0 0 4px}
-p{margin:0 0 12px;color:var(--muted)}.lead{font-size:19px}
-.btn{display:inline-block;background:var(--accent);color:var(--accent-fg);border:0;border-radius:10px;padding:12px 20px;font:inherit;font-size:16px;font-weight:600;line-height:1.2;text-decoration:none;cursor:pointer;min-height:44px}
-.btn:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.price{font-size:28px;font-weight:700;color:var(--fg);margin:4px 0}.price small{font-size:14px;font-weight:400;color:var(--muted)}
-ul.f{margin:8px 0 0;padding-left:18px;color:var(--muted)}
-.note{font-size:14px;border-left:3px solid var(--accent);padding:8px 12px;background:var(--card)}
-details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:0 0 8px}
-summary{cursor:pointer;font-weight:600}
-form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-label{display:block;font-weight:600;margin:0 0 6px}
-input[type=email]{width:100%;font:inherit;padding:12px;border:1px solid var(--field);border-radius:10px;background:var(--bg);color:var(--fg);min-height:44px}
-[aria-invalid=true]{border-color:var(--err);outline:2px solid var(--err)}
-.consent{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:14px;color:var(--muted);margin:14px 0}
-.consent input{margin-top:2px;width:22px;height:22px;flex:none;accent-color:var(--accent)}
-.consent a,footer a{display:inline-block;padding:10px 2px;min-height:44px}
-.hp{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
-.ok{color:var(--ok);font-weight:600}.err{color:var(--err);font-weight:600}
-footer{max-width:860px;margin:0 auto;padding:24px 16px 40px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
-footer a{color:var(--muted)}
-</style>
-</head>
-<body>
-<main>
+{% extends "lab/base.html" %}{% load lab_extras %}
+{% block title %}{{ page.title }}{% endblock %}
+{% block content %}
 {% for b in blocks %}
   {% if b.type == "hero" %}
   <section>
@@ -60,7 +21,7 @@ footer a{color:var(--muted)}
   {% elif b.type == "pricing" %}
   <section>
     <h2>{{ b.heading|default:"Pricing we're considering" }}</h2>
-    <div class="grid">{% for it in b.items %}<div class="card"><h3>{{ it.name }}</h3><p class="price">{{ it.price }}{% if it.period %} <small>{{ it.period }}</small>{% endif %}</p>{% if it.features %}<ul class="f">{% for f in it.features %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}</div>{% endfor %}</div>
+    <div class="grid">{% for it in b.items %}<div class="card"><h3>{{ it.name }}</h3><p class="price">{{ it.price }}{% if it.period %} <small>{{ it.period }}</small>{% endif %}</p>{% if it.features %}<ul class="f">{% for f in it.features %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}{% if b.choosable %}<form class="bare" method="post" action="/p/{{ page.slug }}/choose"><input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="option" value="{{ forloop.counter0 }}"><button class="btn choose" type="submit">Choose {{ it.name }}</button></form>{% endif %}</div>{% endfor %}</div>
     <p class="note">Not available yet: these are prices being tested, and nothing is charged. Join the waitlist to hear if it launches.</p>
   </section>
   {% elif b.type == "faq" %}
@@ -72,6 +33,7 @@ footer a{color:var(--muted)}
   <section{% if forloop.counter0 == blocks|first_waitlist_index %} id="join"{% endif %}>
     <h2>{{ b.heading|default:"Join the waitlist" }}</h2>
     {% if b.body %}<p>{{ b.body }}</p>{% endif %}
+    {% if picked and not joined %}<p class="note" role="status">You chose {{ picked }}. It isn't available yet and nothing is charged. Join the waitlist to hear if it launches.</p>{% endif %}
     {% if joined %}
       <p class="ok" role="status">Thanks, you're on the list. You'll only hear from the person behind this page about this product.</p>
     {% else %}
@@ -89,11 +51,4 @@ footer a{color:var(--muted)}
   </section>
   {% endif %}
 {% endfor %}
-</main>
-<footer>
-  <p>{{ footer }}</p>
-  <p><a href="{{ privacy_url }}" rel="noopener noreferrer" target="_blank">How we handle your email</a> · <a href="{{ delete_url }}" rel="noopener noreferrer">Ask us to delete your email</a> · <a href="{{ report_url }}" rel="noopener noreferrer">Report this page</a></p>
-</footer>
-{% if turnstile_site_key %}<script nonce="{{ nonce }}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>{% endif %}
-</body>
-</html>
+{% endblock %}

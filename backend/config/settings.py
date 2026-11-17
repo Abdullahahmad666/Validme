@@ -31,8 +31,14 @@ LAB_PAGES = {
     "founder": env.int("LAB_PAGES_FOUNDER", default=3),
     "pro": env.int("LAB_PAGES_PRO", default=10),
 }
+LAB_SURVEYS = {  # surveys per account, like LAB_PAGES
+    "free": env.int("LAB_SURVEYS_FREE", default=1),
+    "paid": env.int("LAB_SURVEYS_PAID", default=1),
+    "founder": env.int("LAB_SURVEYS_FOUNDER", default=3),
+    "pro": env.int("LAB_SURVEYS_PRO", default=10),
+}
 # Optional Cloudflare Turnstile on the waitlist form (adds Cloudflare's script to Lab pages only).
-# Support inbox shown to waitlist respondents for deletion requests and page reports (required in production).
+# Support inbox for page reports (required in production). Respondents ask for copies or deletion at LAB_ORIGIN/data-request.
 CONTACT_EMAIL = env("CONTACT_EMAIL", default="")
 TURNSTILE_SITE_KEY = env("TURNSTILE_SITE_KEY", default="")
 TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", default="")
@@ -175,7 +181,7 @@ if not DEBUG:
     if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
         raise RuntimeError("Set both TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, or neither.")
     if not CONTACT_EMAIL:
-        raise RuntimeError("Set CONTACT_EMAIL when DEBUG is off: waitlist respondents need a way to ask for deletion.")
+        raise RuntimeError("Set CONTACT_EMAIL when DEBUG is off: visitors need a way to report a page.")
     if LAB_HOST.split(":")[0].lower() == (_urlsplit(FRONTEND_URL).hostname or "").lower():
         raise RuntimeError("LAB_HOST must be a different host from the app (FRONTEND_URL).")
 # Next.js forwards the browser host as X-Forwarded-Host, so URLs Django builds (the Google OAuth
@@ -261,6 +267,7 @@ CELERY_BEAT_SCHEDULE = {
     "purge-youtube": {"task": "distribution.tasks.purge_expired_youtube", "schedule": crontab(hour=3, minute=30)},
     # Waitlist sign-ups past their retention period are deleted daily.
     "purge-lab-signups": {"task": "lab.tasks.purge_expired_signups", "schedule": crontab(hour=3, minute=45)},
+    "purge-lab-responses": {"task": "lab.tasks.purge_expired_responses", "schedule": crontab(hour=3, minute=50)},
     "weekly-digest": {"task": "mailer.tasks.send_weekly_digests", "schedule": crontab(hour=8, minute=0, day_of_week=1)},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
