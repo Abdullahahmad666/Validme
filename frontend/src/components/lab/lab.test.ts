@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BlockFields } from "@/components/lab/BlockFields";
-import { PagePreview } from "@/components/lab/PagePreview";
+import { PagePreview, consentText } from "@/components/lab/PagePreview";
 import { emptyBlock, hasLink, moveItem, slugify, starterBlocks } from "@/lib/lab";
 import type { Block, BlockType } from "@/types/lab";
 
@@ -34,15 +34,33 @@ describe("PagePreview", () => {
     { type: "waitlist" },
   ];
 
-  it("escapes founder text and always shows the honest pricing note and the fixed consent text", () => {
-    const out = renderToStaticMarkup(createElement(PagePreview, { blocks, retentionDays: 90 }));
+  // Copied from backend/lab/public.py CONSENT_TEMPLATE (lab-consent-v2) as LabPageSerializer.consent_template sends it:
+  // brand filled in, {days} left for the preview.
+  const serverTemplate =
+    "I'd like to hear about this product. The person behind this page can see and download my email to tell me about it. " +
+    "ValidMe stores it encrypted, never sells it, and deletes its copy after {days} days or sooner if I ask.";
+
+  it("escapes founder text and always shows the honest pricing note and the server's consent text", () => {
+    const out = renderToStaticMarkup(createElement(PagePreview, { blocks, retentionDays: 90, consentTemplate: serverTemplate }));
     expect(out).not.toContain("<img src=x");
     expect(out).toContain("Not available yet: these are prices being tested, and nothing is charged.");
-    // Same words as the live form (backend/lab/public.py consent_text), so the founder previews what people agree to.
+    // The preview renders whatever the server sends, with the draft's retention period filled in.
     expect(out).toContain(
-      "I&#x27;d like to hear when this launches. The person behind this page may email me about it. ValidMe stores my email encrypted for up to 90 days, never sells it, and deletes it on request.",
+      "I&#x27;d like to hear about this product. The person behind this page can see and download my email to tell me about it. ValidMe stores it encrypted, never sells it, and deletes its copy after 90 days or sooner if I ask.",
     );
+    expect(out).not.toContain("{days}");
     expect(out).toContain("product may not exist yet");
+  });
+
+  it("uses the server's template verbatim rather than its own copy", () => {
+    const out = renderToStaticMarkup(createElement(PagePreview, { blocks, retentionDays: 30, consentTemplate: "Server says {days} days." }));
+    expect(out).toContain("Server says 30 days.");
+    expect(out).not.toContain("I&#x27;d like to hear");
+  });
+
+  it("falls back to the current live wording when no template is sent", () => {
+    expect(consentText(undefined, 60)).toBe(serverTemplate.replace("{days}", "60"));
+    expect(consentText("", 60)).toBe(serverTemplate.replace("{days}", "60"));
   });
 });
 

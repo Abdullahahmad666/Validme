@@ -28,6 +28,8 @@ export type LabPage = {
   updated_at: string;
   url: string | null;
   base_url: string;
+  /** Exact consent wording of the live waitlist form (brand filled in, `{days}` left for the retention period). */
+  consent_template: string;
   signups: number;
 };
 

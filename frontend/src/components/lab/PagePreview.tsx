@@ -2,10 +2,32 @@ import { BRAND_NAME } from "@/lib/brand";
 import type { Block } from "@/types/lab";
 
 /**
+ * Fallback for the live form's consent wording (backend/lab/public.py CONSENT_TEMPLATE, lab-consent-v2), used only if
+ * the server didn't send `consent_template`. The server's copy always wins so the preview can't drift from the form.
+ */
+export const FALLBACK_CONSENT_TEMPLATE =
+  `I'd like to hear about this product. The person behind this page can see and download my email to tell me about it. ` +
+  `${BRAND_NAME} stores it encrypted, never sells it, and deletes its copy after {days} days or sooner if I ask.`;
+
+/** Fill the consent template's `{days}` placeholder with the draft's retention period. */
+export function consentText(template: string | undefined, retentionDays: number): string {
+  return (template || FALLBACK_CONSENT_TEMPLATE).replaceAll("{days}", String(retentionDays));
+}
+
+/**
  * A close approximation of the public page (which the server renders on its own origin). Text is React-escaped; there
  * are no links in founder content. The form is inert here: the real one only exists on the published page.
  */
-export function PagePreview({ blocks, retentionDays }: { blocks: Block[]; retentionDays: number }) {
+export function PagePreview({
+  blocks,
+  retentionDays,
+  consentTemplate,
+}: {
+  blocks: Block[];
+  retentionDays: number;
+  /** `LabPage.consent_template` from the API. */
+  consentTemplate?: string;
+}) {
   return (
     <div className="rounded-card border border-border bg-background p-5 text-sm" aria-label="Page preview">
       {blocks.length === 0 && <p className="text-muted-foreground">Add blocks to see the page.</p>}
@@ -93,8 +115,7 @@ export function PagePreview({ blocks, retentionDays }: { blocks: Block[]; retent
                 {b.body && <p className="text-muted-foreground">{b.body}</p>}
                 <div className="mt-2 rounded-control border border-border bg-background px-3 py-2 text-muted-foreground">Email address</div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  ☐ I&apos;d like to hear when this launches. The person behind this page may email me about it. {BRAND_NAME} stores
-                  my email encrypted for up to {retentionDays} days, never sells it, and deletes it on request.
+                  ☐ {consentText(consentTemplate, retentionDays)}
                 </p>
                 <span className="mt-2 inline-block rounded-control bg-primary px-4 py-2 font-semibold text-primary-foreground">
                   {b.button || "Join the waitlist"}
