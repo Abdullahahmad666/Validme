@@ -229,10 +229,17 @@ def validate_blocks(blocks) -> list[str]:
 
 
 def price_test(blocks: list) -> dict | None:
-    """The pricing block that tests variants, as {index, variants: [items A, items B, ...]}, or None."""
+    """The pricing block that tests variants, as {index, variants: [items A, items B, ...], key}, or None. `key`
+    fingerprints the names, prices and periods shown, so any change to them starts a new test."""
+    import hashlib
+    import json
+
     for i, b in enumerate(blocks or []):
         if isinstance(b, dict) and b.get("type") == "pricing" and b.get("test_variants"):
-            return {"index": i, "variants": [b["items"], *b["test_variants"]][:MAX_VARIANTS]}
+            variants = [b["items"], *b["test_variants"]][:MAX_VARIANTS]
+            shown = [[{k: it.get(k) for k in ("name", "price", "period")} for it in v] for v in variants]
+            key = hashlib.sha256(json.dumps(shown, sort_keys=True).encode()).hexdigest()[:16]
+            return {"index": i, "variants": variants, "key": key}
     return None
 
 

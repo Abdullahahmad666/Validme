@@ -39,8 +39,11 @@ def surveys_allowed(user) -> int:
 
 
 def _csv_cell(value: str) -> str:
-    """Neutralise spreadsheet formulas (CSV injection)."""
-    return "'" + value if value[:1] in ("=", "+", "-", "@", "\t", "\r") else value
+    """Neutralise spreadsheet formulas (CSV injection), also behind leading spaces or line breaks that some importers
+    trim before evaluating."""
+    if value[:1] in ("=", "+", "-", "@", "\t", "\r") or value.lstrip(" \t\r\n")[:1] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -245,7 +248,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
     def results(self, request, project_pk=None, pk=None):
         """Aggregates only (no typed text, no emails), so it is safe to show next to the questions."""
         survey = self.get_object()
-        rows = list(self._live_responses(survey).values_list("answers", "text_encrypted"))
+        rows = [(a, _typed_keys(t) if t else set()) for a, t in self._live_responses(survey).values_list("answers", "text_encrypted")]
         n = len(rows)
         totals = SurveyDailyStat.objects.filter(survey=survey).aggregate(views=Sum("views"), responses=Sum("responses"))
         views = totals["views"] or 0
@@ -253,7 +256,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
         for q in survey.questions:
             qid, kind = q["id"], q["type"]
             if kind == "text":
-                answered = sum(1 for _a, t in rows if t and qid in _typed_keys(t))
+                answered = sum(1 for _a, typed in rows if qid in typed)
                 questions.append(
                     {"id": qid, "type": kind, "prompt": q["prompt"], "answered": answered, "sample": sample_note(answered)}
                 )

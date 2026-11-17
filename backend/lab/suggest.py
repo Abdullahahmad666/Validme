@@ -199,6 +199,7 @@ def suggest_questions(project, user) -> list[dict]:
         if raw["type"] == "scale":
             q["low_label"] = raw.get("low_label") or "Not at all"
             q["high_label"] = raw.get("high_label") or "Very much"
+        q = clean_blocks(q)  # strip control/bidi characters first, so nothing is hidden from the checks below
         text = " ".join([q["prompt"], *q.get("options", [])])
         if _LEADING.search(text) or _LINKY.search(text) or validate_questions([q], allowed):
             logger.warning("lab survey suggestion for project %s dropped a question that broke the rules", project.pk)

@@ -122,6 +122,10 @@ export default function PrivacyPage() {
                 without an email, your answers can&apos;t be traced back to you, which also means they can&apos;t be found later
                 to delete.
               </li>
+              <li>
+                emails typed into waitlists and surveys aren&apos;t verified, so someone could enter yours. If you hear from a
+                founder you don&apos;t know, use the link below to see and delete what&apos;s stored.
+              </li>
             </ul>
             <p>
               Some test pages show prices being considered. Nothing is for sale and nothing is charged: pressing

@@ -3,7 +3,7 @@
 {% block content %}
 {% if invalid %}
   <h1>This link doesn't work</h1>
-  <p>It may have expired (links last 24 hours) or been copied incompletely. <a href="/data-request">Ask again</a>.</p>
+  <p>{% if used %}It has already been used: each link works once.{% else %}It may have expired (copy links last 1 hour, deletion links 24 hours) or been copied incompletely.{% endif %} <a href="/data-request">Ask again</a>.</p>
 {% elif confirm %}
   <h1>{% if kind == "delete" %}Delete your data?{% else %}See a copy of your data?{% endif %}</h1>
   <p>{% if kind == "delete" %}This permanently deletes every waitlist sign-up and survey answer stored with your email. The founders are told to delete any copy they downloaded.{% else %}This shows every waitlist sign-up and survey answer stored with your email.{% endif %}</p>

@@ -321,20 +321,29 @@ def _price_test_results(page: LabPage) -> dict | None:
     """Per variant: views, "choose" clicks and sign-ups as shown on the page, with rates only where there's a
     denominator, and a comparison that says "can't tell yet" until both groups are big enough and clearly apart."""
     test = price_test(page.blocks)
+    all_stats = LabVariantStat.objects.filter(page=page)
+    earlier = all_stats.exclude(test_key=test["key"]) if test else all_stats
+    earlier_totals = earlier.aggregate(views=Sum("views"), clicks=Sum("clicks"), signups=Sum("signups"))
+    previous = (
+        {"views": earlier_totals["views"] or 0, "clicks": earlier_totals["clicks"] or 0, "signups": earlier_totals["signups"] or 0}
+        if earlier.exists()
+        else None
+    )
+    if test is None:
+        # No test on the page now: earlier counts can't be shown against prices that are gone.
+        return {"active": False, "variants": [], "comparisons": [], "previous": previous, "note": ""} if previous else None
     rows = {
         r["variant"]: r
-        for r in LabVariantStat.objects.filter(page=page)
+        for r in all_stats.filter(test_key=test["key"])
         .values("variant")
         .annotate(views=Sum("views"), clicks=Sum("clicks"), signups=Sum("signups"))
     }
-    if test is None and not rows:
-        return None
-    n = len(test["variants"]) if test else max(rows) + 1
+    n = len(test["variants"])
     variants = []
     for v in range(n):
         r = rows.get(v, {})
         views, clicks, signups = r.get("views") or 0, r.get("clicks") or 0, r.get("signups") or 0
-        items = test["variants"][v] if test and v < len(test["variants"]) else []
+        items = test["variants"][v]
         variants.append(
             {
                 "variant": variant_label(v),
@@ -354,9 +363,11 @@ def _price_test_results(page: LabPage) -> dict | None:
             result = compare_rates((a[metric], a["views"]), (b[metric], b["views"]))
             comparisons.append({"metric": metric, "a": a["variant"], "b": b["variant"], **result})
     return {
-        "active": test is not None,
+        "active": True,
         "variants": variants,
         "comparisons": comparisons,
+        # Counts from earlier versions of the test (other prices, or variants since removed), kept apart.
+        "previous": previous,
         "note": (
             "Each visitor sees one variant, picked from their network and the day (no cookies), so a person can see "
             "another variant on another day or network. Differences are only called when both variants have at least "
@@ -421,12 +432,13 @@ class SlugCheckView(APIView):
         own = request.query_params.get("page", "")
         own_survey = request.query_params.get("survey", "")
         # The founder's own page or survey keeps its address.
-        page_id = int(own) if own.isdigit() and LabPage.objects.filter(pk=int(own), project__owner=request.user).exists() else None
-        survey_id = None
-        if own_survey.isdigit():
-            from lab.models import Survey
+        from lab.models import Survey
+        from lab.surveys import small_int
 
-            if Survey.objects.filter(pk=int(own_survey), project__owner=request.user).exists():
-                survey_id = int(own_survey)
+        own_page_id, own_survey_id = small_int(own, 18), small_int(own_survey, 18)
+        page_id = own_page_id if own_page_id and LabPage.objects.filter(pk=own_page_id, project__owner=request.user).exists() else None
+        survey_id = (
+            own_survey_id if own_survey_id and Survey.objects.filter(pk=own_survey_id, project__owner=request.user).exists() else None
+        )
         taken = slug_taken(slug, page_id=page_id, survey_id=survey_id)
         return Response({"available": not taken, "reason": "That address is taken." if taken else ""})

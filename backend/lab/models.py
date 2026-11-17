@@ -70,6 +70,9 @@ class LabVariantStat(models.Model):
     visitor was shown; clicks are "choose this price" presses. No visitor ids."""
 
     page = models.ForeignKey(LabPage, on_delete=models.CASCADE, related_name="variant_stats")
+    # Fingerprint of the variants' prices (lab.blocks.price_test). Changing, adding or removing a variant starts a new
+    # test, so counts are never shown next to prices other than the ones people saw.
+    test_key = models.CharField(max_length=16, default="")
     variant = models.PositiveSmallIntegerField()  # 0 = A (the pricing block's own items), 1 = B, 2 = C
     day = models.DateField()
     views = models.PositiveIntegerField(default=0)
@@ -78,7 +81,7 @@ class LabVariantStat(models.Model):
 
     class Meta:
         ordering = ["variant", "day"]
-        constraints = [models.UniqueConstraint(fields=["page", "variant", "day"], name="one_variant_row_per_day")]
+        constraints = [models.UniqueConstraint(fields=["page", "test_key", "variant", "day"], name="one_variant_row_per_day")]
 
 
 class Survey(models.Model):

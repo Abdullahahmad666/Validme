@@ -510,3 +510,130 @@ def test_ai_questions_come_from_assumptions_and_stay_neutral(api, project, fake_
     }
     fake_llm["reply"] = {"questions": [{**base, "assumption_id": a.id, "prompt": "Isn't it painful? See evil.com"}]}
     assert api.post(url).status_code == 503
+
+
+# --- review fixes: robustness, single-use links, cross-user access, test versions -----------------------------------
+
+
+def test_unicode_digits_never_crash_public_endpoints(priced, survey):
+    c = lab_client()
+    assert c.get("/p/stock-app?picked=²").status_code == 200
+    assert c.get(f"/p/stock-app?picked={'9' * 5000}").status_code == 200
+    html = c.get("/p/stock-app").content.decode()
+    token = signing.loads(html.split('name="token" value="')[1].split('"')[0], salt=public.TOKEN_SALT)
+    old = signing.dumps({**token, "t": int(time.time()) - 5}, salt=public.TOKEN_SALT)
+    assert c.post("/p/stock-app/choose", {"token": old, "option": "²"}).status_code == 303
+    assert answer(lab_client(ip="198.51.100.50"), survey, q1="²").status_code == 400  # required q1 not answered
+    assert answer(lab_client(ip="198.51.100.51"), survey, q2=["²", "1"], q3="⁵").status_code == 303
+    assert SurveyResponse.objects.get().answers == {"q1": 1, "q2": [1], "q3": None}
+
+
+def test_confirm_links_work_once_and_copy_links_expire_sooner(priced, monkeypatch):
+    from lab import data_requests
+
+    h = crypto.email_hash("ana@example.org")
+    WaitlistSignup.objects.create(
+        page=priced, email_encrypted=crypto.encrypt("ana@example.org"), email_hash=h, consent_version="v", expires_at=_future()
+    )
+    t = link_token(h, "copy")
+    assert "Waitlist sign-up" in lab_client().post("/data-request/confirm", {"t": t}).content.decode()
+    again = lab_client().post("/data-request/confirm", {"t": t})
+    assert again.status_code == 400 and "already been used" in again.content.decode()
+    real_time = time.time
+    monkeypatch.setattr(signing.time, "time", lambda: real_time() + 2 * 3600)  # 2 hours later
+    assert data_requests._link_data(link_token(h, "copy")) is not None  # issued "now" in the patched clock
+    fresh_copy, fresh_delete = link_token(h, "copy"), link_token(h, "delete")
+    monkeypatch.setattr(signing.time, "time", lambda: real_time() + 4 * 3600)
+    assert data_requests._link_data(fresh_copy) is None and data_requests._link_data(fresh_delete) is not None
+
+
+def test_data_request_caps_count_only_sent_emails_per_kind(priced):
+    WaitlistSignup.objects.create(
+        page=priced,
+        email_encrypted=crypto.encrypt("ana@example.org"),
+        email_hash=crypto.email_hash("ana@example.org"),
+        consent_version="v",
+        expires_at=_future(),
+    )
+    dr(lab_client(ip="198.51.100.20"), email="nobody@example.org")  # an address with nothing held uses no allowance
+    dr(lab_client(ip="198.51.100.21"), kind="copy")  # a stranger asking for a copy...
+    dr(lab_client(ip="198.51.100.22"), kind="delete")  # ...doesn't block the owner's deletion request
+    assert len(mail.outbox) == 2 and "It works once" in mail.outbox[1].body
+
+
+def test_data_request_task_reveals_nothing_and_survives_mail_errors(priced, monkeypatch):
+    from lab import data_requests
+    from lab.tasks import send_data_request_link
+
+    WaitlistSignup.objects.create(
+        page=priced,
+        email_encrypted=crypto.encrypt("ana@example.org"),
+        email_hash=crypto.email_hash("ana@example.org"),
+        consent_version="v",
+        expires_at=_future(),
+    )
+    assert send_data_request_link.ignore_result is True
+    assert send_data_request_link(crypto.encrypt("nobody@example.org"), "copy") is None
+
+    def boom(*a, **k):
+        raise OSError("550 ana@example.org refused")
+
+    monkeypatch.setattr(data_requests, "send_mail", boom)
+    assert send_data_request_link(crypto.encrypt("ana@example.org"), "copy") is None  # logged without the address
+
+
+def test_data_request_form_uses_turnstile_when_configured(settings, monkeypatch):
+    settings.TURNSTILE_SITE_KEY, settings.TURNSTILE_SECRET_KEY = "site", "secret"
+    html = lab_client().get("/data-request").content.decode()
+    assert 'class="cf-turnstile"' in html and "turnstile/v0/api.js" in html
+    r = dr(lab_client())
+    assert r.status_code == 400 and "human" in r.content.decode()
+
+
+def test_csv_cells_are_neutralised_behind_whitespace():
+    from lab.survey_views import _csv_cell
+
+    for bad in ["=1+1", " =1+1", "\n=1+1", "\t@x", "-2"]:
+        assert _csv_cell(bad).startswith("'"), repr(bad)
+    assert _csv_cell("A notebook") == "A notebook" and _csv_cell("") == ""
+
+
+def test_other_users_and_api_keys_cannot_touch_surveys(api, other_api, user, project, survey):
+    base = f"/api/projects/{project.id}/lab-surveys/{survey.id}"
+    answer(lab_client(), survey)
+    assert other_api.patch(base, {"title": "Mine now"}, format="json").status_code == 404
+    for action in ("publish", "close", "unpublish", "responses/delete"):
+        assert other_api.post(f"{base}/{action}", {"all": True}, format="json").status_code == 404, action
+    for view in ("responses", "responses-export", "stats", "results"):
+        assert other_api.get(f"{base}/{view}").status_code == 404, view
+    assert other_api.delete(base).status_code == 404
+    assert other_api.get("/api/lab/slug", {"slug": "stock-survey", "survey": survey.id}).json()["available"] is False
+    _, raw = issue_api_key(user, "mcp")
+    key = APIClient()
+    key.credentials(HTTP_AUTHORIZATION=f"Api-Key {raw}")
+    assert key.get(f"{base}/responses-export").status_code == 403
+    assert key.post(f"{base}/responses/delete", {"all": True}, format="json").status_code == 403
+    assert key.post(f"/api/projects/{project.id}/lab-notices").status_code == 403
+    assert key.post(f"/api/projects/{project.id}/lab-survey-suggest").status_code == 403
+    survey.refresh_from_db()
+    assert survey.title == "Stock counting" and survey.status == "published" and SurveyResponse.objects.count() == 1
+
+
+def test_changing_variants_starts_a_new_test_and_keeps_old_counts_apart(api, project, priced):
+    c = lab_client()
+    html = c.get("/p/stock-app").content.decode()
+    token = html.split('name="token" value="')[1].split('"')[0]
+    signed = signing.loads(token, salt=public.TOKEN_SALT)
+    priced.blocks = [PRICED[0], {**PRICED[1], "test_variants": [PRICED[1]["test_variants"][1]]}, PRICED[2]]  # B removed
+    priced.save()
+    old = signing.dumps({**signed, "t": int(time.time()) - 5}, salt=public.TOKEN_SALT)
+    c.post("/p/stock-app/join", {"email": "ana@example.org", "consent": "yes", "token": old})
+    assert WaitlistSignup.objects.get().variant is None  # signed up after the test changed: not attributed
+    pt = api.get(f"/api/projects/{project.id}/lab-pages/{priced.id}/stats").json()["price_test"]
+    assert [v["prices"][0]["price"] for v in pt["variants"]] == ["$9", "$29"]
+    assert all(v["views"] == 0 for v in pt["variants"])  # old counts never shown against the new prices
+    assert pt["previous"] == {"views": 1, "clicks": 0, "signups": 0}
+    priced.blocks = [PRICED[0], {"type": "pricing", "items": PRICED[1]["items"]}, PRICED[2]]  # test ended
+    priced.save()
+    pt = api.get(f"/api/projects/{project.id}/lab-pages/{priced.id}/stats").json()["price_test"]
+    assert pt["active"] is False and pt["variants"] == [] and pt["previous"]["views"] == 1

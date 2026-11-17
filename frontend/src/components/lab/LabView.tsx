@@ -5,7 +5,7 @@ import { ChevronRight, ExternalLink, Plus, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
-import { SurveyStatusBadge } from "@/components/lab/SurveyEditor";
+import { StatusBadge } from "@/components/lab/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -13,19 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { labKeys, useLabNotices, useLabSurveys } from "@/hooks/useLab";
 import { useProject } from "@/hooks/useResearch";
 import { starterBlocks } from "@/lib/lab";
-import { cn, safeHref } from "@/lib/utils";
+import { safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
-
-export const STATUS_LABEL = { draft: "Draft", published: "Live", unpublished: "Unpublished" } as const;
-const STATUS_STYLE = {
-  draft: "bg-muted text-muted-strong",
-  published: "bg-success/10 text-success-text",
-  unpublished: "bg-warning/10 text-warning-text",
-} as const;
-
-export function StatusBadge({ status }: { status: keyof typeof STATUS_LABEL }) {
-  return <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", STATUS_STYLE[status])}>{STATUS_LABEL[status]}</span>;
-}
 
 export function LabView({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
@@ -226,7 +215,7 @@ function Surveys({ projectId, canCreate }: { projectId: string; canCreate: boole
                   <Link href={`/projects/${projectId}/lab/surveys/${s.id}`} className="hover:underline">
                     {s.title}
                   </Link>
-                  <SurveyStatusBadge status={s.status} />
+                  <StatusBadge status={s.status} />
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {s.responses} answer{s.responses === 1 ? "" : "s"} · {s.questions.length} question{s.questions.length === 1 ? "" : "s"} · edited{" "}

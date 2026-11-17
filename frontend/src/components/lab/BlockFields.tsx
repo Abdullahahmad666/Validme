@@ -193,7 +193,8 @@ export function BlockFields({ block, onChange }: { block: Block; onChange: (b: B
                 <Plus aria-hidden /> Test another price (add variant {VARIANT_NAMES[variants.length]})
               </Button>
               <p className="text-xs text-muted-foreground">
-                Each visitor sees one variant. Change only the prices so the results compare like with like.
+                Each visitor sees one variant. Change only the prices so the results compare like with like. Changing, adding or
+                removing a variant starts a new comparison; earlier counts are kept apart.
               </p>
             </div>
           )}

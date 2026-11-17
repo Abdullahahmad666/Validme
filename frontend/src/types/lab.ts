@@ -53,7 +53,14 @@ export type Comparison = {
   z: number | null;
 };
 
-export type PriceTestResults = { active: boolean; variants: VariantResult[]; comparisons: Comparison[]; note: string };
+export type PriceTestResults = {
+  active: boolean;
+  variants: VariantResult[];
+  comparisons: Comparison[];
+  /** Counts from earlier versions of the test (other prices, or removed variants), never shown against current prices. */
+  previous: { views: number; clicks: number; signups: number } | null;
+  note: string;
+};
 
 export type LabStats = {
   views: number;

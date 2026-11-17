@@ -7,7 +7,7 @@
   <p>We'll email a confirmation link to the address. Nothing happens until you open it. Survey answers given without an email can't be linked to you, so they can't be found this way.</p>
 </section>
 {% if sent %}
-  <p class="ok" role="status">Thanks. If we hold anything for that address, we've emailed it a confirmation link (valid for 24 hours). Check your inbox and spam folder.</p>
+  <p class="ok" role="status">Thanks. If we hold anything for that address, we've emailed it a confirmation link (it works once, for 1 hour for a copy or 24 hours for deletion). Check your inbox and spam folder.</p>
 {% else %}
 <form method="post" action="/data-request">
   {% if error %}<p class="err" role="alert" id="form-error">{{ error }}</p>{% endif %}
@@ -20,6 +20,7 @@
   </fieldset>
   <div class="hp" aria-hidden="true"><label for="hp">Leave this empty</label><input id="hp" name="hp_extra" tabindex="-1" autocomplete="off"></div>
   <input type="hidden" name="token" value="{{ token }}">
+  {% if turnstile_site_key %}<div class="cf-turnstile" data-sitekey="{{ turnstile_site_key }}"></div>{% endif %}
   <button class="btn" type="submit">Email me a confirmation link</button>
 </form>
 {% endif %}

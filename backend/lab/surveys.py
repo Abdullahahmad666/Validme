@@ -43,6 +43,13 @@ _QUESTION = {
 _VALIDATOR = Draft202012Validator({"type": "array", "maxItems": MAX_QUESTIONS, "items": _QUESTION})
 
 
+def small_int(raw: str, max_digits: int = 3) -> int | None:
+    """A form or query value as a small non-negative int. ASCII digits only: str.isdigit() also accepts characters like
+    "²" that int() rejects, and huge digit strings are refused too."""
+    raw = raw or ""
+    return int(raw) if raw.isascii() and raw.isdigit() and len(raw) <= max_digits else None
+
+
 def clean_questions(questions: list) -> list:
     return clean_blocks(questions)
 
@@ -106,14 +113,14 @@ def parse_answers(questions: list, post) -> tuple[dict, dict, list[str]]:
         n_opts = len(q.get("options") or [])
         value: object = None
         if kind == "single":
-            raw = post.get(qid, "")
-            value = int(raw) if raw.isdigit() and int(raw) < n_opts else None
+            n = small_int(post.get(qid, ""))
+            value = n if n is not None and n < n_opts else None
         elif kind == "multi":
-            picked = {int(v) for v in post.getlist(qid)[:n_opts] if v.isdigit() and int(v) < n_opts}
+            picked = {n for n in (small_int(v) for v in post.getlist(qid)[:n_opts]) if n is not None and n < n_opts}
             value = sorted(picked) or None
         elif kind == "scale":
-            raw = post.get(qid, "")
-            value = int(raw) if raw.isdigit() and SCALE[0] <= int(raw) <= SCALE[1] else None
+            n = small_int(post.get(qid, ""))
+            value = n if n is not None and SCALE[0] <= n <= SCALE[1] else None
         elif kind == "text":
             text = clean_blocks((post.get(qid) or "")[:MAX_TEXT_ANSWER])
             if text:

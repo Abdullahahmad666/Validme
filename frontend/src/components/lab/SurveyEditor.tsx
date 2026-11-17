@@ -8,7 +8,10 @@ import { useId, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { QuestionFields } from "@/components/lab/QuestionFields";
 import { SampleWarning } from "@/components/lab/SampleWarning";
+import { type SlugCheck, SlugHint } from "@/components/lab/SlugHint";
+import { StatusBadge } from "@/components/lab/StatusBadge";
 import { AiLabel, HBar, Panel } from "@/components/report/parts";
+import { AISuggestedBadge } from "@/components/shared/AISuggestedBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -18,23 +21,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { labKeys, useAssumptions, useLabSurvey, useSurveyResponses, useSurveyResults } from "@/hooks/useLab";
 import { emptyQuestion, moveItem, nextQuestionId, pct, QUESTION_LABELS, RETENTION_OPTIONS, slugify, structureOf } from "@/lib/lab";
-import { cn, safeHref } from "@/lib/utils";
+import { safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
 import type { Question, QuestionType, Survey } from "@/types/lab";
 import type { Assumption } from "@/types/report";
 
 type Draft = Pick<Survey, "title" | "intro" | "slug" | "questions" | "ask_email" | "retention_days">;
-
-export const SURVEY_STATUS = {
-  draft: { label: "Draft", style: "bg-muted text-muted-strong" },
-  published: { label: "Live", style: "bg-success/10 text-success-text" },
-  closed: { label: "Closed", style: "bg-warning/10 text-warning-text" },
-  unpublished: { label: "Unpublished", style: "bg-warning/10 text-warning-text" },
-} as const;
-
-export function SurveyStatusBadge({ status }: { status: Survey["status"] }) {
-  return <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", SURVEY_STATUS[status].style)}>{SURVEY_STATUS[status].label}</span>;
-}
 
 function errorList(err: unknown): string[] {
   if (!(err instanceof ApiError)) return ["Something went wrong. Please try again."];
@@ -67,7 +59,8 @@ function Results({ projectId, surveyId, assumptions }: { projectId: string; surv
             <div className="rounded-control bg-muted/50 p-3">
               <dt className="text-xs text-muted-foreground">Response rate</dt>
               <dd className="text-2xl font-semibold tabular-nums">
-                {results.data.response_rate === null ? <span className="text-base text-muted-foreground">No views yet</span> : pct(results.data.response_rate, 1)}
+                {pct(results.data.response_rate, 1)}
+                {results.data.response_rate === null && <span className="block text-xs font-normal text-muted-foreground">No views yet</span>}
               </dd>
             </div>
           </dl>
@@ -124,10 +117,12 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
   const qc = useQueryClient();
   const list = useSurveyResponses(projectId, survey.id);
   const [confirmAll, setConfirmAll] = useState(false);
+  const [confirmOne, setConfirmOne] = useState<number | null>(null);
   const del = useMutation({
     mutationFn: (body: { ids?: number[]; all?: boolean }) => api.deleteLabSurveyResponses(projectId, survey.id, body),
     onSuccess: () => {
       setConfirmAll(false);
+      setConfirmOne(null);
       qc.invalidateQueries({ queryKey: labKeys.responses(projectId, survey.id) });
       qc.invalidateQueries({ queryKey: labKeys.results(projectId, survey.id) });
       qc.invalidateQueries({ queryKey: labKeys.survey(projectId, survey.id) });
@@ -160,6 +155,11 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
         <p className="text-sm text-muted-foreground">No answers yet.</p>
       ) : (
         <>
+          {survey.responses > rows.length && (
+            <p className="text-xs text-muted-foreground">
+              Showing the latest {rows.length} of {survey.responses}. Export CSV for all of them.
+            </p>
+          )}
           <ul className="divide-y divide-border">
             {rows.map((r) => (
               <li key={r.id} className="flex items-start justify-between gap-2 py-3 text-sm">
@@ -182,16 +182,29 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
                     ))}
                   </dl>
                 </div>
-                <Button size="icon" variant="ghost" className="size-11 shrink-0" disabled={del.isPending} onClick={() => del.mutate({ ids: [r.id] })} aria-label={`Delete the answers from ${fmtDate(r.submitted_at)}`}>
-                  <Trash2 aria-hidden />
-                </Button>
+                {confirmOne === r.id ? (
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <Button variant="destructive" className="min-h-11" disabled={del.isPending} onClick={() => del.mutate({ ids: [r.id] })}>
+                      Delete
+                    </Button>
+                    <Button variant="ghost" className="min-h-11" onClick={() => setConfirmOne(null)}>
+                      Cancel
+                    </Button>
+                  </span>
+                ) : (
+                  <Button size="icon" variant="ghost" className="size-11 shrink-0" onClick={() => setConfirmOne(r.id)} aria-label={`Delete the answers from ${fmtDate(r.submitted_at)}`}>
+                    <Trash2 aria-hidden />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {confirmAll ? (
               <>
-                <span className="text-sm">Delete all {rows.length} answers permanently?</span>
+                <span className="text-sm">
+                  Delete all {Math.max(survey.responses, rows.length)} answers permanently?
+                </span>
                 <Button variant="destructive" className="min-h-11" disabled={del.isPending} onClick={() => del.mutate({ all: true })}>
                   Delete all
                 </Button>
@@ -219,7 +232,7 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
 /** An inert approximation of the public survey, which the server renders on the pages origin. */
 export function SurveyPreview({ draft, consent }: { draft: Draft; consent: string }) {
   return (
-    <div className="rounded-card border border-border bg-background p-5 text-sm" aria-label="Survey preview">
+    <div role="group" className="rounded-card border border-border bg-background p-5 text-sm" aria-label="Survey preview">
       <p className="text-2xl font-bold leading-tight">{draft.title || "Your survey"}</p>
       {draft.intro && <p className="mt-2 whitespace-pre-line text-muted-foreground">{draft.intro}</p>}
       {draft.questions.length === 0 && <p className="mt-4 text-muted-foreground">Add questions to see the survey.</p>}
@@ -228,7 +241,15 @@ export function SurveyPreview({ draft, consent }: { draft: Draft; consent: strin
           <li key={q.id} className="rounded-control border border-border bg-card p-3">
             <p className="font-semibold">
               {i + 1}. {q.prompt || "Question"}
-              {q.required && <span className="text-destructive-text"> *</span>}
+              {q.required && (
+                <>
+                  <span className="text-destructive-text" aria-hidden>
+                    {" "}
+                    *
+                  </span>
+                  <span className="sr-only"> (required)</span>
+                </>
+              )}
             </p>
             {q.help && <p className="text-xs text-muted-foreground">{q.help}</p>}
             {(q.type === "single" || q.type === "multi") && (
@@ -275,9 +296,13 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
     retention_days: survey.retention_days,
   });
   const [dirty, setDirty] = useState(false);
-  const [slugNote, setSlugNote] = useState("");
+  const [slugCheck, setSlugCheck] = useState<SlugCheck>({ state: "idle" });
   const [addType, setAddType] = useState<QuestionType>("single");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [statusNote, setStatusNote] = useState("");
+  // Questions added from an AI suggestion keep their label until the survey is saved (design rule: AI values stay marked
+  // until the founder confirms them).
+  const [aiIds, setAiIds] = useState<Set<string>>(new Set());
   const live = survey.status === "published" || survey.status === "closed";
   const locked = survey.responses > 0;
   const structureChanged = locked && structureOf(draft.questions) !== structureOf(survey.questions);
@@ -289,10 +314,17 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
   const refresh = (s: Survey) => {
     qc.setQueryData(labKeys.survey(projectId, survey.id), s);
     qc.invalidateQueries({ queryKey: labKeys.surveys(projectId) });
+    // The server cleans text (trims, strips control characters): show what was actually saved.
+    setDraft({ title: s.title, intro: s.intro, slug: s.slug, questions: s.questions, ask_email: s.ask_email, retention_days: s.retention_days });
+    setAiIds(new Set());
   };
   const body = () => ({ ...draft, slug: draft.slug || null });
   const save = useMutation({
     mutationFn: () => api.updateLabSurvey(projectId, survey.id, body()),
+    onMutate: () => {
+      state.reset();
+      setStatusNote("");
+    },
     onSuccess: (s) => {
       setDirty(false);
       refresh(s);
@@ -300,15 +332,26 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
   });
   const state = useMutation({
     mutationFn: async (action: "publish" | "close" | "unpublish") => {
-      if (action === "publish" && dirty) await api.updateLabSurvey(projectId, survey.id, body());
+      if (action === "publish" && dirty) {
+        refresh(await api.updateLabSurvey(projectId, survey.id, body()));
+        setDirty(false);
+      }
       return api.setLabSurveyState(projectId, survey.id, action);
     },
-    onSuccess: (s) => {
+    onMutate: () => save.reset(),
+    onSuccess: (s, action) => {
       setDirty(false);
       refresh(s);
+      setStatusNote(
+        action === "publish"
+          ? "Your survey is live."
+          : action === "close"
+            ? "Closed: the address now says the survey takes no more answers."
+            : "Unpublished: its address now shows “not found”.",
+      );
     },
   });
-  const suggest = useMutation({ mutationFn: () => api.labSurveySuggest(projectId) });
+  const suggest = useMutation({ mutationFn: () => api.labSurveySuggest(projectId), onSuccess: (r) => setOffered(r.questions) });
   const remove = useMutation({
     mutationFn: () => api.deleteLabSurvey(projectId, survey.id),
     onSuccess: () => {
@@ -317,29 +360,35 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
     },
   });
   const checkSlug = async () => {
-    if (!draft.slug) return setSlugNote("");
+    if (!draft.slug) return setSlugCheck({ state: "idle" });
     try {
       const r = await api.labSlug(draft.slug, { survey: survey.id });
-      setSlugNote(r.available ? "Available" : r.reason);
+      setSlugCheck(r.available ? { state: "available" } : { state: "taken", reason: r.reason });
     } catch {
-      setSlugNote("");
+      setSlugCheck({ state: "error" });
     }
   };
+  const [offered, setOffered] = useState<Question[]>([]);
   const addSuggested = (questions: Question[]) => {
     let next = [...draft.questions];
+    const added = new Set(aiIds);
     for (const q of questions) {
       if (next.length >= 12) break;
-      next = [...next, { ...q, id: nextQuestionId(next) }];
+      const id = nextQuestionId(next);
+      next = [...next, { ...q, id }];
+      added.add(id);
     }
     edit({ questions: next });
-    suggest.reset();
+    setAiIds(added);
+    setOffered((o) => o.filter((x) => !questions.includes(x)));
   };
+  const room = 12 - draft.questions.length;
   const assumptionText = (id?: number | null) => (assumptions.data ?? []).find((a) => a.id === id)?.text;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <div className="flex flex-col gap-5">
-        <Panel title="Survey" as="h2" aside={<SurveyStatusBadge status={survey.status} />}>
+        <Panel title="Survey" as="h2" aside={<StatusBadge status={survey.status} />}>
           <div className="grid gap-3">
             <div className="flex flex-col gap-1">
               <Label htmlFor={ids.title}>Title</Label>
@@ -363,14 +412,16 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
                   maxLength={48}
                   disabled={live}
                   placeholder={slugify(draft.title) || "your-survey"}
-                  onChange={(e) => edit({ slug: slugify(e.target.value) || null })}
+                  onChange={(e) => {
+                    edit({ slug: slugify(e.target.value) || null });
+                    setSlugCheck({ state: "idle" });
+                  }}
                   onBlur={checkSlug}
+                  aria-invalid={(!live && slugCheck.state === "taken") || undefined}
                   aria-describedby={`${ids.slug}-hint`}
                 />
               </div>
-              <p id={`${ids.slug}-hint`} className={cn("text-xs", slugNote && slugNote !== "Available" ? "text-destructive-text" : "text-muted-foreground")}>
-                {live ? "Unpublish to change the address (links people have would break)." : slugNote || "Lowercase letters, numbers and hyphens."}
-              </p>
+              <SlugHint id={`${ids.slug}-hint`} live={live} check={slugCheck} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
@@ -415,28 +466,43 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
               {suggest.error instanceof ApiError ? suggest.error.message : "Couldn't get suggestions."}
             </p>
           )}
-          {suggest.isSuccess && (
+          {suggest.isSuccess && offered.length > 0 && (
             <div className="mb-4 rounded-control bg-ai/[0.06] p-3 text-sm">
               <AiLabel>AI suggestion: edit before publishing</AiLabel>
               <p className="mt-1 text-muted-foreground">
                 One neutral question per assumption, about what people do today rather than whether they&apos;d buy. Check each one reads
                 fairly.
               </p>
-              <ul className="mt-2 flex flex-col gap-1.5">
-                {suggest.data.questions.map((q) => (
-                  <li key={q.id}>
-                    <span className="font-medium">{q.prompt}</span> <span className="text-xs text-muted-foreground">({QUESTION_LABELS[q.type]})</span>
-                    {assumptionText(q.assumption_id) && <span className="block text-xs text-muted-foreground">Tests: &ldquo;{assumptionText(q.assumption_id)}&rdquo;</span>}
+              <ul className="mt-2 flex flex-col divide-y divide-border">
+                {offered.map((q) => (
+                  <li key={q.id} className="flex flex-wrap items-start justify-between gap-2 py-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="font-medium">{q.prompt}</span> <span className="text-xs text-muted-foreground">({QUESTION_LABELS[q.type]})</span>
+                      {assumptionText(q.assumption_id) && <span className="block text-xs text-muted-foreground">Tests: &ldquo;{assumptionText(q.assumption_id)}&rdquo;</span>}
+                    </span>
+                    <span className="flex gap-1">
+                      <Button variant="outline" className="min-h-11" disabled={room <= 0} onClick={() => addSuggested([q])}>
+                        Use<span className="sr-only">: {q.prompt}</span>
+                      </Button>
+                      <Button variant="ghost" className="min-h-11" onClick={() => setOffered((o) => o.filter((x) => x !== q))}>
+                        Dismiss<span className="sr-only">: {q.prompt}</span>
+                      </Button>
+                    </span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button className="min-h-11" onClick={() => addSuggested(suggest.data.questions)}>
-                  Add these questions
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Button className="min-h-11" disabled={room <= 0} onClick={() => addSuggested(offered)}>
+                  Use all
                 </Button>
-                <Button variant="ghost" className="min-h-11" onClick={() => suggest.reset()}>
-                  Dismiss
+                <Button variant="ghost" className="min-h-11" onClick={() => setOffered([])}>
+                  Dismiss all
                 </Button>
+                {offered.length > room && (
+                  <p className="text-xs text-muted-foreground">
+                    A survey has at most 12 questions: {room > 0 ? `only ${room} more fit` : "remove one to add more"}.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -445,8 +511,11 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
             {draft.questions.map((q, i) => (
               <li key={q.id} className="rounded-control border border-border p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">
-                    Question {i + 1} <span className="font-normal text-muted-foreground">· {QUESTION_LABELS[q.type]}</span>
+                  <h3 className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                    <span>
+                      Question {i + 1} <span className="font-normal text-muted-foreground">· {QUESTION_LABELS[q.type]}</span>
+                    </span>
+                    {aiIds.has(q.id) && <AISuggestedBadge />}
                   </h3>
                   {!locked && (
                     <span className="flex gap-1">
@@ -492,7 +561,7 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
           )}
         </Panel>
 
-        <div className="sticky bottom-16 z-10 flex flex-wrap items-center gap-2 rounded-card border border-border bg-card p-3 shadow-sm lg:bottom-4">
+        <div className="sticky bottom-16 z-10 md:bottom-4 flex flex-wrap items-center gap-2 rounded-card border border-border bg-card p-3 shadow-sm">
           <Button className="min-h-11" onClick={() => save.mutate()} disabled={!dirty || save.isPending || structureChanged}>
             {save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </Button>
@@ -549,15 +618,9 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
               ))}
             </ul>
           )}
-          {state.isSuccess && (
-            <p role="status" className="w-full text-sm text-muted-foreground">
-              {survey.status === "published"
-                ? "Your survey is live."
-                : survey.status === "closed"
-                  ? "Closed: the address now says the survey takes no more answers."
-                  : "Unpublished: its address now shows “not found”."}
-            </p>
-          )}
+          <p role="status" className="w-full text-sm text-muted-foreground empty:hidden">
+            {statusNote}
+          </p>
         </div>
       </div>
 
@@ -586,7 +649,7 @@ export function SurveyEditor({ projectId, surveyId }: { projectId: string; surve
       <nav aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           <li className="flex items-center gap-1.5">
-            <Link href={`/projects/${projectId}/lab`} className="hover:text-foreground">
+            <Link href={`/projects/${projectId}/lab`} className="inline-flex min-h-11 items-center hover:text-foreground">
               Validation Lab
             </Link>
             <ChevronRight className="size-3.5" aria-hidden />
@@ -602,7 +665,7 @@ export function SurveyEditor({ projectId, surveyId }: { projectId: string; surve
       ) : survey.isError ? (
         <ErrorState title="Couldn't load the survey" onRetry={() => survey.refetch()} />
       ) : (
-        <Editor key={survey.data.updated_at} projectId={projectId} survey={survey.data} />
+        <Editor key={survey.data.id} projectId={projectId} survey={survey.data} />
       )}
     </div>
   );

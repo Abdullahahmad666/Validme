@@ -23,9 +23,10 @@ def purge_expired_responses() -> int:
     return n
 
 
-@shared_task
-def send_data_request_link(encrypted_email: str, kind: str) -> bool:
-    """Email a respondent the confirm link for a copy/deletion request (only if anything is held for the address)."""
+@shared_task(ignore_result=True)
+def send_data_request_link(encrypted_email: str, kind: str) -> None:
+    """Email a respondent the confirm link for a copy/deletion request (only if anything is held for the address).
+    No result is stored and nothing is returned: either would say whether the address is held."""
     from lab.data_requests import send_link
 
-    return send_link(encrypted_email, kind)
+    send_link(encrypted_email, kind)

@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { BlockFields, blockTitle } from "@/components/lab/BlockFields";
-import { StatusBadge } from "@/components/lab/LabView";
+import { type SlugCheck, SlugHint } from "@/components/lab/SlugHint";
+import { StatusBadge } from "@/components/lab/StatusBadge";
 import { PagePreview } from "@/components/lab/PagePreview";
 import { AiLabel, Panel } from "@/components/report/parts";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -18,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SampleWarning } from "@/components/lab/SampleWarning";
 import { BLOCK_LABELS, comparisonText, emptyBlock, moveItem, pct, RETENTION_OPTIONS, slugify } from "@/lib/lab";
-import { cn, safeHref } from "@/lib/utils";
+import { safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
 import type { Block, BlockType, LabPage, PriceTestResults } from "@/types/lab";
 
@@ -72,9 +73,26 @@ function Stats({ projectId, pageId }: { projectId: string; pageId: number }) {
 }
 
 function PriceTest({ result }: { result: PriceTestResults }) {
+  const earlier = result.previous ? (
+    <p className="mt-2 text-xs text-muted-foreground">
+      Earlier versions of this test (other prices, or variants since removed) had {result.previous.views} view
+      {result.previous.views === 1 ? "" : "s"}, {result.previous.clicks} &ldquo;choose&rdquo; click{result.previous.clicks === 1 ? "" : "s"} and{" "}
+      {result.previous.signups} sign-up{result.previous.signups === 1 ? "" : "s"}. They&apos;re kept apart so counts are only shown next to the
+      prices people saw.
+    </p>
+  ) : null;
+  if (!result.active) {
+    return (
+      <div className="mt-4">
+        <h3 className="text-sm font-semibold">Price test (ended)</h3>
+        {earlier}
+      </div>
+    );
+  }
+  const small = result.variants.filter((v) => v.sample.level === "too_small" || v.sample.level === "small");
   return (
     <div className="mt-4">
-      <h3 className="text-sm font-semibold">Price test{result.active ? "" : " (ended: variants were removed from the page)"}</h3>
+      <h3 className="text-sm font-semibold">Price test</h3>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full min-w-[28rem] text-left text-sm">
           <caption className="sr-only">Views, choose clicks and sign-ups per price variant</caption>
@@ -91,7 +109,7 @@ function PriceTest({ result }: { result: PriceTestResults }) {
             {result.variants.map((v) => (
               <tr key={v.variant}>
                 <th scope="row" className="py-2 pr-2 font-semibold">{v.variant}</th>
-                <td className="py-2 pr-2">{v.prices.length ? v.prices.map((p) => `${p.name} ${p.price}${p.period ? ` ${p.period}` : ""}`).join(" · ") : "Unavailable"}</td>
+                <td className="py-2 pr-2">{v.prices.map((p) => `${p.name} ${p.price}${p.period ? ` ${p.period}` : ""}`).join(" · ")}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{v.views}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">
                   {v.clicks} <span className="text-xs text-muted-foreground">({pct(v.click_rate, 1)})</span>
@@ -104,6 +122,9 @@ function PriceTest({ result }: { result: PriceTestResults }) {
           </tbody>
         </table>
       </div>
+      {small.map((v) => (
+        <SampleWarning key={v.variant} sample={{ ...v.sample, message: `Variant ${v.variant}: ${v.sample.message}` }} />
+      ))}
       <ul className="mt-2 flex flex-col gap-1 text-sm">
         {result.comparisons.map((c) => (
           <li key={`${c.metric}-${c.b}`} className="flex items-start gap-1.5">
@@ -120,6 +141,7 @@ function PriceTest({ result }: { result: PriceTestResults }) {
         {result.note} &ldquo;—&rdquo; means no views yet. A click on &ldquo;Choose&rdquo; is interest, not a payment: nothing is
         charged.
       </p>
+      {earlier}
     </div>
   );
 }
@@ -210,7 +232,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
   const ids = { title: useId(), slug: useId(), retention: useId(), add: useId() };
   const [draft, setDraft] = useState<Draft>({ title: page.title, slug: page.slug, blocks: page.blocks, retention_days: page.retention_days });
   const [dirty, setDirty] = useState(false);
-  const [slugNote, setSlugNote] = useState("");
+  const [slugCheck, setSlugCheck] = useState<SlugCheck>({ state: "idle" });
   const [addType, setAddType] = useState<BlockType>("problem");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const live = page.status === "published";
@@ -248,12 +270,12 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
     },
   });
   const checkSlug = async () => {
-    if (!draft.slug) return setSlugNote("");
+    if (!draft.slug) return setSlugCheck({ state: "idle" });
     try {
       const r = await api.labSlug(draft.slug, { page: page.id });
-      setSlugNote(r.available ? "Available" : r.reason);
+      setSlugCheck(r.available ? { state: "available" } : { state: "taken", reason: r.reason });
     } catch {
-      setSlugNote("");
+      setSlugCheck({ state: "error" });
     }
   };
   const applySuggested = (blocks: Block[]) => {
@@ -280,14 +302,16 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
                   maxLength={48}
                   disabled={live}
                   placeholder={slugify(draft.title) || "your-idea"}
-                  onChange={(e) => edit({ slug: slugify(e.target.value) || null })}
+                  onChange={(e) => {
+                    edit({ slug: slugify(e.target.value) || null });
+                    setSlugCheck({ state: "idle" });
+                  }}
                   onBlur={checkSlug}
+                  aria-invalid={(!live && slugCheck.state === "taken") || undefined}
                   aria-describedby={`${ids.slug}-hint`}
                 />
               </div>
-              <p id={`${ids.slug}-hint`} className={cn("text-xs", slugNote && slugNote !== "Available" ? "text-destructive-text" : "text-muted-foreground")}>
-                {live ? "Unpublish to change the address (links people have would break)." : slugNote || "Lowercase letters, numbers and hyphens."}
-              </p>
+              <SlugHint id={`${ids.slug}-hint`} live={live} check={slugCheck} />
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={ids.retention}>Keep sign-ups for</Label>
@@ -389,7 +413,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
           )}
         </Panel>
 
-        <div className="sticky bottom-16 z-10 flex flex-wrap items-center gap-2 rounded-card border border-border bg-card p-3 shadow-sm lg:bottom-4">
+        <div className="sticky bottom-16 z-10 md:bottom-4 flex flex-wrap items-center gap-2 rounded-card border border-border bg-card p-3 shadow-sm">
           <Button className="min-h-11" onClick={() => save.mutate()} disabled={!dirty || save.isPending}>
             {save.isPending ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </Button>

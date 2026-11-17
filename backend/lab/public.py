@@ -31,6 +31,7 @@ from rest_framework.throttling import BaseThrottle
 from lab import crypto
 from lab.blocks import price_test
 from lab.models import LabDailyStat, LabPage, LabVariantStat, WaitlistSignup
+from lab.surveys import small_int
 
 logger = logging.getLogger(__name__)
 
@@ -78,10 +79,11 @@ def _bump(page: LabPage, field: str) -> None:
     LabDailyStat.objects.filter(page=page, day=today).update(**{field: F(field) + 1})
 
 
-def _token(page: LabPage, variant: int | None = None) -> str:
+def _token(page: LabPage, variant: int | None = None, test_key: str = "") -> str:
     data = {"p": page.pk, "t": int(time.time())}
     if variant is not None:
         data["v"] = variant  # signed, so a sign-up is counted for the price the person actually saw
+        data["k"] = test_key  # ...in the version of the test they saw
     return signing.dumps(data, salt=TOKEN_SALT)
 
 
@@ -103,13 +105,21 @@ def _variant_for(request, page: LabPage, n: int) -> int:
     """Which price variant this visitor sees, without cookies: from the hashed client address (kept only in memory),
     the page and the day. Reloads show the same prices; another network or another day may show another variant."""
     digest = hashlib.sha256(f"{_ip_key(request)}|{page.pk}|{timezone.localdate()}".encode()).digest()
-    return digest[0] % n
+    return int.from_bytes(digest[:8], "big") % n
 
 
-def _bump_variant(page: LabPage, variant: int, field: str) -> None:
+def _bump_variant(page: LabPage, test_key: str, variant: int, field: str) -> None:
     today = timezone.localdate()
-    LabVariantStat.objects.get_or_create(page=page, variant=variant, day=today)
-    LabVariantStat.objects.filter(page=page, variant=variant, day=today).update(**{field: F(field) + 1})
+    LabVariantStat.objects.get_or_create(page=page, test_key=test_key, variant=variant, day=today)
+    LabVariantStat.objects.filter(page=page, test_key=test_key, variant=variant, day=today).update(**{field: F(field) + 1})
+
+
+def _seen_variant(token: dict, test: dict | None) -> int | None:
+    """The variant a signed token says was shown, if it belongs to the current version of the test."""
+    v = token.get("v")
+    if test is None or not isinstance(v, int) or not 0 <= v < len(test["variants"]) or token.get("k") != test["key"]:
+        return None
+    return v
 
 
 def _with_variant(blocks: list, test: dict | None, variant: int | None) -> list:
@@ -207,8 +217,9 @@ def _context(request, page: LabPage, *, variant: int | None = None, **extra) -> 
         **base_context(request, page.slug or ""),
         "page": page,
         "blocks": _with_variant(page.blocks, test, variant),
-        "token": _token(page, variant),
+        "token": _token(page, variant, test["key"] if test else ""),
         "consent": consent_text(page.retention_days),
+        "uses_form": True,
         **extra,
     }
 
@@ -228,9 +239,9 @@ def page_view(request, slug: str):
     test = price_test(page.blocks)
     variant = _variant_for(request, page, len(test["variants"])) if test else None
     picked = None
-    raw_pick = request.GET.get("picked", "")
-    if test and raw_pick.isdigit() and int(raw_pick) < len(test["variants"][variant]):
-        picked = test["variants"][variant][int(raw_pick)].get("name")
+    pick = small_int(request.GET.get("picked", ""))
+    if test and pick is not None and pick < len(test["variants"][variant]):
+        picked = test["variants"][variant][pick].get("name")
     ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
     if not joined and not error and picked is None and ua and not any(b in ua for b in BOT_UA):
         # First-party count only: no cookie, no stored IP, no visitor id. One view per client per page per day (the
@@ -238,7 +249,7 @@ def page_view(request, slug: str):
         if cache.add(f"lab:v:{_ip_key(request)}:{page.pk}:{timezone.localdate()}", 1, 86400):
             _bump(page, "views")
             if variant is not None:
-                _bump_variant(page, variant, "views")
+                _bump_variant(page, test["key"], variant, "views")
     # Which field the error is about, so the form can mark it (aria-invalid) and point to the message.
     field = {"email": "email", "consent": "consent"}.get(code, "") if error else ""
     ctx = _context(request, page, variant=variant, joined=joined, error=error, error_field=field, picked=picked)
@@ -248,7 +259,7 @@ def page_view(request, slug: str):
 @csrf_exempt  # no cookies on this origin; the signed, page-bound token says which variant the person saw
 @require_POST
 def choose(request, slug: str):
-    """A visitor pressed "Choose" on a price being tested. Counted once per client per option per day, then sent to the
+    """A visitor pressed "Choose" on a price being tested. Counted once per client per variant per day, then sent to the
     waitlist with an honest note: it isn't available and nothing is charged."""
     page = _published(slug)
     if page is None:
@@ -256,17 +267,17 @@ def choose(request, slug: str):
     back = f"/p/{page.slug}"
     test = price_test(page.blocks)
     data = _token_data(request.POST.get("token", ""), page, min_age=1)
-    raw = request.POST.get("option", "")
-    if test is None or data is None or not isinstance(data.get("v"), int) or not 0 <= data["v"] < len(test["variants"]):
+    option = small_int(request.POST.get("option", ""))
+    variant = _seen_variant(data, test) if data is not None else None
+    if variant is None:
         return HttpResponseRedirect(f"{back}#join", status=303)
-    variant = data["v"]
-    if not raw.isdigit() or int(raw) >= len(test["variants"][variant]):
+    if option is None or option >= len(test["variants"][variant]):
         return HttpResponseRedirect(f"{back}#join", status=303)
     ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
     once = f"lab:c:{_ip_key(request)}:{page.pk}:{variant}:{timezone.localdate()}"
     if ua and not any(b in ua for b in BOT_UA) and cache.add(once, 1, 86400):
-        _bump_variant(page, variant, "clicks")
-    return HttpResponseRedirect(f"{back}?picked={int(raw)}#join", status=303)
+        _bump_variant(page, test["key"], variant, "clicks")
+    return HttpResponseRedirect(f"{back}?picked={option}#join", status=303)
 
 
 @csrf_exempt  # no cookies or sessions on this origin; protected by the signed, page-bound form token instead
@@ -282,7 +293,7 @@ def join(request, slug: str):
     if token is None:
         return HttpResponseRedirect(f"{back}?error=expired#join", status=303)
     test = price_test(page.blocks)
-    variant = token.get("v") if test and isinstance(token.get("v"), int) and 0 <= token["v"] < len(test["variants"]) else None
+    variant = _seen_variant(token, test)
     if _rate_limited(request, page):
         return HttpResponseRedirect(f"{back}?error=busy#join", status=303)
     email = (request.POST.get("email") or "").strip()
@@ -312,7 +323,7 @@ def join(request, slug: str):
             )
         _bump(page, "signups")
         if variant is not None:
-            _bump_variant(page, variant, "signups")
+            _bump_variant(page, test["key"], variant, "signups")
     except IntegrityError:
         pass  # already on the list: same answer as a new sign-up, so nobody can test whether an address joined
     return HttpResponseRedirect(f"{back}?joined=1#join", status=303)

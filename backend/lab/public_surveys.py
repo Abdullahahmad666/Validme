@@ -102,6 +102,7 @@ def _render(request, survey: Survey, *, status: int = 200, **extra):
         "closed": survey.status == Survey.Status.CLOSED,
         **extra,
     }
+    ctx["uses_form"] = not ctx["closed"] and not ctx.get("done")
     return render(request, "lab/survey.html", ctx, status=status)
 
 
@@ -140,8 +141,6 @@ def answer(request, slug: str):
 
     if not _token_ok(request.POST.get("token", ""), survey):
         return again("expired")
-    if _rate_limited(request, f"s{survey.pk}"):
-        return again("busy")
     if missing:
         return again("required")
     if email:
@@ -153,6 +152,8 @@ def answer(request, slug: str):
             return again("email", "email")
     if request.POST.get("consent") != "yes":
         return again("consent", "consent")
+    if _rate_limited(request, f"s{survey.pk}"):  # counted once the answers are complete, so fixing a mistake is free
+        return again("busy")
     if not _turnstile_ok(request):
         return again("check")
     if _hit(f"lab:rl:survey:{survey.pk}", *SURVEY_LIMIT):

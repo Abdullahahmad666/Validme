@@ -180,6 +180,8 @@ if not DEBUG:
         raise RuntimeError("Set LAB_HOST to the public pages domain when DEBUG is off.")
     if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
         raise RuntimeError("Set both TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, or neither.")
+    if env.bool("CELERY_TASK_ALWAYS_EAGER", default=False):
+        raise RuntimeError("CELERY_TASK_ALWAYS_EAGER must be off when DEBUG is off (data requests rely on queued email).")
     if not CONTACT_EMAIL:
         raise RuntimeError("Set CONTACT_EMAIL when DEBUG is off: visitors need a way to report a page.")
     if LAB_HOST.split(":")[0].lower() == (_urlsplit(FRONTEND_URL).hostname or "").lower():

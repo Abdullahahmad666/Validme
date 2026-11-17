@@ -116,7 +116,7 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D2 Pricing smoke test (variants, honest "not available yet")
 - [x] D3 Results dashboard with sample-size warnings
 - [x] D4 Export, deletion, respondent data requests
-- [ ] D5 Gate
+- [x] D5 Gate
 
 ### Week 15 — Close the loop
 - [ ] D1 Experiment results as tier-1 evidence in scoring

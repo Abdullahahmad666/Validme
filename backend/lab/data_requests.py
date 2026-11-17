@@ -14,6 +14,7 @@ removes something from their project, so they can also delete any CSV they expor
 from __future__ import annotations
 
 import json
+import logging
 import time
 
 from django.conf import settings
@@ -30,14 +31,20 @@ from django.views.decorators.http import require_http_methods
 
 from lab import crypto
 from lab.models import DataRequest, DataRequestNotice, SurveyResponse, WaitlistSignup
-from lab.public import TOKEN_MAX_AGE, TOKEN_MIN_AGE, _hit, _ip_key, base_context
+from lab.public import TOKEN_MAX_AGE, TOKEN_MIN_AGE, _hit, _ip_key, _turnstile_ok, base_context
+
+logger = logging.getLogger(__name__)
 
 FORM_SALT = "lab.dr.form.v1"
 LINK_SALT = "lab.dr.link.v1"
-LINK_MAX_AGE = 24 * 3600
+LINK_MAX_AGE = {"copy": 3600, "delete": 24 * 3600}  # a copy link shows personal data, so it lives shorter
+LINK_WORDS = {"copy": "1 hour", "delete": "24 hours"}
 KINDS = {"copy": "a copy of", "delete": "deletion of"}
 LIMITS = ((5, 3600),)  # per hashed client address
-PER_ADDRESS = 3600  # at most one email per address per hour, so the form can't be used to flood someone's inbox
+GLOBAL_LIMIT = (300, 3600)  # requests queued per hour across the site
+# Emails actually sent per address (counted in the task, only when data is held, per kind): one an hour and three a
+# day, so the form can't flood an inbox, and a stranger's request can't block the owner's other kind of request.
+PER_ADDRESS = ((1, 3600), (3, 86400))
 
 
 def _form_token() -> str:
@@ -53,15 +60,22 @@ def _form_token_ok(raw: str) -> bool:
 
 
 def link_token(email_hash: str, kind: str) -> str:
-    return signing.dumps({"h": email_hash, "k": kind}, salt=LINK_SALT)
+    import secrets
+
+    # `j` makes each link single-use (burned on the confirming POST), so a link seen in a log can't be replayed.
+    return signing.dumps({"h": email_hash, "k": kind, "j": secrets.token_hex(12)}, salt=LINK_SALT)
 
 
 def _link_data(raw: str) -> dict | None:
     try:
-        data = signing.loads(raw or "", salt=LINK_SALT, max_age=LINK_MAX_AGE)
+        data = signing.loads(raw or "", salt=LINK_SALT, max_age=max(LINK_MAX_AGE.values()))
     except signing.BadSignature:
         return None
-    if not isinstance(data, dict) or data.get("k") not in KINDS or not isinstance(data.get("h"), str):
+    if not isinstance(data, dict) or data.get("k") not in KINDS or not isinstance(data.get("h"), str) or not data.get("j"):
+        return None
+    try:  # each kind has its own lifetime
+        signing.loads(raw, salt=LINK_SALT, max_age=LINK_MAX_AGE[data["k"]])
+    except signing.SignatureExpired:
         return None
     return data
 
@@ -73,24 +87,29 @@ def _held(email_hash: str):
     return signups, responses
 
 
-def send_link(encrypted_email: str, kind: str) -> bool:
-    """Called from the background task. Emails the confirm link only when something is held for the address."""
+def send_link(encrypted_email: str, kind: str) -> None:
+    """Called from the background task. Emails the confirm link only when something is held for the address. Returns
+    nothing and logs no address, so neither task results nor logs say whether an address is held."""
     email = crypto.decrypt(encrypted_email)
     if not email or kind not in KINDS:
-        return False
+        return
     h = crypto.email_hash(email)
     signups, responses = _held(h)
     if not signups.exists() and not responses.exists():
-        return False
+        return
+    if any(_hit(f"lab:dr:addr:{h}:{kind}:{sec}", n, sec) for n, sec in PER_ADDRESS):
+        return
     link = f"{settings.LAB_ORIGIN.rstrip('/')}/data-request/confirm?t={link_token(h, kind)}"
     brand = settings.VALIDME_BRAND
     body = (
         f"Someone (hopefully you) asked {brand} for {KINDS[kind]} what founders' test pages and surveys hold for this "
-        f"email address.\n\nTo confirm, open this link within 24 hours:\n{link}\n\n"
+        f"email address.\n\nTo confirm, open this link within {LINK_WORDS[kind]}. It works once:\n{link}\n\n"
         "If it wasn't you, ignore this email: nothing happens without the link.\n"
     )
-    send_mail(f"Confirm your data request ({brand})", body, settings.DEFAULT_FROM_EMAIL, [email])
-    return True
+    try:
+        send_mail(f"Confirm your data request ({brand})", body, settings.DEFAULT_FROM_EMAIL, [email])
+    except Exception:  # noqa: BLE001 - SMTP errors carry the address; log without it
+        logger.warning("data request email could not be sent")
 
 
 def _render(request, template: str, status: int = 200, **extra):
@@ -101,14 +120,22 @@ def _render(request, template: str, status: int = 200, **extra):
 @require_http_methods(["GET", "POST"])
 def request_form(request):
     if request.method == "GET":
-        return _render(request, "lab/data_request.html", token=_form_token())
+        return _render(request, "lab/data_request.html", token=_form_token(), uses_form=True)
     kind = request.POST.get("kind", "")
     email = (request.POST.get("email") or "").strip()
     sent = _render(request, "lab/data_request.html", sent=True)
 
     def again(message: str, field: str = ""):
         return _render(
-            request, "lab/data_request.html", status=400, token=_form_token(), error=message, error_field=field, email=email, kind=kind
+            request,
+            "lab/data_request.html",
+            status=400,
+            token=_form_token(),
+            error=message,
+            error_field=field,
+            email=email,
+            kind=kind,
+            uses_form=True,
         )
 
     if request.POST.get("hp_extra"):
@@ -125,11 +152,18 @@ def request_form(request):
         validate_email(email)
     except ValidationError:
         return again("Please enter a valid email address.", "email")
-    if cache.add(f"lab:dr:addr:{crypto.email_hash(email)}", 1, PER_ADDRESS):
-        from lab.tasks import send_data_request_link
+    if not _turnstile_ok(request):
+        return again("We couldn't confirm you're human. Please try again.")
+    if _hit("lab:dr:global", *GLOBAL_LIMIT):
+        return again("We're getting a lot of requests right now. Please try again later.")
+    from lab.tasks import send_data_request_link
 
-        # Always queued (match or not) and only encrypted in the queue: same response and timing either way.
+    # Always queued (match or not, and per-address caps are applied in the task) and only encrypted in the queue: the
+    # same response and timing either way. Settings refuse eager tasks in production for this reason.
+    try:
         send_data_request_link.delay(crypto.encrypt(email), kind)
+    except Exception:  # noqa: BLE001 - a broker outage must not answer differently for different addresses
+        logger.warning("data request could not be queued")
     return sent
 
 
@@ -143,6 +177,8 @@ def confirm(request):
     kind, h = data["k"], data["h"]
     if request.method == "GET":
         return _render(request, "lab/data_request_done.html", confirm=True, kind=kind, token=raw)
+    if not cache.add(f"lab:dr:used:{data['j']}", 1, max(LINK_MAX_AGE.values())):
+        return _render(request, "lab/data_request_done.html", status=400, invalid=True, used=True)
     signups, responses = _held(h)
     if kind == "copy":
         items = [
