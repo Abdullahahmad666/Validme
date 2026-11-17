@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "notifications",
     "mailer",
     "radar",
+    "distribution",
 ]
 
 MIDDLEWARE = [
@@ -114,6 +115,8 @@ REST_FRAMEWORK = {
         "monitoring": env("THROTTLE_MONITORING", default="30/hour"),
         # Radar "Check now": re-scores all stored evidence of a project (no network, but not cheap).
         "radar_refresh": env("THROTTLE_RADAR_REFRESH", default="6/hour"),
+        # "Where to find your customers" look-ups: YouTube quota and paid keyword data.
+        "distribution": env("THROTTLE_DISTRIBUTION", default="6/hour"),
     },
     "EXCEPTION_HANDLER": "config.exceptions.error_envelope_handler",
     # Throttles key on the client IP the proxy appended (X-Forwarded-For), not on a header the client controls.
@@ -208,6 +211,8 @@ CELERY_BEAT_SCHEDULE = {
     },
     # Then re-score every researched project and look for Radar signals, so the digest includes them.
     "radar-revalidate": {"task": "radar.tasks.revalidate_all", "schedule": crontab(hour=6, minute=0, day_of_week=1)},
+    # YouTube API data may be stored for at most 30 days: delete expired rows daily.
+    "purge-youtube": {"task": "distribution.tasks.purge_expired_youtube", "schedule": crontab(hour=3, minute=30)},
     "weekly-digest": {"task": "mailer.tasks.send_weekly_digests", "schedule": crontab(hour=8, minute=0, day_of_week=1)},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)
@@ -220,6 +225,22 @@ CELERY_TASK_TIME_LIMIT = max(120, (JOB_RUNNING_TIMEOUT_MINUTES - 2) * 60)
 BRAVE_SEARCH_API_KEY = env("BRAVE_SEARCH_API_KEY", default="")
 EXA_API_KEY = env("EXA_API_KEY", default="")
 STACKEXCHANGE_API_KEY = env("STACKEXCHANGE_API_KEY", default="")
+# GitHub issues search: works without a token at a low limit; a fine-grained token with no permissions raises it.
+GITHUB_TOKEN = env("GITHUB_TOKEN", default="")
+# YouTube Data API v3 (public data, API key). Stored data expires after 30 days (YouTube API policy).
+YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", default="")
+YOUTUBE_DAILY_UNITS = env.int("YOUTUBE_DAILY_UNITS", default=9000)  # stay under the 10,000/day project quota
+YOUTUBE_USER_DAILY_UNITS = env.int("YOUTUBE_USER_DAILY_UNITS", default=1300)  # ~4 look-ups per account per day
+# Keyword demand (DataForSEO, paid per request): per-plan keywords per account per month + a global monthly budget.
+DATAFORSEO_LOGIN = env("DATAFORSEO_LOGIN", default="")
+DATAFORSEO_PASSWORD = env("DATAFORSEO_PASSWORD", default="")
+DATAFORSEO_MONTHLY_BUDGET_USD = env.float("DATAFORSEO_MONTHLY_BUDGET_USD", default=20.0)
+KEYWORD_LOOKUPS_MONTHLY = {
+    "free": env.int("KEYWORD_LOOKUPS_FREE", default=10),
+    "paid": env.int("KEYWORD_LOOKUPS_PAID", default=10),
+    "founder": env.int("KEYWORD_LOOKUPS_FOUNDER", default=100),
+    "pro": env.int("KEYWORD_LOOKUPS_PRO", default=300),
+}
 
 # LLM
 LLM_PROVIDER = env("LLM_PROVIDER", default="anthropic")  # only "anthropic" is implemented

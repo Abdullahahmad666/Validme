@@ -24,6 +24,8 @@ SIGNAL = {
 }
 # Competitors' own pages tell us about competitors, not where customers talk.
 NOT_A_CHANNEL = {"competitor_pages"}
+GITHUB_REPO_MIN_THREADS = 2
+GITHUB_REPO_MIN_RELEVANCE = 0.5
 STOPWORDS = {"and", "the", "for", "with", "who", "that", "from", "their", "small", "large", "teams", "team", "people", "users"}
 
 
@@ -44,6 +46,12 @@ def channel_of(e: Evidence) -> tuple[str, str]:
     host = _host(e.source_url)
     if e.provider == "stackexchange" and host.endswith(".stackexchange.com"):
         return host, f"Stack Exchange: {host.removesuffix('.stackexchange.com')}"
+    if e.provider == "github_issues" and host == "github.com":
+        # One channel per repository: its issue tracker is where that tool's users talk.
+        parts = [p for p in urlsplit(e.source_url).path.split("/") if p][:2]
+        if len(parts) == 2:
+            repo = "/".join(parts)
+            return f"github.com/{repo}", f"GitHub: {repo}"
     return host, host
 
 
@@ -59,6 +67,16 @@ def researched_channels(items: list[Evidence]) -> list[dict]:
         if key:
             groups[key].append(e)
             names[key] = name
+    # A single GitHub repository is a channel of its own only when several distinct, relevant issues there
+    # discuss the problem; one-off issues in unrelated repos are grouped as "GitHub issues" instead.
+    for key in [k for k in groups if k.startswith("github.com/")]:
+        members = groups[key]
+        threads = {e.source_url for e in members}
+        rel = [e.relevance for e in members if e.relevance is not None]
+        if len(threads) < GITHUB_REPO_MIN_THREADS or not rel or sum(rel) / len(rel) < GITHUB_REPO_MIN_RELEVANCE:
+            groups["github.com"].extend(groups.pop(key))
+            names["github.com"] = "GitHub issues"
+            names.pop(key, None)
     out = []
     for key, members in groups.items():
         cats = Counter(e.category for e in members)

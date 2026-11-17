@@ -151,6 +151,7 @@ def _endpoints(ids: dict) -> list[str]:
         f"/api/projects/{p}/signals",
         f"/api/projects/{p}/signals?status=all&type=opportunity",
         f"/api/projects/{p}/score-history",
+        f"/api/projects/{p}/distribution",
         "/api/monitoring/changes",
         "/api/notifications",
         "/api/billing/packs",
@@ -270,5 +271,37 @@ def _seed(n_evidence: int) -> dict:
             project=main, source="revalidation", score=50 + i % 10, confidence="medium", created_at=timezone.now() - timedelta(weeks=i)
         )
         for i in range(1, 52)
+    )
+    # Distribution: 30 YouTube channels and 40 keywords (the page reads them; no provider is called).
+    from distribution.models import KeywordMetric, YouTubeChannel
+
+    now = timezone.now()
+    YouTubeChannel.objects.bulk_create(
+        YouTubeChannel(
+            project=main,
+            channel_id=f"UC{i}",
+            title=f"Channel {i}",
+            subscriber_count=1000 * i,
+            video_count=10 + i,
+            latest_video_id=f"v{i}",
+            latest_video_title="Counting stock",
+            latest_video_at=now - timedelta(days=i),
+            matched_queries=["restaurant inventory"],
+            fetched_at=now,
+            expires_at=now + timedelta(days=30),
+        )
+        for i in range(30)
+    )
+    KeywordMetric.objects.bulk_create(
+        KeywordMetric(
+            project=main,
+            keyword=f"stock keyword {i}",
+            location_code=2826,
+            language_code="en",
+            search_volume=100 * i,
+            monthly=[{"year": 2026, "month": m, "volume": 100 + m} for m in range(1, 13)],
+            fetched_at=now,
+        )
+        for i in range(40)
     )
     return {"user": user, "project": main.pk, "other_project": projects[1].pk}

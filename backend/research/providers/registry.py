@@ -1,4 +1,5 @@
 from research.providers.base import ResearchProvider
+from research.providers.github_issues import GitHubIssuesProvider
 from research.providers.hackernews import HackerNewsProvider
 from research.providers.stackexchange import StackExchangeProvider
 from research.providers.url_pages import CompetitorPagesProvider, UserUrlsProvider
@@ -11,6 +12,7 @@ PROVIDERS: dict[str, ResearchProvider] = {
         WebSearchProvider(),
         HackerNewsProvider(),
         StackExchangeProvider(),
+        GitHubIssuesProvider(),
         UserUrlsProvider(),
         CompetitorPagesProvider(),
     ]

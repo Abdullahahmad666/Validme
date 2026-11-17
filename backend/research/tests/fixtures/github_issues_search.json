@@ -1,0 +1,33 @@
+{
+  "total_count": 3,
+  "incomplete_results": false,
+  "items": [
+    {
+      "html_url": "https://github.com/acme/stockapp/issues/42",
+      "repository_url": "https://api.github.com/repos/acme/stockapp",
+      "title": "Counting inventory takes hours with the CSV import",
+      "body": "Every Monday we export to <b>CSV</b> and count by hand. Is there a faster way?\r\n\r\n- tried the bulk editor",
+      "user": {"login": "chef-dev", "id": 7},
+      "state": "open",
+      "comments": 12,
+      "created_at": "2026-09-14T10:22:31Z"
+    },
+    {
+      "html_url": "https://github.com/acme/stockapp/pull/43",
+      "repository_url": "https://api.github.com/repos/acme/stockapp",
+      "title": "Faster import",
+      "body": "",
+      "user": {"login": "x"},
+      "pull_request": {"url": "https://api.github.com/repos/acme/stockapp/pulls/43"},
+      "created_at": "2026-09-15T10:22:31Z"
+    },
+    {
+      "html_url": "https://github.com/other/kitchen/issues/7",
+      "repository_url": "https://api.github.com/repos/other/kitchen",
+      "title": "Feature request: barcode scanning",
+      "body": null,
+      "user": null,
+      "created_at": null
+    }
+  ]
+}
