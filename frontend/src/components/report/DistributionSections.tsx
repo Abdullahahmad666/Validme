@@ -1,9 +1,10 @@
 import { FlaskConical, MapPin, Users } from "lucide-react";
+import Link from "next/link";
 import { CATEGORY_META, fmtDate } from "@/components/evidence/EvidenceCard";
 import { AiLabel, Cited, EvidenceQuote, Panel } from "@/components/report/parts";
 import { cn } from "@/lib/utils";
 import type { EvidenceCategory } from "@/types/api";
-import type { Channel, Report } from "@/types/report";
+import type { Channel, Report, ReportEvidence } from "@/types/report";
 
 function Signals({ counts }: { counts: Partial<Record<EvidenceCategory, number>> }) {
   const entries = Object.entries(counts) as [EvidenceCategory, number][];
@@ -86,7 +87,7 @@ export function Audience({ r }: { r: Report }) {
   );
 }
 
-function ChannelCard({ c, r }: { c: Channel; r: Report }) {
+export function ChannelCard({ c, index }: { c: Channel; index: Record<string, ReportEvidence> }) {
   return (
     <li className="flex flex-col gap-2 rounded-card border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -112,7 +113,7 @@ function ChannelCard({ c, r }: { c: Channel; r: Report }) {
         <details>
           <summary className="cursor-pointer text-sm font-medium text-primary">Show evidence</summary>
           <div className="mt-2">
-            <Cited ids={c.evidence_ids} index={r.evidence_index} max={3} />
+            <Cited ids={c.evidence_ids} index={index} max={3} />
           </div>
         </details>
       )}
@@ -141,6 +142,11 @@ export function Distribution({ r }: { r: Report }) {
           <span className="font-medium text-success-text">Researched</span> means the evidence shows people discussing the problem there.{" "}
           <span className="font-medium text-warning-text">Hypothesis</span> means it wasn&apos;t searched: test it before relying on it.
         </p>
+        <p className="mb-3 text-sm">
+          <Link href={`/projects/${r.project.id}/customers`} className="font-medium text-primary underline">
+            See YouTube channels and search demand for this idea →
+          </Link>
+        </p>
         {researched.length === 0 && (
           <p className="mb-3 rounded-control border border-dashed border-border p-3 text-sm text-muted-foreground">
             No researched channels: none of the searched sources had classified evidence of your audience discussing the problem.
@@ -148,7 +154,7 @@ export function Distribution({ r }: { r: Report }) {
         )}
         <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {[...researched, ...hypotheses].map((c) => (
-            <ChannelCard key={c.key} c={c} r={r} />
+            <ChannelCard key={c.key} c={c} index={r.evidence_index} />
           ))}
         </ul>
       </section>

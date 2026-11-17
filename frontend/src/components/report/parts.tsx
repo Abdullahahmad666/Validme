@@ -85,11 +85,23 @@ export function Cited({ ids, index, max = 3 }: { ids: number[]; index: Record<st
   );
 }
 
-export function Panel({ title, children, className, aside }: { title: string; children: React.ReactNode; className?: string; aside?: React.ReactNode }) {
+export function Panel({
+  title,
+  children,
+  className,
+  aside,
+  as: Heading = "h3",
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+  aside?: React.ReactNode;
+  as?: "h2" | "h3";
+}) {
   return (
     <section className={cn("rounded-card border border-border bg-card p-5", className)}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold">{title}</h3>
+        <Heading className="font-semibold">{title}</Heading>
         {aside}
       </div>
       {children}

@@ -41,7 +41,7 @@ export const SOURCES: { name: string; detail: string; status: SourceStatus }[] =
   { name: "Competitor websites", detail: "Public pricing and feature pages you list, with the date we read them.", status: "supported" },
   { name: "Links you add", detail: "Threads, reviews or articles you found yourself.", status: "supported" },
   { name: "Stack Exchange", detail: "Public Q&A, with attribution links kept.", status: "supported" },
-  { name: "GitHub issues", detail: "Public issues on competitor or open-source repos. Planned.", status: "limited" },
+  { name: "GitHub issues", detail: "Public issues where developers report problems with the tools they use.", status: "supported" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -246,6 +246,12 @@ export const PLAN_COMPARISON: { feature: string; free: string; founder: string; 
     pro: String(P.aiSummariesPerDay),
   },
   { feature: "Opportunity Radar", free: "Included", founder: "Included", pro: "Included" },
+  {
+    feature: "Keyword search-demand look-ups per month",
+    free: String(FREE.keywordLookups),
+    founder: String(F.keywordLookups),
+    pro: String(P.keywordLookups),
+  },
   { feature: "Weekly digest email", free: "Included", founder: "Included", pro: "Included" },
   { feature: "Research jobs at once", free: String(FREE.maxRunning), founder: String(F.maxRunning), pro: String(P.maxRunning) },
   { feature: "Report export", free: "Markdown / PDF", founder: "Markdown / PDF", pro: "Markdown / PDF" },
@@ -265,7 +271,7 @@ export const FAQS = [
   },
   {
     q: `Which sources does ${BRAND_NAME} search?`,
-    a: "Web search, Hacker News, Stack Exchange, competitor websites you list and links you add, with GitHub issues planned. We only use sources we're permitted to use, and every report lists exactly which sources it searched, so you always know the coverage behind a finding. If you've found a relevant discussion yourself, you can add its link as evidence.",
+    a: "Web search, Hacker News, Stack Exchange, GitHub issues, competitor websites you list and links you add. For finding customers it can also look up YouTube channels and keyword search volumes (from DataForSEO) when you ask. We only use sources we're permitted to use, and every report lists exactly which sources it searched, so you always know the coverage behind a finding. If you've found a relevant discussion yourself, you can add its link as evidence.",
   },
   {
     q: "Are the research findings based on real data?",

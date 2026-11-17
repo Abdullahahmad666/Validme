@@ -22,15 +22,17 @@ export type PlanPrice = {
   /** MONITORING_AI_DAILY: change summaries and Radar write-ups together. */
   aiSummariesPerDay: number;
   maxRunning: number;
+  /** KEYWORD_LOOKUPS_MONTHLY: keywords looked up per month (paid search-demand data). */
+  keywordLookups: number;
 };
 
 /** MONITORING_MAX_WATCHES_PER_PROJECT: applies on every plan. */
 export const WATCHES_PER_PROJECT = 20;
 
 export const PLAN_PRICES: Record<PlanId, PlanPrice> = {
-  free: { id: "free", name: "Free", month: null, year: null, monthlyCredits: 0, watches: 3, dailyChecks: false, aiSummariesPerDay: 10, maxRunning: 1 },
-  founder: { id: "founder", name: "Founder", month: 19, year: 190, monthlyCredits: 4, watches: 20, dailyChecks: true, aiSummariesPerDay: 100, maxRunning: 3 },
-  pro: { id: "pro", name: "Pro", month: 39, year: 390, monthlyCredits: 10, watches: 50, dailyChecks: true, aiSummariesPerDay: 300, maxRunning: 5 },
+  free: { id: "free", name: "Free", month: null, year: null, monthlyCredits: 0, watches: 3, dailyChecks: false, aiSummariesPerDay: 10, maxRunning: 1, keywordLookups: 10 },
+  founder: { id: "founder", name: "Founder", month: 19, year: 190, monthlyCredits: 4, watches: 20, dailyChecks: true, aiSummariesPerDay: 100, maxRunning: 3, keywordLookups: 100 },
+  pro: { id: "pro", name: "Pro", month: 39, year: 390, monthlyCredits: 10, watches: 50, dailyChecks: true, aiSummariesPerDay: 300, maxRunning: 5, keywordLookups: 300 },
 };
 
 /** Credit-pack buyers without a plan ("paid" in the backend): all depths, free-plan monitoring. */

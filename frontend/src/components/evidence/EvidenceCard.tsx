@@ -18,6 +18,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   web_search: "Web search",
   hackernews: "Hacker News",
   stackexchange: "Stack Exchange",
+  github_issues: "GitHub issues",
   user_urls: "Your link",
   competitor_pages: "Competitor page",
 };

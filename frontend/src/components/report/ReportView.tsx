@@ -175,12 +175,6 @@ export function ReportView({ projectId }: { projectId: string }) {
               <RefreshCw aria-hidden /> Re-run
             </Button>
           )}
-          <Button asChild variant="outline">
-            <Link href={`/projects/${projectId}/radar`}>Opportunity Radar</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={`/projects/${projectId}/monitoring`}>Monitoring</Link>
-          </Button>
           <Button asChild variant="ghost">
             <Link href={`/projects/${projectId}/progress`}>Research details</Link>
           </Button>
@@ -190,6 +184,22 @@ export function ReportView({ projectId }: { projectId: string }) {
             onChange={(id) => go({ report: id === history.data?.results[0]?.id ? null : id })}
           />
         </div>
+        <nav aria-label="Project tools" className="flex flex-wrap gap-2 print:hidden">
+          {[
+            { href: `/projects/${projectId}/radar`, label: "Opportunity Radar" },
+            { href: `/projects/${projectId}/customers`, label: "Where to find customers" },
+            { href: `/projects/${projectId}/monitoring`, label: "Competitor monitoring" },
+          ].map((t) => (
+            <Link
+              key={t.href}
+              href={t.href}
+              className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-card px-3.5 text-sm hover:border-primary hover:text-primary"
+            >
+              {t.label}
+              <ChevronRight className="size-3.5" aria-hidden />
+            </Link>
+          ))}
+        </nav>
         {version && history.data && history.data.results[0]?.id !== r.id && (
           <p className="rounded-control bg-warning/10 px-3 py-2 text-sm text-warning-text print:hidden">
             You&apos;re viewing an earlier version.{" "}

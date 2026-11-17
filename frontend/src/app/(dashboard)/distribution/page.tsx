@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/shared/ComingSoon";
+import { CustomersPicker } from "@/components/distribution/CustomersPicker";
 
 export const metadata: Metadata = { title: "Audience & distribution" };
 
-export default function AudiencedistributionPage() {
-  return <ComingSoon title="Audience & distribution" body="Audience segments, channels and your first-10-customers plan." />;
+export default function DistributionPage() {
+  return <CustomersPicker />;
 }

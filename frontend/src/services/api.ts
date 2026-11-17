@@ -1,6 +1,7 @@
 import { getCsrfToken, UNSAFE_METHODS } from "@/lib/csrf";
 import type { UnitInputs } from "@/lib/unitEconomics";
 import type { AppNotification, Cadence, Change, CompetitorCandidate, Significance, Watch } from "@/types/monitoring";
+import type { Distribution, RefreshResult } from "@/types/distribution";
 import type { ScoreSnapshot, Signal, SignalFeedback, SignalType } from "@/types/radar";
 import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
 import type {
@@ -201,6 +202,12 @@ export const api = {
   refreshRadar: (projectId: string) =>
     request<{ snapshot: number | null; new_signals: number }>(`/projects/${encodeURIComponent(projectId)}/signals/refresh`, {
       method: "POST",
+    }),
+  distribution: (projectId: string) => request<Distribution>(`/projects/${encodeURIComponent(projectId)}/distribution`),
+  refreshDistribution: (projectId: string, sources: ("youtube" | "keywords")[] = ["youtube", "keywords"]) =>
+    request<RefreshResult>(`/projects/${encodeURIComponent(projectId)}/distribution/refresh`, {
+      method: "POST",
+      body: json({ sources }),
     }),
   scoreHistory: (projectId: string) =>
     request<{ count: number; results: ScoreSnapshot[] }>(`/projects/${encodeURIComponent(projectId)}/score-history`),

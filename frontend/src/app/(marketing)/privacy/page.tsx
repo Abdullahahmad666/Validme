@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DraftNotice, PageHeader, Prose } from "@/components/marketing/PageShell";
 import { Container, Section } from "@/components/marketing/primitives";
+import { BRAND_NAME } from "@/lib/brand";
 import { pageMetadata } from "@/lib/seo";
 import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
@@ -14,7 +15,7 @@ export default function PrivacyPage() {
       <PageHeader eyebrow="Legal" title="Privacy policy" lead="What we collect, why, and who it's shared with, in plain language." />
       <Section className="pt-12">
         <Container className="max-w-3xl">
-          <DraftNotice updated="8 November 2026" />
+          <DraftNotice updated="17 November 2026" />
           <Prose>
             <h2>What we collect</h2>
             <ul>
@@ -58,8 +59,29 @@ export default function PrivacyPage() {
             <ul>
               <li>a web search API provider, to find public pages and discussions;</li>
               <li>an AI model provider, to interpret, classify and summarise collected evidence;</li>
-              <li>the public APIs of supported communities (for example Hacker News), which receive search queries only.</li>
+              <li>
+                the public APIs of supported communities (Hacker News, Stack Exchange and GitHub), which receive search
+                queries only;
+              </li>
+              <li>
+                when you ask for it on the &ldquo;Where to find your customers&rdquo; page: YouTube, which receives your
+                research queries to find channels, and DataForSEO, which receives short keywords from them to return
+                search volumes.
+              </li>
             </ul>
+            <p>
+              {BRAND_NAME} uses YouTube API Services to show public YouTube channel and video information. We don&apos;t
+              access any YouTube account of yours, and we delete the YouTube data we store within 30 days of reading it. Google&apos;s
+              handling of data is described in the{" "}
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">
+                Google Privacy Policy
+              </a>
+              , and YouTube&apos;s terms in the{" "}
+              <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">
+                YouTube Terms of Service
+              </a>
+              .
+            </p>
             <p>
               Payments are handled by Lemon Squeezy, our merchant of record. You enter card details on their checkout, never
               on our pages; we receive your order and subscription status, not your card number.

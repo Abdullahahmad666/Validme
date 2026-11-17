@@ -15,7 +15,7 @@ export default function TermsPage() {
       <PageHeader eyebrow="Legal" title="Terms of service" lead={`The rules for using ${BRAND_NAME}, written to be read.`} />
       <Section className="pt-12">
         <Container className="max-w-3xl">
-          <DraftNotice updated="8 November 2026" />
+          <DraftNotice updated="17 November 2026" />
           <Prose>
             <h2>The service</h2>
             <p>
@@ -53,8 +53,21 @@ export default function TermsPage() {
 
             <h2>Credits and paid plans</h2>
             <p>
-              Research uses credits, charged once per report. Prices, allowances, renewal and refund terms for paid plans
-              will be published before they launch and shown before you pay.
+              Research uses credits, charged once per report. Prices and allowances are on the{" "}
+              <Link href="/pricing">pricing page</Link> and are shown again before you pay. Payments are taken by Lemon
+              Squeezy, our merchant of record, whose checkout terms apply to the purchase. Plans renew each month or year
+              until you cancel; you can cancel any time and keep the plan until the end of the period you&apos;ve paid for.
+            </p>
+
+            <h2>Third-party services</h2>
+            <p>
+              Some features show data from other services. The &ldquo;Where to find your customers&rdquo; page uses YouTube
+              API Services: by using those YouTube features you agree to be bound by the{" "}
+              <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">
+                YouTube Terms of Service
+              </a>
+              . Keyword figures come from DataForSEO and research evidence can include public GitHub issues; each figure
+              names its source and the date we read it, and each record links back to where it came from.
             </p>
 
             <h2>Availability and changes</h2>
