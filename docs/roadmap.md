@@ -98,11 +98,11 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate (research-quality focus)
 
 ### Week 12 — Distribution data v2
-- [ ] D1 YouTube Data API provider (size / relevance / activity separate; 30-day expiry)
-- [ ] D2 Licensed keyword demand provider (cached, cost-capped)
-- [ ] D3 GitHub issues provider
-- [ ] D4 "Where to find your customers" UI v2
-- [ ] D5 Gate
+- [x] D1 YouTube Data API provider (size / relevance / activity separate; 30-day expiry)
+- [x] D2 Licensed keyword demand provider (DataForSEO; cached, cost-capped)
+- [x] D3 GitHub issues provider
+- [x] D4 "Where to find your customers" UI v2
+- [x] D5 Gate
 
 ### Week 13 — Validation Lab 1: landing page + waitlist
 - [ ] D1 Separate origin, structured-block pages, publish rules
