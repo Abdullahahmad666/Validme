@@ -39,3 +39,7 @@ SUBSCRIPTION_PLANS = []
 # Tasks queued with .delay() run inline in tests (no broker).
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True  # a failing task fails the test
+
+# Fixed test-only Fernet key (pytest runs with DEBUG off, which forbids the dev fallback key).
+LAB_ENCRYPTION_KEYS = ["dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHR0dHQ="]
+LAB_HASH_KEY = "test-hash-key"

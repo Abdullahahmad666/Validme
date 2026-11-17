@@ -189,6 +189,7 @@ export function ReportView({ projectId }: { projectId: string }) {
             { href: `/projects/${projectId}/radar`, label: "Opportunity Radar" },
             { href: `/projects/${projectId}/customers`, label: "Where to find customers" },
             { href: `/projects/${projectId}/monitoring`, label: "Competitor monitoring" },
+            { href: `/projects/${projectId}/lab`, label: "Validation Lab" },
           ].map((t) => (
             <Link
               key={t.href}

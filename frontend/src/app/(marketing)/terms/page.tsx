@@ -42,6 +42,11 @@ export default function TermsPage() {
               <li>Don&apos;t use the service for anything unlawful, or to harass or profile individuals.</li>
               <li>Don&apos;t use outputs to send unsolicited bulk messages or automated outreach.</li>
               <li>Don&apos;t attempt to scrape, overload or bypass the limits of the service or its API.</li>
+              <li>
+                Test pages must be honest: don&apos;t impersonate another business, collect anything for anyone else, or claim
+                customers, results or availability you don&apos;t have. Use the emails people leave only to tell them about that
+                product, delete them when asked, and don&apos;t sell or share them. We may unpublish pages that break this.
+              </li>
             </ul>
 
             <h2>Your content</h2>

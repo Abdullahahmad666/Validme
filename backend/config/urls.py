@@ -8,6 +8,7 @@ from analytics.views import EventView
 from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, PortalView, SubscribeView, UsageView
 from distribution.views import DistributionRefreshView, DistributionView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
+from lab.views import LabPageViewSet, SlugCheckView, SuggestView
 from mailer.views import PreferencesView, ResendWebhookView, UnsubscribeView
 from monitoring.views import CandidateViewSet, ChangeViewSet, MonitoringFeedView, WatchViewSet
 from notifications.views import MarkReadView, NotificationsView
@@ -28,6 +29,7 @@ router.register(r"projects/(?P<project_pk>[^/.]+)/watches", WatchViewSet, basena
 router.register(r"projects/(?P<project_pk>[^/.]+)/changes", ChangeViewSet, basename="project-change")
 router.register(r"projects/(?P<project_pk>[^/.]+)/candidates", CandidateViewSet, basename="project-candidate")
 router.register(r"projects/(?P<project_pk>[^/.]+)/signals", SignalViewSet, basename="project-signal")
+router.register(r"projects/(?P<project_pk>[^/.]+)/lab-pages", LabPageViewSet, basename="project-lab-page")
 
 
 def health(_request):
@@ -59,6 +61,8 @@ urlpatterns = [
     path("api/projects/<str:project_pk>/score-history", ScoreHistoryView.as_view()),
     path("api/projects/<str:project_pk>/distribution", DistributionView.as_view()),
     path("api/projects/<str:project_pk>/distribution/refresh", DistributionRefreshView.as_view()),
+    path("api/projects/<str:project_pk>/lab-suggest", SuggestView.as_view()),
+    path("api/lab/slug", SlugCheckView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),
     path("api/reports/<str:project_id>/history", ReportHistoryView.as_view()),

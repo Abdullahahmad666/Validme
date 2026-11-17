@@ -152,6 +152,7 @@ def _endpoints(ids: dict) -> list[str]:
         f"/api/projects/{p}/signals?status=all&type=opportunity",
         f"/api/projects/{p}/score-history",
         f"/api/projects/{p}/distribution",
+        f"/api/projects/{p}/lab-pages",
         "/api/monitoring/changes",
         "/api/notifications",
         "/api/billing/packs",
