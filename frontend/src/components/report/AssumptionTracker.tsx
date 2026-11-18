@@ -259,7 +259,7 @@ export function AssumptionTracker({ r }: { r: Report }) {
             segments={[
               { key: "supported", label: "supported", value: counts.supported ?? 0, color: "var(--success)", icon: CheckCircle2 },
               { key: "contradicted", label: "contradicted", value: counts.contradicted ?? 0, color: "var(--destructive)", icon: XCircle },
-              { key: "untested", label: "untested", value: counts.untested ?? 0, color: "#94a3b8", icon: CircleHelp },
+              { key: "untested", label: "untested", value: counts.untested ?? 0, color: "var(--muted-strong)", icon: CircleHelp },
             ]}
           />
         </div>

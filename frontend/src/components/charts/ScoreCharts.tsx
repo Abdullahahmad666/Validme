@@ -12,9 +12,9 @@ export function ScoreRing({ score, size = 148 }: { score: number | null; size?: 
   return (
     <div className="relative" style={{ width: size, height: size }} role="img" aria-label={`Opportunity score ${score} out of 100`}>
       <ResponsiveContainer width="100%" height="100%">
-        <RadialBarChart innerRadius="78%" outerRadius="100%" data={[{ value: score }]} startAngle={90} endAngle={-270} barSize={12}>
+        <RadialBarChart accessibilityLayer={false} innerRadius="78%" outerRadius="100%" data={[{ value: score }]} startAngle={90} endAngle={-270} barSize={12}>
           <PolarAngleAxis type="number" domain={[0, 100]} tick={false} axisLine={false} />
-          <RadialBar dataKey="value" cornerRadius={6} fill="var(--series-1)" background={{ fill: "rgb(49 94 170 / 0.12)" }} isAnimationActive={false} />
+          <RadialBar dataKey="value" cornerRadius={6} fill="var(--series-1)" background={{ fill: "var(--chart-track)" }} isAnimationActive={false} />
         </RadialBarChart>
       </ResponsiveContainer>
       <p className="absolute inset-0 flex flex-col items-center justify-center leading-none" aria-hidden>
@@ -67,7 +67,7 @@ export function ScoreBreakdown({ dimensions }: { dimensions: Dimension[] }) {
       {rows.length > 0 && (
         <div ref={box} aria-hidden style={{ height: rows.length * ((withResearch ? 52 : 36) + (stacked ? 16 : 0)) + 8 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
+            <BarChart accessibilityLayer={false}
               data={rows}
               layout="vertical"
               margin={{ top: stacked ? 18 : 4, right: 36, bottom: 4, left: 0 }}
@@ -77,7 +77,7 @@ export function ScoreBreakdown({ dimensions }: { dimensions: Dimension[] }) {
               <XAxis type="number" domain={[0, 100]} hide />
               <YAxis type="category" dataKey="label" width={stacked ? 0 : col} hide={stacked} tickLine={false} axisLine={false} tick={leftTick(col)} />
               <Tooltip
-                cursor={{ fill: "rgb(49 94 170 / 0.06)" }}
+                cursor={{ fill: "var(--chart-cursor)" }}
                 content={({ active, payload }) => {
                   const r = active && payload?.[0] ? (payload[0].payload as Row) : null;
                   return r ? (

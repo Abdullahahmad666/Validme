@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
-import { fillDays } from "@/components/charts/daily";
+import { fillWindow } from "@/components/charts/daily";
 import { SampleWarning } from "@/components/lab/SampleWarning";
 import { BLOCK_LABELS, comparisonText, emptyBlock, moveItem, pct, RETENTION_OPTIONS, slugify } from "@/lib/lab";
 import { safeHref } from "@/lib/utils";
@@ -42,9 +42,7 @@ const TRAFFIC_SERIES: DailySeries[] = [
 
 /** The 30 days the API reports, with zero for days nothing was counted. */
 function last30(stats: LabStats) {
-  const until = new Date(`${stats.since}T00:00:00Z`);
-  until.setUTCDate(until.getUTCDate() + 29);
-  return fillDays(stats.daily, stats.since, until.toISOString().slice(0, 10), ["views", "signups"]);
+  return fillWindow(stats.daily, stats.since, 30, ["views", "signups"]);
 }
 
 function Stats({ projectId, pageId }: { projectId: string; pageId: number }) {

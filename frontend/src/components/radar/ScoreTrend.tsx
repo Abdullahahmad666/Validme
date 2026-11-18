@@ -31,7 +31,9 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
   // Where the scoring rules changed (e.g. score_v2 added the founder's experiments): marked so a jump isn't read as the
   // market moving.
   const change = points.findIndex((p, i) => i > 0 && (p.scoring_version || "") !== (points[i - 1].scoring_version || ""));
-  const data = points.map((p) => ({ ...p, at: p.created_at.slice(0, 10) }));
+  // A real time axis, so a missed week shows as a wider gap instead of evenly spaced points.
+  const data = points.map((p) => ({ ...p, t: Date.parse(p.created_at) }));
+  const tickDay = (t: number) => fmtDay(new Date(t).toISOString().slice(0, 10));
   return (
     <Panel title="Score over time">
       {first && last && first !== last && (
@@ -55,11 +57,14 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
       </ul>
       <div aria-hidden className="h-52 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+          <LineChart accessibilityLayer={false} data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis
-              dataKey="at"
-              tickFormatter={fmtDay}
+              dataKey="t"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              tickFormatter={tickDay}
               tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
               axisLine={{ stroke: "var(--chart-grid)" }}
               tickLine={false}
@@ -67,12 +72,12 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
             />
             <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: "var(--chart-axis)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
             {change > 0 && (
-              <ReferenceLine x={data[change].at} stroke="var(--chart-axis)" strokeDasharray="3 4" />
+              <ReferenceLine x={data[change].t} stroke="var(--chart-axis)" strokeDasharray="3 4" />
             )}
             <Tooltip
               cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "2 3" }}
               content={({ active, payload }) => {
-                const p = active && payload?.[0] ? (payload[0].payload as ScoreSnapshot & { at: string }) : null;
+                const p = active && payload?.[0] ? (payload[0].payload as ScoreSnapshot & { t: number }) : null;
                 return p ? (
                   <div className="rounded-control border border-border bg-popover px-3 py-2 text-xs shadow-md">
                     <p className="text-muted-foreground">{fmtDate(p.created_at)}</p>
@@ -91,9 +96,9 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
               dot={(props) => {
                 const { cx, cy, payload, index } = props as { cx?: number; cy?: number; payload: ScoreSnapshot; index: number };
                 if (payload.score === null || cx === undefined || cy === undefined) return <g key={index} />;
-                return <circle key={index} cx={cx} cy={cy} r={payload.source === "report" ? 5 : 3} fill="var(--series-1)" stroke="#fff" strokeWidth={2} />;
+                return <circle key={index} cx={cx} cy={cy} r={payload.source === "report" ? 5 : 3} fill="var(--series-1)" stroke="var(--card)" strokeWidth={2} />;
               }}
-              activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
+              activeDot={{ r: 5, stroke: "var(--card)", strokeWidth: 2 }}
             />
           </LineChart>
         </ResponsiveContainer>
@@ -112,8 +117,8 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
         <caption className="sr-only">Most recent scores</caption>
         <thead className="text-xs text-muted-foreground">
           <tr>
-            <th scope="col" className="py-1 text-left font-medium">Date</th>
-            <th scope="col" className="py-1 text-left font-medium">From</th>
+            <th scope="col" className="w-[36%] py-1 text-left font-medium">Date</th>
+            <th scope="col" className="w-[40%] py-1 text-left font-medium">From</th>
             <th scope="col" className="py-1 text-right font-medium">Score</th>
           </tr>
         </thead>
@@ -129,6 +134,32 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
           ))}
         </tbody>
       </table>
+      {snapshots.length > recent.length && (
+        <details className="mt-2 text-sm">
+          <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Show all {snapshots.length} scores</summary>
+          <table className="mt-2 w-full text-sm">
+            <caption className="sr-only">Older scores</caption>
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                <th scope="col" className="w-[36%] py-1 text-left font-medium">Date</th>
+                <th scope="col" className="w-[40%] py-1 text-left font-medium">From</th>
+                <th scope="col" className="py-1 text-right font-medium">Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snapshots.slice(recent.length).map((s) => (
+                <tr key={s.id} className="border-t border-border">
+                  <th scope="row" className="py-1.5 text-left font-normal">{fmtDate(s.created_at)}</th>
+                  <td className="py-1.5">{SOURCE_LABEL[s.source]}</td>
+                  <td className="py-1.5 text-right tabular-nums">
+                    {s.score === null ? <span className="italic text-muted-foreground">Not scored</span> : `${s.score}/100`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
     </Panel>
   );
 }

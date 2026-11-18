@@ -293,7 +293,14 @@ function Usage() {
       <h2 id="usage-h" className="font-semibold">
         Usage history
       </h2>
-      {monthly.data && monthly.data.results.some((m) => m.used || m.added) && (
+      {monthly.isPending ? (
+        <Skeleton className="mt-3 h-44" />
+      ) : monthly.isError ? (
+        <div className="mt-3">
+          <ErrorState title="Couldn't load credits per month" onRetry={() => monthly.refetch()} />
+        </div>
+      ) : (
+        monthly.data.results.some((m) => m.used || m.added) && (
         <div className="mt-3">
           <DailyChart
             rows={monthly.data.results.map((m) => ({ day: m.month, used: m.used, added: m.added }))}
@@ -305,6 +312,7 @@ function Usage() {
             height={180}
           />
         </div>
+        )
       )}
       {usage.isPending ? (
         <Skeleton className="mt-4 h-24" />

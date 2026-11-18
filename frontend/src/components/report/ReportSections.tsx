@@ -107,7 +107,7 @@ export function Demand({ r }: { r: Report }) {
           <p className="text-sm text-muted-foreground">No evidence collected.</p>
         ) : (
           <BarList
-            rows={[...sources].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: PROVIDER_LABELS[k] ?? k, value: n, note: `${Math.round((n / total) * 100)}% of the evidence` }))}
+            rows={[...sources].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: PROVIDER_LABELS[k] ?? k, value: n }))}
             unit="records"
           />
         )}
@@ -238,7 +238,7 @@ function PriceLadderPanel({ competitors }: { competitors: ReportCompetitor[] }) 
   if (points.length === 0) return null;
   return (
     <Panel title="Verified monthly prices" aside={<span className="text-xs text-muted-foreground">From their own pricing pages</span>}>
-      <BarList rows={points} unit={`${currency} per month`} labelWidth={200} />
+      <BarList rows={points} unit={`${currency} per month`} labelWidth={200} additive={false} />
       <p className="mt-1 text-xs text-muted-foreground">
         Only prices shown exactly on a competitor&apos;s page and billed monthly in {currency}.
         {excluded > 0 && ` ${excluded} other plan${excluded === 1 ? " (free, yearly, per-seat, another currency or no exact price) is" : "s (free, yearly, per-seat, another currency or no exact price) are"} not drawn.`}{" "}

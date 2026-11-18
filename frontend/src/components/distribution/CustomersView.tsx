@@ -133,6 +133,7 @@ function Keywords({ d }: { d: Distribution["keywords"] }) {
               .map((r) => ({ label: r.keyword, value: r.search_volume ?? 0 }))}
             unit="searches a month"
             labelWidth={240}
+            additive={false}
           />
           {d.rows.some((r) => r.search_volume == null) && (
             <p className="text-xs text-muted-foreground">Keywords without a figure from the provider aren&apos;t drawn; they&apos;re in the table as unavailable.</p>

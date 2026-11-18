@@ -1,7 +1,9 @@
 "use client";
 
 import { useId } from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { aboveLabel, STACK_BELOW } from "@/components/charts/ticks";
+import { useWidth } from "@/components/charts/useWidth";
 
 export type Group = { label: string; values: Record<string, number | null> };
 export type GroupSeries = { key: string; label: string; color: string };
@@ -20,6 +22,10 @@ export function seriesColors(n: number): string[] {
  */
 export function GroupedBars({ groups, series, height = 260, unit = "/100" }: { groups: Group[]; series: GroupSeries[]; height?: number; unit?: string }) {
   const id = useId();
+  const [ref, width] = useWidth<HTMLDivElement>();
+  // On narrow cards the groups run down the page (label above each group) so long names never truncate to "…".
+  const narrow = width !== null && width < STACK_BELOW;
+  const rowPx = series.length * 14 + 34;
   const data = groups.map((g) => ({ label: g.label, ...g.values }));
   const summary = groups
     .map((g) => `${g.label}: ${series.map((s) => `${s.label} ${g.values[s.key] ?? "not scored"}`).join(", ")}`)
@@ -34,10 +40,24 @@ export function GroupedBars({ groups, series, height = 260, unit = "/100" }: { g
           </li>
         ))}
       </ul>
-      <div aria-hidden style={{ height }}>
+      <div ref={ref} aria-hidden style={{ height: narrow ? groups.length * rowPx + 28 : height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barGap={2} barCategoryGap="22%">
-            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+          <BarChart
+            accessibilityLayer={false}
+            data={data}
+            layout={narrow ? "vertical" : "horizontal"}
+            margin={{ top: narrow ? 18 : 8, right: 8, bottom: 0, left: 0 }}
+            barGap={2}
+            barCategoryGap={narrow ? 20 : "22%"}
+          >
+            <CartesianGrid vertical={narrow} horizontal={!narrow} stroke="var(--chart-grid)" />
+            {narrow ? (
+              <>
+                <XAxis type="number" domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: "var(--chart-axis)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="label" hide width={0} />
+              </>
+            ) : (
+              <>
             <XAxis
               dataKey="label"
               tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
@@ -47,8 +67,10 @@ export function GroupedBars({ groups, series, height = 260, unit = "/100" }: { g
               tickFormatter={(v: string) => (v.length > 14 ? `${v.slice(0, 13)}…` : v)}
             />
             <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: "var(--chart-axis)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+              </>
+            )}
             <Tooltip
-              cursor={{ fill: "rgb(49 94 170 / 0.06)" }}
+              cursor={{ fill: "var(--chart-cursor)" }}
               content={({ active, label, payload }) =>
                 active && payload?.length ? (
                   <div className="rounded-control border border-border bg-popover px-3 py-2 text-xs shadow-md">
@@ -67,8 +89,17 @@ export function GroupedBars({ groups, series, height = 260, unit = "/100" }: { g
                 ) : null
               }
             />
-            {series.map((s) => (
-              <Bar key={s.key} dataKey={s.key} fill={s.color} maxBarSize={22} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+            {series.map((s, i) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                fill={s.color}
+                maxBarSize={narrow ? 12 : 22}
+                radius={narrow ? [0, 4, 4, 0] : [4, 4, 0, 0]}
+                isAnimationActive={false}
+              >
+                {narrow && i === 0 && <LabelList dataKey="label" content={aboveLabel()} />}
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>

@@ -41,6 +41,13 @@ export function fillDays(rows: DayRow[], since: string, until: string, keys: str
   return out;
 }
 
+/** The `days`-long window starting at `since` (the API's start date), zero-filled. */
+export function fillWindow(rows: DayRow[], since: string, days: number, keys: string[]): DayRow[] {
+  const until = new Date(`${since}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + days - 1);
+  return fillDays(rows, since, until.toISOString().slice(0, 10), keys);
+}
+
 /** One plain sentence for screen readers and the chart caption: totals and the busiest day. */
 /** `byTotal`: rank periods by the sum of all series (stacked bars), and say "in all"; otherwise by the first series. */
 export function summarize(rows: DayRow[], series: { key: string; label: string }[], period: Period = "day", byTotal = false): string {

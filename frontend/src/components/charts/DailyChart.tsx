@@ -29,12 +29,14 @@ export function DailyChart({
   const id = useId();
   const stacked = series.length > 1 && series.every((s) => s.stack && s.stack === series[0].stack);
   const summary = summarize(rows, series, period, stacked);
+  // Stacks read top-down: legend, tooltip and table list the top segment first, like the bars.
+  const listed = stacked ? [...series].reverse() : series;
   const tick = (k: string) => (period === "month" ? fmtMonth(k) : fmtDay(k));
   const anyData = rows.some((r) => series.some((s) => num(r, s.key) > 0));
   return (
     <figure className="flex flex-col gap-2" aria-labelledby={`${id}-cap`}>
       <ul className="flex flex-wrap gap-4 text-xs text-muted-foreground" aria-hidden>
-        {series.map((s) => (
+        {listed.map((s) => (
           <li key={s.key} className="inline-flex items-center gap-1.5">
             {s.kind === "bar" ? (
               <span className="inline-block size-2.5 rounded-[3px]" style={{ background: s.color }} />
@@ -48,7 +50,7 @@ export function DailyChart({
       <div aria-hidden className="w-full" style={{ height }}>
         {anyData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="20%">
+            <ComposedChart accessibilityLayer={false} data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="20%">
               <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="0" />
               <XAxis
                 dataKey="day"
@@ -60,12 +62,12 @@ export function DailyChart({
               />
               <YAxis allowDecimals={false} tick={{ fill: "var(--chart-axis)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
               <Tooltip
-                cursor={{ fill: "rgb(49 94 170 / 0.08)" }}
+                cursor={{ fill: "var(--chart-cursor)" }}
                 content={({ active, label, payload }) =>
                   active && payload?.length ? (
                     <div className="rounded-control border border-border bg-popover px-3 py-2 text-xs shadow-md">
                       <p className="mb-1 text-muted-foreground">{fmtPeriod(String(label), period)}</p>
-                      {series.map((s) => {
+                      {listed.map((s) => {
                         const v = payload.find((p) => p.dataKey === s.key)?.value ?? 0;
                         return (
                           <p key={s.key} className="flex items-center gap-2">
@@ -88,7 +90,7 @@ export function DailyChart({
                     stackId={s.stack}
                     maxBarSize={24}
                     radius={!s.stack || s === [...series].reverse().find((x) => x.stack === s.stack) ? [4, 4, 0, 0] : 0}
-                    stroke={s.stack ? "#fff" : undefined}
+                    stroke={s.stack ? "var(--card)" : undefined}
                     strokeWidth={s.stack ? 1 : 0}
                     isAnimationActive={false}
                   />
@@ -99,7 +101,7 @@ export function DailyChart({
                     stroke={s.color}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--card)" }}
                     type="monotone"
                     isAnimationActive={false}
                   />
@@ -113,9 +115,10 @@ export function DailyChart({
           </div>
         )}
       </div>
-      <figcaption id={`${id}-cap`} className="text-xs text-muted-foreground">
+      <figcaption id={`${id}-cap`} className={anyData ? "text-xs text-muted-foreground" : "sr-only"}>
         {summary}
       </figcaption>
+      {anyData && (
       <details className="text-xs">
         <summary className="inline-flex min-h-11 cursor-pointer items-center font-medium text-primary">Show as a table</summary>
         <div className="max-h-56 overflow-auto rounded-control border border-border">
@@ -125,7 +128,7 @@ export function DailyChart({
                 <th scope="col" className="px-2 py-1 font-medium">
                   {period === "month" ? "Month" : period === "week" ? "Week of" : "Day"}
                 </th>
-                {series.map((s) => (
+                {listed.map((s) => (
                   <th key={s.key} scope="col" className="px-2 py-1 text-right font-medium">
                     {s.label}
                   </th>
@@ -138,7 +141,7 @@ export function DailyChart({
                   <th scope="row" className="px-2 py-1 font-normal">
                     {tick(r.day)}
                   </th>
-                  {series.map((s) => (
+                  {listed.map((s) => (
                     <td key={s.key} className="px-2 py-1 text-right tabular-nums">
                       {num(r, s.key)}
                     </td>
@@ -149,6 +152,7 @@ export function DailyChart({
           </table>
         </div>
       </details>
+      )}
     </figure>
   );
 }

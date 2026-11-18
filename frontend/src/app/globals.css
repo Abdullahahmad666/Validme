@@ -46,11 +46,14 @@
   /* Slots 3–4 for up to four series (e.g. compared ideas); slot 4 is under 3:1, so those charts keep a table view. */
   --series-3: #199e70;
   --series-4: #c98500;
-  /* Ordered steps of one blue (low → high), validated as an ordinal ramp on white and the glass panes. */
-  --ordinal-1: #6da7ec;
-  --ordinal-2: #2a78d6;
-  --ordinal-3: #184f95;
+  /* Ordered steps of one blue (low → high), validated as an ordinal ramp on white and the glass panes; every step
+     clears 3:1 there (lightest 3.25:1 on the most tinted pane). */
+  --ordinal-1: #3987e5;
+  --ordinal-2: #256abf;
+  --ordinal-3: #104281;
   --chart-grid: #e2e8f0;
+  --chart-cursor: rgb(49 94 170 / 0.07); /* hover band behind the hovered bar / group */
+  --chart-track: rgb(49 94 170 / 0.12); /* the unfilled part of the score ring */
   --chart-axis: #556479;
 
   --sidebar: #ffffff;
@@ -255,7 +258,9 @@ html { scroll-padding-top: 5.5rem; }
   .app-glass {
     background-image: none;
   }
-  .app-glass .bg-card {
+  .app-glass .bg-card,
+  .app-glass .sticky.bg-card,
+  .app-glass .fixed.bg-card {
     background-color: var(--card);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

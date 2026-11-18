@@ -22,7 +22,8 @@ export function ShareBars({ rows, answered }: { rows: ShareRow[]; answered: numb
     const s = (r.share ?? 0) * 100;
     const lo = r.low != null ? r.low * 100 : null;
     const hi = r.high != null ? r.high * 100 : null;
-    return { ...r, pct: s, range: lo != null && hi != null ? [s - lo, hi - s] : [0, 0], shown: `${pctText(r.share)} (${r.count})` };
+    // No range from the server → no whisker at all (a zero-width one would look like certainty).
+    return { ...r, pct: s, range: lo != null && hi != null ? [s - lo, hi - s] : undefined, shown: `${pctText(r.share)} (${r.count})` };
   });
   const summary = rows
     .map((r) => `${r.label}: ${r.count} of ${answered} (${pctText(r.share)}${r.low != null ? `, 95% range ${pctText(r.low)}–${pctText(r.high)}` : ""})`)
@@ -31,11 +32,11 @@ export function ShareBars({ rows, answered }: { rows: ShareRow[]; answered: numb
     <figure className="flex flex-col gap-1" aria-labelledby={`${id}-cap`}>
       <div ref={box} aria-hidden style={{ height: rows.length * (stacked ? 46 : 32) + 8 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: stacked ? 18 : 4, right: 70, bottom: 4, left: 0 }} barCategoryGap={stacked ? "34%" : 8}>
+          <BarChart accessibilityLayer={false} data={data} layout="vertical" margin={{ top: stacked ? 18 : 4, right: 70, bottom: 4, left: 0 }} barCategoryGap={stacked ? "34%" : 8}>
             <XAxis type="number" domain={[0, 100]} hide />
             <YAxis type="category" dataKey="label" width={stacked ? 0 : col} hide={stacked} tickLine={false} axisLine={false} tick={leftTick(col)} />
             <Tooltip
-              cursor={{ fill: "rgb(49 94 170 / 0.06)" }}
+              cursor={{ fill: "var(--chart-cursor)" }}
               content={({ active, payload }) => {
                 const r = active && payload?.[0] ? (payload[0].payload as ShareRow) : null;
                 return r ? (

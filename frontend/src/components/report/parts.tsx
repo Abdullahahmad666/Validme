@@ -29,21 +29,6 @@ export function AiLabel({ children = "AI summary" }: { children?: React.ReactNod
   );
 }
 
-/** Horizontal bar (design system: horizontal bars for distributions, no pies). */
-export function HBar({ label, value, max, tone = "bg-primary" }: { label: string; value: number; max: number; tone?: string }) {
-  return (
-    <li>
-      <div className="mb-1 flex justify-between gap-3 text-sm">
-        <span>{label}</span>
-        <span className="tabular-nums text-muted-foreground">{value}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
-        <div className={cn("h-full rounded-full", tone)} style={{ width: `${max ? (value / max) * 100 : 0}%` }} />
-      </div>
-    </li>
-  );
-}
-
 export function EvidenceQuote({ e }: { e: ReportEvidence }) {
   return (
     <li className="rounded-control border border-border p-3">

@@ -12,7 +12,7 @@ import { type SlugCheck, SlugHint } from "@/components/lab/SlugHint";
 import { StatusBadge } from "@/components/lab/StatusBadge";
 import { BarList } from "@/components/charts/BarList";
 import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
-import { fillDays } from "@/components/charts/daily";
+import { fillWindow } from "@/components/charts/daily";
 import { ShareBars } from "@/components/charts/ShareBars";
 import { AiLabel, Panel } from "@/components/report/parts";
 import { AISuggestedBadge } from "@/components/shared/AISuggestedBadge";
@@ -125,13 +125,16 @@ const SURVEY_SERIES: DailySeries[] = [
 /** Views and answers per day over the last 30 days (zero where nothing was counted). */
 function SurveyDaily({ projectId, surveyId }: { projectId: string; surveyId: number }) {
   const stats = useSurveyStats(projectId, surveyId);
-  if (!stats.data) return null;
-  const until = new Date(`${stats.data.since}T00:00:00Z`);
-  until.setUTCDate(until.getUTCDate() + 29);
   return (
     <div className="mt-4">
       <h3 className="mb-2 text-sm font-semibold">Last 30 days</h3>
-      <DailyChart rows={fillDays(stats.data.daily, stats.data.since, until.toISOString().slice(0, 10), ["views", "responses"])} series={SURVEY_SERIES} height={180} />
+      {stats.isPending ? (
+        <Skeleton className="h-44" />
+      ) : stats.isError ? (
+        <ErrorState title="Couldn't load the daily counts" onRetry={() => stats.refetch()} />
+      ) : (
+        <DailyChart rows={fillWindow(stats.data.daily, stats.data.since, 30, ["views", "responses"])} series={SURVEY_SERIES} height={180} />
+      )}
     </div>
   );
 }

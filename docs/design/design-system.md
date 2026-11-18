@@ -64,13 +64,14 @@ The signed-in app (`.app-glass` on the dashboard layout) shows frosted cards ove
 
 Colour tokens (`globals.css`), all validated with the dataviz palette checks on white, `#f8fafc` and the glass panes:
 - Series in fixed order: `--series-1` `#315eaa`, `--series-2` `#d95926`, `--series-3` `#199e70`, `--series-4` `#c98500`. Slot 4 is under 3:1, so a chart using it keeps a table.
-- Ordinal (low → high, one hue): `--ordinal-1..3` `#6da7ec` / `#2a78d6` / `#184f95`.
-- `--chart-grid`, `--chart-axis`.
+- Ordinal (low → high, one hue): `--ordinal-1..3` `#3987e5` / `#256abf` / `#104281` (e.g. change significance).
+- `--chart-grid`, `--chart-axis` (`#556479`, AA on glass), `--chart-cursor` (hover band), `--chart-track` (empty part of a bar). Bar and dot strokes use `var(--card)`.
+- Colours come from the slots in order and are never cycled; a fifth series needs a different chart. Any series under 3:1 must have its values in a table on the page.
 - Status colours are never used as series.
 
-Every number comes from the API, including rates, ranges and weekly or monthly counts; charts don't compute statistics. Each chart has a text alternative: a summary sentence plus a table, or a table already on the page. The SVG itself is `aria-hidden`.
+Every number comes from the API, including rates, ranges and weekly or monthly counts; charts don't compute statistics. Each chart has a text alternative: a summary sentence plus a table, or a table already on the page. The SVG itself is `aria-hidden` and every chart root sets `accessibilityLayer={false}` so the hidden SVG takes no keyboard focus (enforced by `charts/a11y.test.ts`). Below 480px card width, horizontal and grouped bars put each label above its bar. Missing data is a gap, never 0; a non-additive list (prices, keyword volumes) gives a range, never a total. Every data chart has loading and error-with-retry states.
 
 ## Hard rules
 - Never fabricate data to fill a chart. Mock data in dev must be labelled "Sample data".
-- Charts: horizontal bars for pain distribution, stacked bars for evidence by source, trend lines only with real time series. No pie charts.
+- Charts: horizontal bars for distributions (pain themes, evidence by category or source), stacked bars only for parts of a per-period total, trend lines only with real time series on a time axis. No pie charts.
 - Don't make the opportunity score a global KPI across unrelated projects.

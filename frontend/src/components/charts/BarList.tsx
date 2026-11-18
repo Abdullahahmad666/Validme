@@ -19,6 +19,7 @@ export function BarList({
   rowHeight = 34,
   labelWidth,
   max,
+  additive = true,
   emptyText = "Nothing to show yet.",
 }: {
   rows: BarRow[];
@@ -27,6 +28,8 @@ export function BarList({
   rowHeight?: number;
   labelWidth?: number; // max width of the label column; it shrinks to the longest label
   max?: number;
+  /** Whether the values can be summed (counts of things). Prices or overlapping search volumes can't: no total. */
+  additive?: boolean;
   emptyText?: string;
 }) {
   const id = useId();
@@ -39,16 +42,19 @@ export function BarList({
     rows.map((r) => r.label),
     labelWidth ?? 220,
   );
-  const summary = `${rows.length} ${rows.length === 1 ? "row" : "rows"}, ${total} ${unit} in all; most: ${top.label} (${top.value}).`;
+  const low = rows.reduce((a, b) => (b.value < a.value ? b : a));
+  const summary = additive
+    ? `${rows.length} ${rows.length === 1 ? "row" : "rows"}, ${total} ${unit} in all; most: ${top.label} (${top.value}).`
+    : `${rows.length} ${rows.length === 1 ? "row" : "rows"} (${unit}), from ${low.value} (${low.label}) to ${top.value} (${top.label}).`;
   return (
     <figure className="flex flex-col gap-1" aria-labelledby={`${id}-cap`}>
       <div ref={box} aria-hidden style={{ height: rows.length * (stacked ? rowHeight + 14 : rowHeight) + 8 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} layout="vertical" margin={{ top: stacked ? 18 : 4, right: 40, bottom: 4, left: 0 }} barCategoryGap={stacked ? "34%" : 8}>
+          <BarChart accessibilityLayer={false} data={rows} layout="vertical" margin={{ top: stacked ? 18 : 4, right: 40, bottom: 4, left: 0 }} barCategoryGap={stacked ? "34%" : 8}>
             <XAxis type="number" hide domain={[0, max ?? "dataMax"]} />
             <YAxis type="category" dataKey="label" width={stacked ? 0 : col} hide={stacked} tickLine={false} axisLine={false} tick={leftTick(col)} />
             <Tooltip
-              cursor={{ fill: "rgb(49 94 170 / 0.06)" }}
+              cursor={{ fill: "var(--chart-cursor)" }}
               content={({ active, payload }) => {
                 const row = active && payload?.[0] ? (payload[0].payload as BarRow) : null;
                 return row ? (
@@ -81,7 +87,7 @@ export function BarList({
                 Name
               </th>
               <th scope="col" className="py-1 text-right font-medium">
-                {unit[0].toUpperCase() + unit.slice(1)}
+                {unit ? unit[0].toUpperCase() + unit.slice(1) : "Value"}
               </th>
             </tr>
           </thead>

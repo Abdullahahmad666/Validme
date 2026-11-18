@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillDays, fmtDay, summarize } from "@/components/charts/daily";
+import { fillDays, fillWindow, fmtDay, summarize } from "@/components/charts/daily";
 
 describe("daily chart helpers", () => {
   it("fill every day in the window with zeros where nothing was counted (no interpolation)", () => {
@@ -39,5 +39,16 @@ describe("summaries of stacked series", () => {
       { key: "high", label: "High" },
     ];
     expect(summarize(rows, series, "week", true)).toContain("Busiest week (starting) Nov 9 (10 in all)");
+  });
+});
+
+describe("fillWindow", () => {
+  it("zero-fills exactly `days` days from the start date", () => {
+    const rows = fillWindow([{ day: "2026-11-03", views: 4 }], "2026-11-01", 30, ["views"]);
+    expect(rows).toHaveLength(30);
+    expect(rows[0].day).toBe("2026-11-01");
+    expect(rows.at(-1)?.day).toBe("2026-11-30");
+    expect(rows[2].views).toBe(4);
+    expect(rows[1].views).toBe(0);
   });
 });
