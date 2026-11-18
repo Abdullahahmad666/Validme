@@ -193,7 +193,7 @@ export function ResearchWizard() {
 
           <section className="min-w-0 max-w-[720px] rounded-card border border-border bg-card p-5 sm:p-7">
             <p className="text-xs font-medium text-muted-foreground">Step {step} of 4</p>
-            {step === 1 && <StepIdea onCreated={(id) => goTo(1, id)} />}
+            {step === 1 && <StepIdea onCreated={(id, nextStep = 1) => goTo(nextStep, id)} />}
             {step === 2 && project.data && <StepMarket />}
             {step === 3 && project.data && <StepConfigure />}
             {step === 4 && project.data && <StepReview />}

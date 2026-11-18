@@ -66,6 +66,9 @@ def required_scope(method: str, path: str) -> str | None:
     return None
 
 
+WRITE_SCOPES = ("monitoring:write", "assumptions:write")  # can change the founder's data
+
+
 def clean_scopes(raw) -> list[str]:
     """Known scopes only, de-duplicated, in a stable order."""
     chosen = set(raw or [])

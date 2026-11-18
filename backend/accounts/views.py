@@ -1,12 +1,14 @@
 import logging
 
+from django.db import transaction
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
 from accounts.models import ApiKey
+from accounts.scopes import WRITE_SCOPES
 from accounts.serializers import ApiKeySerializer, MeSerializer
-from accounts.services import TooManyApiKeys, issue_api_key, revoke_api_key
+from accounts.services import TooManyApiKeys, issue_api_key, notify_write_scopes, revoke_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +61,8 @@ class ApiKeyViewSet(
             key, raw = issue_api_key(request.user, body.validated_data["name"], body.validated_data.get("scopes"))
         except TooManyApiKeys as exc:
             raise ApiKeyLimit(str(exc)) from exc
+        added = [s for s in key.scopes if s in WRITE_SCOPES]
+        transaction.on_commit(lambda: notify_write_scopes(key, added))
         return Response({**ApiKeySerializer(key).data, "key": raw}, status=status.HTTP_201_CREATED)
 
     def perform_update(self, serializer):
@@ -67,6 +71,8 @@ class ApiKeyViewSet(
         if before != key.scopes:
             # Audit trail without secrets: which key, old and new scopes.
             logger.info("api key %s scopes changed by user %s: %s -> %s", key.prefix, key.user_id, before, key.scopes)
+        added = [s for s in key.scopes if s in WRITE_SCOPES and s not in before]
+        transaction.on_commit(lambda: notify_write_scopes(key, added))
 
     def perform_destroy(self, instance):
         revoke_api_key(instance)

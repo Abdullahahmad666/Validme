@@ -28,6 +28,7 @@ docs/        product + design source of truth
 | Worker | `cd backend && celery -A config worker -l info` |
 | Frontend | `cd frontend && npm install && npm run dev` |
 | Frontend checks | `cd frontend && npm run lint && npm run typecheck && npm test` |
+| Wizard end-to-end | backend `DEBUG=True python manage.py seed_e2e_user` + both servers running, then `cd frontend && npm run e2e` (see `frontend/e2e/README.md`) |
 | MCP server tests | `cd mcp-server && pip install -e . && pytest` |
 | Dependency scans | `cd backend && pip-audit -r requirements.lock` · `cd frontend && npm audit --omit=dev` |
 | Performance check | `cd backend && python manage.py perf_check --evidence 2000 --strict` (PostgreSQL, rolled back) |

@@ -34,7 +34,7 @@ function defaultsFrom(project: Project | null, idea: string | null): IdeaForm {
 }
 
 /** Step 1 — describe the idea. Creates the draft on first "Understand my idea"; autosaves after that. */
-export function StepIdea({ onCreated }: { onCreated: (projectId: string) => void }) {
+export function StepIdea({ onCreated }: { onCreated: (projectId: string, nextStep?: 1 | 2) => void }) {
   const { project, goTo, reportSave } = useWizard();
   const params = useSearchParams();
   const qc = useQueryClient();
@@ -113,7 +113,7 @@ export function StepIdea({ onCreated }: { onCreated: (projectId: string) => void
         const created = await api.createProject(data);
         qc.setQueryData(projectKey(created.id), created);
         qc.invalidateQueries({ queryKey: projectsKey });
-        onCreated(created.id);
+        onCreated(created.id, 2); // Continue moves on, like it does once the draft exists
       } catch (err) {
         applyServerErrors(err);
         toast.error(err instanceof ApiError ? err.message : "Couldn't save your draft.");

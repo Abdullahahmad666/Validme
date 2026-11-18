@@ -565,3 +565,33 @@ def test_recorded_survey_suggestion_is_filtered(api, project, assumption, monkey
     prompts = [q["prompt"] for q in body["questions"]]
     assert prompts == ["How do you keep track of stock today?", "How much time does counting take in a typical week?"]
     assert all(q["drafted_by"] == "ai" and q["assumption_id"] == assumption.id for q in body["questions"])
+
+
+def test_owner_is_emailed_when_a_key_gains_write_permissions(api, user, django_capture_on_commit_callbacks):
+    from django.core import mail
+
+    with django_capture_on_commit_callbacks(execute=True):
+        kid = api.post("/api/api-keys", {"name": "Claude", "scopes": ["research:read"]}, format="json").json()["id"]
+    assert len(mail.outbox) == 0  # read-only key: nothing to report
+    with django_capture_on_commit_callbacks(execute=True):
+        api.patch(f"/api/api-keys/{kid}", {"scopes": ["research:read", "monitoring:write"]}, format="json")
+    assert len(mail.outbox) == 1 and mail.outbox[0].to == [user.email]
+    body = mail.outbox[0].body
+    assert "Mark Radar signals" in body and "Claude" in body and "vm_" in body and "revoke" in body
+    with django_capture_on_commit_callbacks(execute=True):
+        api.patch(f"/api/api-keys/{kid}", {"scopes": ["research:read", "monitoring:write"]}, format="json")  # no change
+    assert len(mail.outbox) == 1
+
+
+def test_e2e_seed_user_is_development_only(settings, db):
+    from django.core.management import CommandError, call_command
+
+    from accounts.models import User
+
+    settings.DEBUG = False
+    with pytest.raises(CommandError):
+        call_command("seed_e2e_user")
+    settings.DEBUG = True
+    call_command("seed_e2e_user", "--credits", "3")
+    u = User.objects.get(email="e2e@example.com")
+    assert u.credits == 3 and u.emailaddress_set.get().verified and u.check_password("e2e-pass-12345")

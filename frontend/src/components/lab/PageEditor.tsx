@@ -469,7 +469,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
           <h2 id="preview-h" className="mb-2 font-semibold">
             Preview
           </h2>
-          <PagePreview blocks={draft.blocks} retentionDays={draft.retention_days} />
+          <PagePreview blocks={draft.blocks} retentionDays={draft.retention_days} consentTemplate={page.consent_template} />
         </section>
         <Stats projectId={projectId} pageId={page.id} />
         <Signups projectId={projectId} pageId={page.id} />

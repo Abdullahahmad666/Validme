@@ -25,7 +25,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Celery job orchestration + JobStage tracking + 7-day search cache
 - [x] Wizard steps 1–4 (RHF + Zod, 800ms autosave, idempotent launch) + research progress page
 - Milestone: submit idea → real results stored ✅ (verified in browser: HN + Stack Exchange evidence stored, 1 credit charged once)
-- [ ] Playwright test for the wizard flow (CLAUDE.md convention)
+- [x] Playwright test for the wizard flow (CLAUDE.md convention): `frontend/e2e/wizard.spec.ts`, real API, launch intercepted
 - [x] Verify migrations on local Postgres (all tests pass on Postgres 18)
 
 ## Week 3 — Evidence intelligence

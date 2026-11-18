@@ -38,10 +38,10 @@ describe("PagePreview", () => {
     const out = renderToStaticMarkup(createElement(PagePreview, { blocks, retentionDays: 90 }));
     expect(out).not.toContain("<img src=x");
     expect(out).toContain("Not available yet: these are prices being tested, and nothing is charged.");
-    // Same words as the live form (backend/lab/public.py consent_text), so the founder previews what people agree to.
-    expect(out).toContain(
-      "I&#x27;d like to hear when this launches. The person behind this page may email me about it. ValidMe stores my email encrypted for up to 90 days, never sells it, and deletes it on request.",
-    );
+    // Same words as the live form (backend/lab/public.py CONSENT_TEMPLATE), so the founder previews what people agree to.
+    expect(out).toContain("deletes its copy after 90 days or sooner if I ask.");
+    const fromServer = renderToStaticMarkup(createElement(PagePreview, { blocks, retentionDays: 30, consentTemplate: "Server wording, {days} days." }));
+    expect(fromServer).toContain("Server wording, 30 days.");
     expect(out).toContain("product may not exist yet");
   });
 });

@@ -29,6 +29,8 @@ export type LabPage = {
   url: string | null;
   base_url: string;
   signups: number;
+  /** The live form's exact consent wording, with {days} left for the preview to fill in. */
+  consent_template: string;
 };
 
 /** How much a number based on n people can say (computed by the server; margin is ± as a fraction). */
