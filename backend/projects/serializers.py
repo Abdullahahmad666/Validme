@@ -82,9 +82,32 @@ class ProjectSerializer(serializers.ModelSerializer):
         child=serializers.CharField(max_length=40), source="config.exclude_terms", required=False, max_length=20
     )
 
+    progress = serializers.SerializerMethodField()
+
+    def get_progress(self, obj) -> dict:
+        """For cards: the latest research run's stages and, once there's a report, its score (null = not scored)."""
+        jobs = getattr(obj, "_jobs", None)
+        job = jobs[0] if jobs else (None if jobs is not None else obj.jobs.order_by("-created_at").first())
+        stages = []
+        if job is not None:
+            stages = [{"name": s.name, "status": s.status} for s in sorted(job.stages.all(), key=lambda s: s.order)]
+        try:
+            opp = obj.opportunity
+        except Project.opportunity.RelatedObjectDoesNotExist:
+            opp = None
+        scored = opp is not None and obj.status == Project.Status.COMPLETED
+        return {
+            "job_status": job.status if job else None,
+            "stages": stages,
+            "score": opp.score if scored else None,
+            "confidence": opp.confidence if scored else None,
+            "recommendation": opp.recommendation if scored else None,
+        }
+
     class Meta:
         model = Project
         fields = [
+            "progress",
             "id",
             "name",
             "status",

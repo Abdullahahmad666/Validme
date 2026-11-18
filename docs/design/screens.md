@@ -20,6 +20,8 @@ Answers: how many ideas researched, what's in progress, what looks promising, wh
 - Recent projects (2-col cards): name, status pill, date, stages covered, score shown only on completed projects.
 - Recent activity + recommended next actions (e.g. "Interview 5 owners from your report").
 - Empty state: explain the 4-step flow with one CTA.
+- Plan badge (plan + credits, links to billing). "Recommended next": rule-based actions from project state (finish a draft, review new Radar signals, test demand with a landing page, share a page under 30 views, test untested assumptions with a survey, watch competitors, refresh a report older than 60 days), each with its reason and link, at most two per project. "Recent activity": research runs, page changes, Radar signals and published Lab pages, newest first, icon + kind in words.
+- Project cards open `/projects/[id]` (overview: status, description, latest score with confidence and recommendation, latest run's stages, project tools; tools not yet available are shown disabled with why).
 
 ## P0 — New research wizard (`/research/new`)
 Desktop: left stepper (~230px) · center form (~700px) · right AI help panel (~280px) · breadcrumbs + autosave status on top. Mobile: single column, compact step bar, sticky bottom actions.

@@ -18,7 +18,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - Milestone: user signs up and creates a draft project ✅ (verified in browser on SQLite)
 
 ## Week 2 — Idea analysis & providers
-- [ ] Dashboard: plan badge, recent activity, recommended next actions, stages covered on project cards; project detail route (cards link to it)
+- [x] Dashboard: plan badge, recent activity, recommended next actions, stages covered on project cards; project detail route (cards link to it)
 - [x] `research/ai` LLM client with JSON-schema validation (Anthropic SDK, structured outputs, jsonschema check + one retry, refusal fallback, cost on the ledger)
 - [x] Interpret idea + generate queries endpoints (versioned prompts; query CRUD; AI throttle) — *needs `ANTHROPIC_API_KEY` to run live*
 - [x] Providers: Brave web search, HN Algolia, Stack Exchange, user URLs, competitor page fetcher (SSRF-safe, robots.txt) — *Exa not added; Brave needs `BRAVE_SEARCH_API_KEY`*

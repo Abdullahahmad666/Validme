@@ -12,10 +12,10 @@ from rest_framework.views import APIView
 
 from projects.models import Assumption, Project, UnitEconomics
 from projects.serializers import AssumptionSerializer, ProjectSerializer, ResearchQuerySerializer, UnitEconomicsSerializer
-from projects.services import dashboard_summary
+from projects.services import dashboard_details
 from research.ai import client as llm
 from research.ai.tasks import generate_queries, interpret_idea
-from research.models import ResearchQuery
+from research.models import ResearchJob, ResearchQuery
 from research.views import parse_uuid
 
 
@@ -48,7 +48,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Owner isolation: never remove this filter.
-        qs = Project.objects.filter(owner=self.request.user).select_related("idea", "market", "config")
+        from django.db.models import Prefetch
+
+        qs = (
+            Project.objects.filter(owner=self.request.user)
+            .select_related("idea", "market", "config", "opportunity")
+            # Latest job's stages and the opportunity score for cards, without a query per project.
+            .prefetch_related(Prefetch("jobs", queryset=ResearchJob.objects.prefetch_related("stages"), to_attr="_jobs"))
+        )
         status_filter = self.request.query_params.get("status")
         if status_filter in Project.Status.values:
             qs = qs.filter(status=status_filter)
@@ -197,7 +204,7 @@ class ProjectQueryViewSet(
 
 class DashboardSummaryView(APIView):
     def get(self, request):
-        return Response(dashboard_summary(request.user))
+        return Response(dashboard_details(request.user))
 
 
 class AssumptionViewSet(

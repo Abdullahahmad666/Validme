@@ -54,6 +54,7 @@ export type Project = {
   id: string;
   name: string;
   status: ProjectStatus;
+  progress?: ProjectProgress;
   // Step 1 — idea
   description: string;
   objectives: Objective[];
@@ -207,7 +208,35 @@ export type EvidenceFilters = {
   page?: number;
 };
 
-export type DashboardSummary = { projects: number; reports: number; evidence: number; active_jobs: number };
+export type ActivityEvent = {
+  kind: "report" | "failed" | "running" | "change" | "signal" | "lab";
+  title: string;
+  project_id: string;
+  at: string;
+  link: string;
+};
+
+export type NextAction = { title: string; why: string; link: string; project_id: string };
+
+export type DashboardSummary = {
+  projects: number;
+  reports: number;
+  evidence: number;
+  active_jobs: number;
+  plan: Plan;
+  credits: number;
+  recent_activity: ActivityEvent[];
+  next_actions: NextAction[];
+};
+
+/** Card summary: the latest run's stages and, for completed projects with a report, its score (null = not scored). */
+export type ProjectProgress = {
+  job_status: string | null;
+  stages: { name: StageName; status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "SKIPPED" }[];
+  score: number | null;
+  confidence: "low" | "medium" | "high" | null;
+  recommendation: "build" | "research_more" | "pivot" | null;
+};
 
 export type Me = {
   id: number;
