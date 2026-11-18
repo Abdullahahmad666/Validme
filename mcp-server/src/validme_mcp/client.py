@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import uuid
 from typing import Any
 
@@ -13,6 +14,18 @@ from validme_mcp import mock
 
 class ValidMeError(RuntimeError):
     pass
+
+
+LAB_RESULTS_MAX = 10
+_SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def safe_id(value: Any) -> str:
+    """Project and job ids are UUIDs (or sample ids): anything else, such as "..", never reaches a URL."""
+    text = str(value)
+    if not _SAFE_ID.match(text):
+        raise ValidMeError(f"Not a valid id: {text[:40]!r}")
+    return text
 
 
 class ValidMeClient:
@@ -77,29 +90,27 @@ class ValidMeClient:
     def job_status(self, job_id: str) -> dict[str, Any]:
         if self.use_mock:
             return mock.job_status(job_id)
-        return self._request("GET", f"/research/jobs/{job_id}")
+        return self._request("GET", f"/research/jobs/{safe_id(job_id)}")
 
     def report(self, project_id: str, report_id: int | None = None) -> dict[str, Any]:
         if self.use_mock:
             return mock.report(project_id)
-        return self._request("GET", f"/reports/{project_id}", params={"report": report_id} if report_id else None)
+        return self._request("GET", f"/reports/{safe_id(project_id)}", params={"report": int(report_id)} if report_id else None)
 
     def history(self, project_id: str) -> dict[str, Any]:
         if self.use_mock:
             return mock.history(project_id)
-        return self._request("GET", f"/reports/{project_id}/history")
+        return self._request("GET", f"/reports/{safe_id(project_id)}/history")
 
     def evidence(self, project_id: str, query: str = "", category: str = "") -> dict[str, Any]:
         if self.use_mock:
             return mock.evidence(project_id, query, category)
-        params = {"project": project_id, "q": query, "category": category}
+        params = {"project": safe_id(project_id), "q": query, "category": category}
         return self._request("GET", "/evidence", params={k: v for k, v in params.items() if v})
 
     # -- Week 15: monitoring, Radar, Lab (each needs its scope on the API key) -------------------------------------
     def _project_path(self, project_id: str, rest: str) -> str:
-        from urllib.parse import quote
-
-        return f"/projects/{quote(str(project_id), safe='')}/{rest}"
+        return f"/projects/{safe_id(project_id)}/{rest}"
 
     def watches(self, project_id: str) -> dict[str, Any]:
         if self.use_mock:
@@ -133,8 +144,10 @@ class ValidMeClient:
         """Pages with their stats and surveys with their aggregate results. Never emails or individual answers."""
         if self.use_mock:
             return mock.lab_results(project_id)
-        pages = self._request("GET", self._project_path(project_id, "lab-pages"))
-        surveys = self._request("GET", self._project_path(project_id, "lab-surveys"))
+        # At most 10 of each: every survey's results decrypt its typed answers on the server.
+        all_pages = self._request("GET", self._project_path(project_id, "lab-pages"))
+        all_surveys = self._request("GET", self._project_path(project_id, "lab-surveys"))
+        pages, surveys = all_pages[:LAB_RESULTS_MAX], all_surveys[:LAB_RESULTS_MAX]
         out_pages = [
             {
                 "id": p["id"],
@@ -153,7 +166,10 @@ class ValidMeClient:
             }
             for s in surveys
         ]
-        return {"project_id": project_id, "pages": out_pages, "surveys": out_surveys}
+        out: dict[str, Any] = {"project_id": project_id, "pages": out_pages, "surveys": out_surveys}
+        if len(all_pages) > len(pages) or len(all_surveys) > len(surveys):
+            out["note"] = f"Showing the {LAB_RESULTS_MAX} most recent pages and surveys; see the rest in the web app."
+        return out
 
     def predicted_vs_actual(self, project_id: str) -> dict[str, Any]:
         if self.use_mock:

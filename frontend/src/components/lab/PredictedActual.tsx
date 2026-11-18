@@ -21,7 +21,7 @@ function Actual({ e }: { e: ExperimentResult | null }) {
   if (!e.counted) {
     return (
       <span className="text-muted-foreground">
-        {e.successes} {e.label} from {e.trials} views: too few to count yet
+        {e.successes} {e.label} from {e.trials} views: too few to count yet (needs 30)
       </span>
     );
   }
@@ -29,7 +29,8 @@ function Actual({ e }: { e: ExperimentResult | null }) {
     <span>
       <span className="font-semibold tabular-nums">{e.score}/100</span>{" "}
       <span className="text-muted-foreground">
-        · {e.successes} {e.label} from {e.trials} views ({pct(e.rate, 1)}, at least {pct(e.low, 1)})
+        · {e.successes} {e.label} from {e.trials} views ({pct(e.rate, 1)}; likely at least {pct(e.low, 1)}, 95% range)
+        {e.excluded_days && e.excluded_days.length > 0 && ` · ${e.excluded_days.length} unusual day(s) left out`}
       </span>
     </span>
   );
@@ -41,7 +42,11 @@ export function PredictedActualView({ data, projectId }: { data: Data; projectId
   const tested = data.assumptions.filter((a) => a.auto_status);
   const untested = data.assumptions.length - tested.length;
   return (
-    <Panel title="Predicted vs actual" as="h2" aside={<span className="text-xs text-muted-foreground">Your experiments are the strongest evidence</span>}>
+    <Panel
+      title="Predicted vs actual"
+      as="h2"
+      aside={<span className="text-xs text-muted-foreground">What real people did outweighs what research predicted</span>}
+    >
       {nothingLive && (
         <p className="mb-3 text-sm text-muted-foreground">
           Once a test page or survey has been live, what real people did shows up here next to what the research predicted.

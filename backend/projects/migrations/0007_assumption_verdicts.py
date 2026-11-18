@@ -3,6 +3,10 @@
 from django.db import migrations, models
 
 
+def lock_founder_statuses(apps, schema_editor):
+    apps.get_model("projects", "Assumption").objects.exclude(status="untested").update(status_locked=True)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -36,8 +40,5 @@ class Migration(migrations.Migration):
             name="status_locked",
             field=models.BooleanField(default=False),
         ),
-        migrations.RunPython(
-            lambda apps, schema: apps.get_model("projects", "Assumption").objects.exclude(status="untested").update(status_locked=True),
-            migrations.RunPython.noop,
-        ),
+        migrations.RunPython(lock_founder_statuses, migrations.RunPython.noop),
 ]

@@ -212,10 +212,10 @@ def confirm(request):
             DataRequestNotice(project_id=pid, source=title[:80], removed=n) for (pid, title), n in notices.items()
         )
         DataRequest.objects.create(kind=DataRequest.Kind.DELETE, signups=n_signups, responses=n_responses)
-        from lab.tasks import evaluate_assumptions_task
+        from lab.tasks import schedule_evaluation
 
         for pid in {r.survey.project_id for r in responses}:
-            transaction.on_commit(lambda pid=pid: evaluate_assumptions_task.delay(pid))
+            transaction.on_commit(lambda pid=pid: schedule_evaluation(pid))
     return _render(request, "lab/data_request_done.html", deleted=n_signups + n_responses)
 
 

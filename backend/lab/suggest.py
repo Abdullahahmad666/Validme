@@ -170,7 +170,7 @@ def suggest_questions(project, user) -> list[dict]:
     """One neutral question per open assumption (max 8), each linked to it. Raises SuggestError with a safe reason."""
     from lab.surveys import validate_questions
 
-    assumptions = list(project.assumptions.filter(dismissed=False).exclude(status="contradicted")[:MAX_SUGGESTED_QUESTIONS])
+    assumptions = list(project.assumptions.filter(dismissed=False)[:MAX_SUGGESTED_QUESTIONS])  # contradicted ones can be re-tested
     if not assumptions:
         raise SuggestError("Add an assumption you want to test first (on the report's Assumptions tab).")
     if not llm.is_configured():
@@ -192,7 +192,7 @@ def suggest_questions(project, user) -> list[dict]:
     for raw in result.data.get("questions", []):
         if raw.get("assumption_id") not in allowed:
             continue  # only questions about the founder's own assumptions
-        q = {"id": f"q{len(questions) + 1}", "type": raw["type"], "prompt": raw["prompt"], "required": False}
+        q = {"id": f"q{len(questions) + 1}", "type": raw["type"], "prompt": raw["prompt"], "required": False, "drafted_by": "ai"}
         q["assumption_id"] = raw["assumption_id"]
         if raw["type"] in ("single", "multi"):
             q["options"] = raw.get("options") or []

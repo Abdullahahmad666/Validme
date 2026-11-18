@@ -72,7 +72,8 @@ def test_experiment_blends_into_research_or_scores_alone():
         "demand_evidence", 400, 40, "waitlist sign-ups", counted=True, score=70, confidence="high", explanation="E."
     )
     blended = with_experiment(Dimension("demand_evidence", 20, "low", "R."), exp)
-    assert blended.score == round(0.6 * 70 + 0.4 * 20) and blended.research_score == 20 and blended.confidence == "high"
+    assert blended.score == round(0.6 * 70 + 0.4 * 20) and blended.research_score == 20
+    assert blended.confidence == "low" and blended.research_confidence == "low"  # the weaker of the two parts
     assert blended.experiment["score"] == 70
     alone = with_experiment(Dimension("willingness_to_pay", None, "low", "Nothing."), exp)
     assert alone.score == 70 and alone.research_score is None and "experiment alone" in alone.explanation
@@ -172,7 +173,7 @@ def test_clear_majorities_mark_the_assumption_and_cite_the_question(project, ass
     assert (assumption.auto_status, assumption.status) == ("supported", "supported")
     ref = assumption.auto_refs[0]
     assert (ref["survey_id"], ref["question_id"], ref["n"], ref["k"]) == (survey.id, "q1", 20, 18)
-    assert "18 of 20 gave a supporting answer" in assumption.auto_basis
+    assert "18 of 20 answers were supporting" in assumption.auto_basis and ref["first_answer_at"] and ref["last_answer_at"]
     _answers(survey, [1] * 40)  # now 18 of 60
     evaluate_assumptions(project)
     assumption.refresh_from_db()
@@ -258,7 +259,7 @@ def test_rules_set_after_answers_are_flagged(api, project, assumption):
     evaluate_assumptions(project)
     assumption.refresh_from_db()
     assert assumption.auto_status == "supported" and assumption.auto_refs[0]["late_rule"] is True
-    assert "chosen after people had answered" in assumption.auto_basis
+    assert "advisory only" in assumption.auto_basis and assumption.status == "untested"  # never sets the status
 
 
 # --- D2: predicted vs actual ---------------------------------------------------------------------------------------
@@ -398,3 +399,169 @@ def test_signal_patch_by_other_users_key_is_404(make_user, project):
     sig = _signal(project)
     c = key_client(make_user("eve@example.com"), ["monitoring:write"])
     assert c.patch(f"/api/projects/{project.id}/signals/{sig.id}", {"status": "dismissed"}, format="json").status_code == 404
+
+
+# --- review fixes ---------------------------------------------------------------------------------------------------
+
+
+def test_more_signups_than_views_never_crashes(project):
+    from lab.experiments import wilson
+
+    assert wilson(31, 30)[1] == 1.0  # clamped, no math domain error
+    live_page(project, views=30, signups=45)
+    exp = project_experiments(project)["demand_evidence"]
+    assert exp.successes == 30 and exp.rate == 1.0 and "capped at 100%" in exp.explanation
+    result = score_project([], [], [], project_experiments(project))  # report building path
+    assert result["dimensions"][0]["score"] is not None
+
+
+def test_research_prediction_never_includes_the_experiment(api, project):
+    from reports.models import Report
+
+    dim = with_experiment(Dimension("demand_evidence", 40, "high", "Research text."), project_experiments(project).get("x"))
+    live_page(project, views=60, signups=12)
+    blended = with_experiment(
+        Dimension("demand_evidence", 40, "high", "Research text."), project_experiments(project)["demand_evidence"]
+    )
+    assert blended.research_confidence == "high" and blended.confidence == "low"
+    Report.objects.create(project=project, content={"opportunity": {"dimensions": [blended.as_dict(), dim.as_dict()]}})
+    demand = api.get(f"/api/projects/{project.id}/predicted-vs-actual").json()["dimensions"][0]
+    assert demand["predicted"] == {"score": 40, "confidence": "high", "explanation": "Research text."}
+
+
+def test_research_unavailable_is_said_when_experiment_scores_alone():
+    from lab.experiments import ExperimentResult
+
+    exp = ExperimentResult("demand_evidence", 400, 40, "x", counted=True, score=70, confidence="high", explanation="E.")
+    alone = with_experiment(Dimension("demand_evidence", None, "low", "Evidence wasn't classified (AI unavailable)."), exp)
+    assert "AI unavailable" in alone.explanation
+
+
+def test_spike_days_are_left_out(project):
+    page = live_page(project)
+    today = timezone.localdate()
+    for d in range(10):
+        LabDailyStat.objects.create(page=page, day=today - timedelta(days=d), views=10, signups=1)
+    LabDailyStat.objects.create(page=page, day=today - timedelta(days=20), views=5000, signups=0)  # a flood
+    exp = project_experiments(project)["demand_evidence"]
+    assert (exp.trials, exp.successes, exp.excluded_views) == (100, 10, 5000) and len(exp.excluded_days) == 1
+    assert "left out" in exp.explanation
+
+
+def test_same_email_counts_once_in_a_verdict(project, assumption):
+    from lab.models import SurveyResponse
+    from lab.verdicts import evaluate_assumptions
+
+    survey = _survey(project, assumption)
+    for _ in range(12):  # one person, twelve times
+        SurveyResponse.objects.create(
+            survey=survey, answers={"q1": 0}, email_hash="same", consent_version="v", expires_at=timezone.now() + timedelta(days=9)
+        )
+    evaluate_assumptions(project)
+    assumption.refresh_from_db()
+    assert assumption.auto_refs[0]["n"] == 1 and assumption.status == "untested"
+
+
+def test_rewording_after_answers_makes_the_verdict_advisory(api, project, assumption):
+    from lab.verdicts import evaluate_assumptions
+
+    survey = _survey(project, assumption)
+    _answers(survey, [0] * 20)
+    evaluate_assumptions(project)
+    assumption.refresh_from_db()
+    assert assumption.status == "supported"
+    q = {**survey.questions[0], "prompt": "Do you still count stock on paper?"}
+    api.patch(f"/api/projects/{project.id}/lab-surveys/{survey.id}", {"questions": [q]}, format="json")
+    assumption.refresh_from_db()
+    assert assumption.status == "untested" and "advisory only" in assumption.auto_basis
+
+
+def test_scale_rule_ignores_booleans():
+    from lab.verdicts import _supports
+
+    q = {"type": "scale", "support_min": 2}
+    assert _supports(q, True) is False and _supports(q, 4) is True
+
+
+def test_free_prices_dont_count_as_willingness_to_pay(project):
+    import time
+
+    from django.core import signing
+    from django.test import Client
+
+    from lab import public
+
+    blocks = [
+        PRICED[0],
+        {"type": "pricing", "items": [{"name": "Free", "price": "Free"}], "test_variants": [[{"name": "Free", "price": "$0"}]]},
+        PRICED[2],
+    ]
+    page = live_page(project, slug="free-page", blocks=blocks)
+    c = Client(HTTP_HOST="127.0.0.1:8000", HTTP_USER_AGENT="Mozilla/5.0")
+    html = c.get("/p/free-page").content.decode()
+    signed = signing.loads(html.split('name="token" value="')[1].split('"')[0], salt=public.TOKEN_SALT)
+    token = signing.dumps({**signed, "t": int(time.time()) - 5}, salt=public.TOKEN_SALT)
+    assert c.post("/p/free-page/choose", {"token": token, "option": "0"}).status_code == 303
+    assert not LabVariantStat.objects.filter(page=page, clicks__gt=0).exists()
+    assert public.is_free_price("$0.99") is False and public.is_free_price("0 €") is True
+
+
+def test_expired_answers_trigger_a_recount(project, assumption, django_capture_on_commit_callbacks):
+    from lab.models import SurveyResponse
+    from lab.tasks import purge_expired_responses
+
+    survey = _survey(project, assumption)
+    _answers(survey, [0] * 20)
+    from lab.verdicts import evaluate_assumptions
+
+    evaluate_assumptions(project)
+    SurveyResponse.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+    assert purge_expired_responses() == 20
+    assumption.refresh_from_db()
+    assert assumption.auto_status == "inconclusive" and assumption.status == "untested" and "0 answers" in assumption.auto_basis
+
+
+def test_other_users_keys_get_404_on_assumptions_and_predictions(make_user, project, assumption):
+    c = key_client(make_user("eve2@example.com"), ["research:read", "lab:read", "assumptions:write"])
+    assert (
+        c.patch(f"/api/projects/{project.id}/assumptions/{assumption.id}", {"status": "supported"}, format="json").status_code == 404
+    )
+    assert c.get(f"/api/projects/{project.id}/predicted-vs-actual").status_code == 404
+
+
+def test_scopes_follow_path_info_under_a_prefix(user, project, settings):
+    from django.test import RequestFactory
+
+    from accounts.auth import ApiKeyAuthentication
+    from accounts.services import issue_api_key
+
+    _, raw = issue_api_key(user, "mcp", ["research:read"])
+    request = RequestFactory().get(f"/api/projects/{project.id}", HTTP_AUTHORIZATION=f"Api-Key {raw}")
+    request.META["SCRIPT_NAME"] = "/backend"
+    request.path = "/backend" + request.path_info
+    from rest_framework.request import Request
+
+    assert ApiKeyAuthentication().authenticate(Request(request))[0] == user
+
+
+def test_recorded_survey_suggestion_is_filtered(api, project, assumption, monkeypatch, settings):
+    import json
+    from decimal import Decimal
+    from pathlib import Path
+
+    from lab import suggest
+    from research.ai.client import LLMResult
+
+    raw = (Path(__file__).parent / "fixtures" / "lab_survey_v1.json").read_text()
+    raw = raw.replace('"@A"', str(assumption.id)).replace('"@OTHER"', str(assumption.id + 999))
+    reply = json.loads(raw)
+    settings.ANTHROPIC_API_KEY, settings.LLM_PROVIDER = "test-key", "anthropic"
+    monkeypatch.setattr(
+        suggest.llm,
+        "complete_json",
+        lambda *a, **k: LLMResult(data=reply, model="m", input_tokens=1, output_tokens=1, cost_usd=Decimal("0")),
+    )
+    body = api.post(f"/api/projects/{project.id}/lab-survey-suggest").json()
+    prompts = [q["prompt"] for q in body["questions"]]
+    assert prompts == ["How do you keep track of stock today?", "How much time does counting take in a typical week?"]
+    assert all(q["drafted_by"] == "ai" and q["assumption_id"] == assumption.id for q in body["questions"])

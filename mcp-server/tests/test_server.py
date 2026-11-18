@@ -1,7 +1,7 @@
 import pytest
 
 from validme_mcp import server
-from validme_mcp.client import ValidMeClient
+from validme_mcp.client import ValidMeClient, ValidMeError
 
 
 @pytest.fixture(autouse=True)
@@ -87,7 +87,11 @@ def test_write_tools_need_confirmation(monkeypatch):
     monkeypatch.setattr(server.client(), "update_signal", lambda *a: calls.append(a) or {"ok": True})
     preview = server.update_signal("prj_sample", 3, "acted")
     assert preview["confirm_required"] is True and preview["would_change"]["status"] == "acted" and calls == []
-    assert server.update_signal("prj_sample", 3, "acted", confirm=True) == {"ok": True} and len(calls) == 1
+    assert "error" in server.update_signal("prj_sample", 3, "acted", confirm=True)  # no preview token: refused
+    assert "error" in server.update_signal("prj_sample", 3, "dismissed", confirm=True, confirm_token=preview["confirm_token"])
+    assert calls == []  # a token only fits the change it previewed
+    token = preview["confirm_token"]
+    assert server.update_signal("prj_sample", 3, "acted", confirm=True, confirm_token=token) == {"ok": True} and len(calls) == 1
 
 
 def test_set_assumption_status_body():
@@ -98,7 +102,8 @@ def test_set_assumption_status_body():
         "follow_experiments": True,
         "note": "from calls",
     }
-    done = server.set_assumption_status("prj_sample", 4, "supported", confirm=True)
+    token = server.set_assumption_status("prj_sample", 4, "supported")["confirm_token"]
+    done = server.set_assumption_status("prj_sample", 4, "supported", confirm=True, confirm_token=token)
     assert done["sample"] is True and done["status"] == "supported"
 
 
@@ -116,7 +121,20 @@ def test_live_client_paths_are_safe(monkeypatch):
     seen = []
     c = ValidMeClient(api_key="k", use_mock=False)
     monkeypatch.setattr(c, "_request", lambda method, path, **kw: seen.append((method, path, kw)) or {})
-    c.update_signal("a/b", 7, "dismissed")
+    c.update_signal("p-1", 7, "dismissed")
     c.set_assumption("p1", 2, {"status": "supported"})
-    assert seen[0][:2] == ("PATCH", "/projects/a%2Fb/signals/7") and seen[0][2]["json"] == {"status": "dismissed"}
+    assert seen[0][:2] == ("PATCH", "/projects/p-1/signals/7") and seen[0][2]["json"] == {"status": "dismissed"}
     assert seen[1][:2] == ("PATCH", "/projects/p1/assumptions/2")
+    for bad in ("a/b", "..", "", "x" * 65, "p 1"):
+        with pytest.raises(ValidMeError):
+            c.update_signal(bad, 7, "dismissed")
+    with pytest.raises(ValidMeError):
+        c.job_status("../api-keys")
+
+
+@pytest.mark.anyio
+async def test_tools_carry_read_and_write_hints():
+    tools = {t.name: t.annotations for t in await server.server.list_tools()}
+    assert tools["get_lab_results"].read_only_hint is True and tools["list_signals"].read_only_hint is True
+    assert tools["update_signal"].read_only_hint is False and tools["set_assumption_status"].read_only_hint is False
+    assert tools["validate_idea"].read_only_hint is False

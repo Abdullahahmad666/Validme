@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 import time
 from datetime import timedelta
 
@@ -112,6 +113,14 @@ def _bump_variant(page: LabPage, test_key: str, variant: int, field: str) -> Non
     today = timezone.localdate()
     LabVariantStat.objects.get_or_create(page=page, test_key=test_key, variant=variant, day=today)
     LabVariantStat.objects.filter(page=page, test_key=test_key, variant=variant, day=today).update(**{field: F(field) + 1})
+
+
+_FREE = re.compile(r"^\s*(?:free\b|gratis\b|[$€£¥]?\s*0+(?:[.,]0+)?(?![.,]?\d))", re.IGNORECASE)
+
+
+def is_free_price(price: str) -> bool:
+    """ "Free", "$0", "0 €", "0.00"…: a price that costs nothing."""
+    return bool(_FREE.match(price or ""))
 
 
 def _seen_variant(token: dict, test: dict | None) -> int | None:
@@ -275,7 +284,9 @@ def choose(request, slug: str):
         return HttpResponseRedirect(f"{back}#join", status=303)
     ua = (request.META.get("HTTP_USER_AGENT") or "").lower()
     once = f"lab:c:{_ip_key(request)}:{page.pk}:{variant}:{timezone.localdate()}"
-    if ua and not any(b in ua for b in BOT_UA) and cache.add(once, 1, 86400):
+    # Choosing a free option says nothing about willingness to pay: it isn't counted (the visitor sees the same note).
+    paid = not is_free_price(test["variants"][variant][option].get("price", ""))
+    if paid and ua and not any(b in ua for b in BOT_UA) and cache.add(once, 1, 86400):
         _bump_variant(page, test["key"], variant, "clicks")
     return HttpResponseRedirect(f"{back}?picked={option}#join", status=303)
 

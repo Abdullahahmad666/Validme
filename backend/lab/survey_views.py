@@ -376,8 +376,8 @@ def _reevaluate(project) -> None:
 
 
 def _rule(q: dict) -> tuple:
-    """A question's link and supporting-answer rule (what decides an assumption's verdict)."""
-    return (q.get("assumption_id"), tuple(sorted(q.get("support_options") or [])), q.get("support_min"))
+    """What decides an assumption's verdict: the link, the supporting-answer rule and the wording people answered."""
+    return (q.get("assumption_id"), tuple(sorted(q.get("support_options") or [])), q.get("support_min"), q.get("prompt"))
 
 
 def _typed_keys(token: str) -> set:

@@ -24,10 +24,12 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
         if not key.user.is_active:
             # A deactivated account loses API access too, not just its web session.
             raise exceptions.AuthenticationFailed("Invalid API key.")
-        scope = required_scope(request.method, request.path)
+        # path_info: without any SCRIPT_NAME prefix, so a deployment under a sub-path matches the same rules.
+        scope = required_scope(request.method, request.path_info)
         if scope is None:
             raise exceptions.PermissionDenied("API keys can't do this. Use the web app.")
-        if scope not in (key.scopes or []):
+        granted = key.scopes if isinstance(key.scopes, list) else []  # never a substring match on a string
+        if scope not in granted:
             raise exceptions.PermissionDenied(
                 f"This API key doesn't have the “{scope}” permission ({SCOPES[scope]}). Change it in Settings → API keys."
             )

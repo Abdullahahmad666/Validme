@@ -341,6 +341,7 @@ export function MarketGaps({ r, assumptions }: { r: Report; assumptions?: React.
   return (
     <div className="flex flex-col gap-4">
       <Panel title="Score breakdown" aside={<span className="text-xs text-muted-foreground">Computed from evidence counts, not by AI</span>}>
+        {o.experiment_rules && <p className="mb-3 text-xs text-muted-foreground">{o.experiment_rules}</p>}
         <ul className="flex flex-col gap-4">
           {o.dimensions.map((d) => (
             <li key={d.key} className="rounded-control border border-border p-4">
@@ -365,9 +366,25 @@ export function MarketGaps({ r, assumptions }: { r: Report; assumptions?: React.
                 </div>
               )}
               {d.experiment?.counted && (
-                <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  <FlaskConical className="size-3" aria-hidden /> Includes your experiment (strongest evidence)
-                </p>
+                <div className="mt-2 flex flex-col gap-1">
+                  <p className="inline-flex w-fit items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    <FlaskConical className="size-3" aria-hidden /> Includes your experiment (60% of this dimension)
+                    {d.research_score != null && ` · research alone: ${d.research_score}/100`}
+                  </p>
+                  {d.experiment.sources.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      From:{" "}
+                      {d.experiment.sources.map((s, i) => (
+                        <span key={`${s.kind}-${s.id}`}>
+                          {i > 0 && ", "}
+                          <Link href={`/projects/${r.project.id}/lab/${s.id}`} className="underline hover:text-foreground">
+                            {s.title}
+                          </Link>
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                </div>
               )}
               <p className="mt-2 text-sm text-muted-foreground">{d.explanation}</p>
               {d.evidence_ids.length > 0 && (

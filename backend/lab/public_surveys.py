@@ -172,7 +172,7 @@ def answer(request, slug: str):
     )
     _bump(survey, "responses")
     if any(q.get("assumption_id") is not None for q in survey.questions):
-        from lab.tasks import evaluate_assumptions_task
+        from lab.tasks import schedule_evaluation
 
-        transaction.on_commit(lambda: evaluate_assumptions_task.delay(survey.project_id))
+        transaction.on_commit(lambda: schedule_evaluation(survey.project_id))
     return done

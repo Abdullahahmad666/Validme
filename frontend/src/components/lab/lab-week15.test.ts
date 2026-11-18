@@ -67,7 +67,8 @@ describe("PredictedActualView", () => {
     const out = renderToStaticMarkup(createElement(PredictedActualView, { data, projectId: "p1" }));
     expect(out).toContain("40/100");
     expect(out).toContain("97/100");
-    expect(out).toContain("18 waitlist sign-ups from 120 views (15.0%, at least 9.7%)");
+    expect(out).toContain("18 waitlist sign-ups from 120 views (15.0%; likely at least 9.7%, 95% range)");
+    expect(out).toContain("too few to count yet (needs 30)");
     expect(out).toContain("Not scored");
     expect(out).toContain("too few to count yet");
     expect(out).toContain("(from your survey)");
@@ -106,5 +107,15 @@ describe("type changes keep the supporting-answer rule between choice types", ()
     const q: Question = { id: "q1", type: "single", prompt: "How?", options: ["A", "B"], assumption_id: 1, support_options: [1] };
     expect(changeType(q, "multi").support_options).toEqual([1]);
     expect(changeType(q, "scale").support_options).toBeUndefined();
+  });
+});
+
+describe("verdict flags", () => {
+  it("mark late rules as advisory and AI-drafted questions as such, and state the rule", () => {
+    const ref = { survey_id: 1, survey_title: "S", question_id: "q1", prompt: "How?", n: 20, k: 18, low: 0.7, high: 0.97, verdict: "supported" as const, late_rule: true, ai_drafted: true, basis: "b" };
+    const out = renderToStaticMarkup(createElement(ExperimentVerdict, { a: { auto_status: "supported", auto_refs: [ref] } }));
+    expect(out).toContain("Advisory: changed after answers");
+    expect(out).toContain("AI-drafted question");
+    expect(out).toContain("whole 95% range of supporting answers is above 50%");
   });
 });

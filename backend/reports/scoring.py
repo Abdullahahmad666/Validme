@@ -52,6 +52,8 @@ class Dimension:
     explanation: str
     evidence_ids: list[int] = field(default_factory=list)
     research_score: int | None = None  # tier 2-3: from research evidence only (before experiments)
+    research_confidence: str | None = None
+    research_explanation: str | None = None
     experiment: dict | None = None  # tier 1: lab.experiments.ExperimentResult, when the founder has one
 
     @property
@@ -237,7 +239,7 @@ def with_experiment(dim: Dimension, exp) -> Dimension:
     """Blend a tier-1 experiment result into a research dimension (see module docstring)."""
     from lab.experiments import EXPERIMENT_SHARE
 
-    dim.research_score = dim.score
+    dim.research_score, dim.research_confidence, dim.research_explanation = dim.score, dim.confidence, dim.explanation
     if exp is None:
         return dim
     dim.experiment = exp.as_dict()
@@ -246,7 +248,7 @@ def with_experiment(dim: Dimension, exp) -> Dimension:
         return dim
     if dim.score is None:
         dim.score, dim.confidence = exp.score, exp.confidence
-        dim.explanation = f"{exp.explanation} Research found nothing for this, so it's scored from your experiment alone."
+        dim.explanation = f"{exp.explanation} Research: {dim.explanation} So it's scored from your experiment alone."
         return dim
     blended = round(EXPERIMENT_SHARE * exp.score + (1 - EXPERIMENT_SHARE) * dim.score)
     dim.explanation = (
@@ -254,7 +256,8 @@ def with_experiment(dim: Dimension, exp) -> Dimension:
         f"{round(EXPERIMENT_SHARE * 100)}% of this dimension: {blended}/100."
     )
     dim.score = blended
-    dim.confidence = max(dim.confidence, exp.confidence, key=LEVELS.index)
+    # The weaker of the two: 60% of this rests on the experiment, so a small one can't borrow research's confidence.
+    dim.confidence = min(dim.confidence, exp.confidence, key=LEVELS.index)
     return dim
 
 
@@ -285,11 +288,18 @@ def score_project(
         recommendation = "pivot"
     tips = what_would_change(dims, items)
     if not any(e.counted for e in experiments.values()):
-        tips.insert(
-            0,
-            "What real people do beats what they say: publish a test page with a waitlist (and a price test) in the "
-            "Validation Lab and share it with likely customers. Once it has enough views it counts as your strongest evidence.",
-        )
+        from lab.experiments import MIN_VIEWS
+
+        pending = [e for e in experiments.values() if not e.counted]
+        if pending:
+            short = max(0, MIN_VIEWS - max(e.trials for e in pending))
+            tips.insert(0, f"Your test page needs about {short} more views before its results count: share it with likely customers.")
+        else:
+            tips.insert(
+                0,
+                "What real people do beats what they say: publish a test page with a waitlist (and a price test) in the "
+                "Validation Lab and share it with likely customers. Once it has enough views it counts as your strongest evidence.",
+            )
     from lab.experiments import RULES_NOTE
 
     return {

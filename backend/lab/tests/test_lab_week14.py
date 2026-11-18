@@ -505,6 +505,7 @@ def test_ai_questions_come_from_assumptions_and_stay_neutral(api, project, fake_
         "type": "single",
         "prompt": "How do you count stock today?",
         "required": False,
+        "drafted_by": "ai",
         "assumption_id": a.id,
         "options": base["options"],
     }

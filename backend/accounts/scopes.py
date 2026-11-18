@@ -2,7 +2,8 @@
 in authentication, before any view runs, so a new endpoint is unreachable by keys until it's listed here.
 
 Never reachable with a key, whatever its scopes: account and key management, billing actions, Lab sign-ups / survey
-answers / exports (personal data), creating or checking watches (fetch proxy), publishing, deleting, AI suggestions.
+answers / exports (personal data), creating or checking watches (fetch proxy), publishing, deleting, Lab AI suggestions.
+`research:run` does include generating search keywords (an AI call, under the `ai` throttle) because research needs them.
 Views keep their own checks too (ApiKeysReadOnly and friends); this table is the first gate, not the only one.
 """
 
@@ -52,7 +53,7 @@ RULES: list[tuple[tuple[str, ...], re.Pattern, str]] = [
     ]
 ]
 # A route that matches a rule's path for reads but is personal data. Checked first.
-NEVER = re.compile(rf"^{_P}/(lab-pages|lab-surveys)/{_ID}/(signups|signups-export|responses|responses-export)(/.*)?/?$")
+NEVER = re.compile(rf"^{_P}/(lab-pages|lab-surveys)/{_ID}/(signups|signups-export|responses|responses-export)(?:[./].*)?$")
 
 
 def required_scope(method: str, path: str) -> str | None:

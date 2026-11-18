@@ -24,6 +24,8 @@ export type Dimension = {
   evidence_ids: number[];
   /** score_v2: the research-only part, and the founder's own experiment (tier 1) when there is one. */
   research_score?: number | null;
+  research_confidence?: Level | null;
+  research_explanation?: string | null;
   experiment?: ExperimentResult | null;
 };
 
@@ -41,6 +43,8 @@ export type ExperimentResult = {
   score: number | null;
   confidence: Level;
   explanation: string;
+  excluded_days?: string[];
+  excluded_views?: number;
 };
 
 export type VerdictRef = {
@@ -54,6 +58,9 @@ export type VerdictRef = {
   high: number | null;
   verdict: "supported" | "contradicted" | "inconclusive";
   late_rule: boolean;
+  ai_drafted?: boolean;
+  first_answer_at?: string | null;
+  last_answer_at?: string | null;
   basis: string;
 };
 
@@ -162,6 +169,9 @@ export type Report = {
     risks: string[];
     market_size: { status: "unavailable" | "estimated"; reason?: string };
     what_would_change: string[];
+    /** score_v2: which dimensions used the founder's experiments, and the rules behind them. */
+    experiments_used?: string[];
+    experiment_rules?: string;
   };
   // Absent on reports built before Week 5.
   audience?: { segments: Segment[] };

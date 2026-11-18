@@ -55,6 +55,7 @@ function ScopePicker({ value, onChange, idPrefix }: { value: string[]; onChange:
           <span>
             {s.label}
             {s.write && <span className="ml-1 rounded-full bg-warning/10 px-1.5 py-0.5 text-[11px] font-semibold text-warning-text">changes data</span>}
+            {s.spends && <span className="ml-1 rounded-full bg-warning/10 px-1.5 py-0.5 text-[11px] font-semibold text-warning-text">spends credits</span>}
           </span>
         </label>
       ))}

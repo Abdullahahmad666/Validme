@@ -123,7 +123,7 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D2 Predicted vs actual panel
 - [x] D3 Assumptions auto-marked supported/contradicted (founder can override)
 - [x] D4 MCP tools for watches, Radar, Lab (scoped keys)
-- [ ] D5 Gate + full regression/performance pass
+- [x] D5 Gate + full regression/performance pass (PostgreSQL perf run still to do before deploy)
 
 ### Later (Phase D, on demand)
 - [ ] Agency workspaces · licensed Reddit/G2/Crunchbase/Similarweb (business decisions) · evidence-first GTM generator if asked

@@ -61,8 +61,10 @@ In this repo, `.mcp.json` registers it as `validme` with `VALIDME_MOCK=1`.
 | `get_predicted_vs_actual(project_id)` | Research prediction vs your experiments, and assumptions with survey verdicts (`lab:read`) |
 | `set_assumption_status(project_id, assumption_id, status, note, confirm)` | Set an assumption's status, or `follow_survey`. **Confirm action** (`assumptions:write`) |
 
-**Confirm actions** change data. Called without `confirm=true` they only return what would change (`confirm_required`),
-and the server's instructions tell Claude to ask you before calling again with `confirm=true`.
+**Confirm actions** change data. Called without `confirm=true` they only return what would change (`confirm_required`)
+and a `confirm_token`; the confirming call needs that token, so it can't skip the preview or confirm a different change
+(tokens last about 10 minutes and only for this server process). The server's instructions tell Claude to ask you before
+confirming, and tools are marked read-only or not so your MCP client can ask too.
 
 ## Permissions (API key scopes)
 Each key has scopes, chosen when you create it and editable in **Settings → API keys**. Anything a key's scopes don't

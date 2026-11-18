@@ -182,6 +182,6 @@ class ScoreHistoryView(APIView):
     def get(self, request, project_pk: str):
         project = _owned_project(request, project_pk)
         rows = ScoreSnapshot.objects.filter(project=project).values(
-            "id", "created_at", "source", "score", "confidence", "recommendation", "evidence_count", "report_id"
+            "id", "created_at", "source", "score", "confidence", "recommendation", "evidence_count", "report_id", "scoring_version"
         )[:104]
         return Response({"count": len(rows), "results": list(rows)})

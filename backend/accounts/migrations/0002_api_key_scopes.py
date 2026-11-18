@@ -3,6 +3,12 @@
 from django.db import migrations, models
 
 
+def keep_existing_reach(apps, schema_editor):
+    apps.get_model("accounts", "ApiKey").objects.filter(revoked=False).update(
+        scopes=["research:read", "research:run", "monitoring:read", "lab:read"]
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -16,10 +22,5 @@ class Migration(migrations.Migration):
             field=models.JSONField(default=list),
         ),
         # Keys made before scopes existed keep exactly what they could do (read everything, start research).
-        migrations.RunPython(
-            lambda apps, schema: apps.get_model("accounts", "ApiKey").objects.update(
-                scopes=["research:read", "research:run", "monitoring:read", "lab:read"]
-            ),
-            migrations.RunPython.noop,
-        ),
+        migrations.RunPython(keep_existing_reach, migrations.RunPython.noop),
     ]

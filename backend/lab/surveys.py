@@ -41,6 +41,7 @@ _QUESTION = {
         # can be set after people answered (the verdict is then recomputed from the same answers).
         "support_options": {"type": "array", "maxItems": 8, "items": {"type": "integer", "minimum": 0, "maximum": 7}},
         "support_min": {"type": ["integer", "null"], "minimum": 2, "maximum": 5},
+        "drafted_by": {"enum": ["ai", "founder"]},  # rule 2: AI-drafted questions stay marked
     },
     "required": ["id", "type", "prompt"],
     "additionalProperties": False,

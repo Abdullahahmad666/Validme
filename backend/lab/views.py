@@ -398,8 +398,13 @@ class PredictedActualView(APIView):
             # Reports from before Week 15 were research-only, so their score is the research prediction.
             predicted = None
             if d is not None:
-                research = d["research_score"] if "research_score" in d else d.get("score")
-                predicted = {"score": research, "confidence": d.get("confidence"), "explanation": d.get("explanation", "")}
+                # score_v2 dimensions carry their research-only part; v1 reports were research-only already.
+                v2 = "research_score" in d
+                predicted = {
+                    "score": d["research_score"] if v2 else d.get("score"),
+                    "confidence": d.get("research_confidence") or d.get("confidence") if v2 else d.get("confidence"),
+                    "explanation": (d.get("research_explanation") or "") if v2 else d.get("explanation", ""),
+                }
             exp = experiments.get(key)
             rows.append({"key": key, "label": label, "predicted": predicted, "actual": exp.as_dict() if exp else None})
         assumptions = [

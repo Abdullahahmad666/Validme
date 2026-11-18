@@ -6,8 +6,10 @@ minimum on the 1–5 scale), gives a share: supporting answers ÷ people who ans
 - contradicted when the whole interval is below 50%,
 - otherwise inconclusive.
 Several questions on one assumption: supported only if some support and none contradict (and the reverse); a mix is
-inconclusive. The verdict cites each question, survey and count. The founder's own status always wins once they set it
-(`status_locked`); until then the status follows the verdict. Typed answers are never judged.
+inconclusive, and questions with too few answers don't block the others. "Answers", not "people": the same email
+counts once, but anonymous answers can't be told apart. A rule set or a question reworded after answers came in makes the
+verdict advisory (it never sets the status). The verdict cites each question, survey and count. The founder's own
+status always wins once they set it (`status_locked`); until then the status follows the verdict. Typed answers are never judged.
 """
 
 from __future__ import annotations
@@ -28,15 +30,18 @@ def _supports(q: dict, value) -> bool | None:
         chosen = value if isinstance(value, list) else [value]
         return any(i in q["support_options"] for i in chosen)
     if q["type"] == "scale" and q.get("support_min") is not None:
-        return isinstance(value, int) and value >= q["support_min"]
+        return type(value) is int and value >= q["support_min"]  # not bool
     return None
 
 
-def question_result(survey, q: dict, answers: list[dict]) -> dict | None:
-    """The verdict of one linked question, or None if it has no supporting-answer rule."""
+def question_result(survey, q: dict, answers: list[dict], dates: list | None = None) -> dict | None:
+    """The verdict of one linked question, or None if it has no supporting-answer rule. `dates` (when answers were
+    given, same order as `answers`) records the window the verdict rests on, so the founder can see what moved it."""
     if _supports(q, 1 if q["type"] == "scale" else 0) is None:
         return None
-    values = [a.get(q["id"]) for a in answers if a.get(q["id"]) is not None]
+    answered = [i for i, a in enumerate(answers) if a.get(q["id"]) is not None]
+    values = [answers[i].get(q["id"]) for i in answered]
+    when = sorted(dates[i] for i in answered) if dates else []
     n = len(values)
     k = sum(1 for v in values if _supports(q, v))
     interval = wilson(k, n)
@@ -46,8 +51,9 @@ def question_result(survey, q: dict, answers: list[dict]) -> dict | None:
         why = f"{n} answer{'s' if n != 1 else ''}, too few to judge (needs {MIN_ANSWERS})"
     else:
         verdict = "supported" if low > MAJORITY else "contradicted" if high < MAJORITY else "inconclusive"
-        why = f"{k} of {n} gave a supporting answer ({k / n * 100:.0f}%; {low * 100:.0f}–{high * 100:.0f}% with 95% confidence)"
+        why = f"{k} of {n} answers were supporting ({k / n * 100:.0f}%; 95% range {low * 100:.0f}–{high * 100:.0f}%)"
     late = q["id"] in (survey.late_rules or [])
+    ai = q.get("drafted_by") == "ai"
     return {
         "survey_id": survey.id,
         "survey_title": survey.title,
@@ -59,9 +65,27 @@ def question_result(survey, q: dict, answers: list[dict]) -> dict | None:
         "high": high,
         "verdict": verdict,
         "late_rule": late,
+        "ai_drafted": ai,
+        "first_answer_at": when[0].isoformat() if when else None,
+        "last_answer_at": when[-1].isoformat() if when else None,
         "basis": f"“{q['prompt']}” in “{survey.title}”: {why}."
-        + (" The supporting answers were chosen after people had answered." if late else ""),
+        + (" The question or its supporting answers changed after people had answered, so this is advisory only." if late else "")
+        + (" The question was drafted by AI and kept by you." if ai else ""),
     }
+
+
+def _dedupe(rows: list[tuple]) -> list[tuple]:
+    """One answer per email: when someone left the same email twice, only their latest answer counts. Answers without an
+    email can't be told apart (no cookies or IPs are stored); the public form limits how many come from one network."""
+    seen: set[str] = set()
+    out = []
+    for answers, when, email_hash in sorted(rows, key=lambda r: r[1], reverse=True):
+        if email_hash:
+            if email_hash in seen:
+                continue
+            seen.add(email_hash)
+        out.append((answers, when))
+    return out
 
 
 def _combine(results: list[dict]) -> str:
@@ -84,9 +108,10 @@ def evaluate_assumptions(project) -> int:
         linked = [q for q in survey.questions if q.get("assumption_id") is not None]
         if not linked:
             continue
-        answers = list(survey.responses.filter(expires_at__gt=now).values_list("answers", flat=True))
+        rows = _dedupe(list(survey.responses.filter(expires_at__gt=now).values_list("answers", "submitted_at", "email_hash")))
+        answers, dates = [r[0] for r in rows], [r[1] for r in rows]
         for q in linked:
-            result = question_result(survey, q, answers)
+            result = question_result(survey, q, answers, dates)
             if result:
                 by_assumption.setdefault(q["assumption_id"], []).append(result)
     changed = 0
@@ -96,8 +121,10 @@ def evaluate_assumptions(project) -> int:
             auto = _combine(results) if results else ""
             basis = " ".join(r["basis"] for r in results)
             status = a.status
+            # A late rule (chosen or reworded after answers came in) is shown but never sets the status by itself.
+            advisory = any(r["late_rule"] for r in results)
             if not a.status_locked:
-                status = auto if auto in DECISIVE else Assumption.Status.UNTESTED
+                status = auto if auto in DECISIVE and not advisory else Assumption.Status.UNTESTED
             if (a.auto_status, a.auto_basis, a.auto_refs, a.status) == (auto, basis, results, status):
                 continue
             a.auto_status, a.auto_basis, a.auto_refs, a.status = auto, basis, results, status

@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleHelp, FlaskConical, XCircle } from "lucide-react";
+import { VERDICT_MAJORITY_PCT, VERDICT_MIN_ANSWERS } from "@/lib/apiScopes";
 import { cn } from "@/lib/utils";
 import type { Assumption } from "@/types/report";
 
@@ -24,9 +25,20 @@ export function ExperimentVerdict({ a, className }: { a: Pick<Assumption, "auto_
       </p>
       <ul className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
         {a.auto_refs.map((r) => (
-          <li key={`${r.survey_id}-${r.question_id}`}>{r.basis}</li>
+          <li key={`${r.survey_id}-${r.question_id}`}>
+            {r.late_rule && (
+              <span className="mr-1 rounded-full bg-warning/10 px-1.5 py-0.5 font-semibold text-warning-text">Advisory: changed after answers</span>
+            )}
+            {r.ai_drafted && <span className="mr-1 rounded-full bg-ai/10 px-1.5 py-0.5 font-semibold text-ai">AI-drafted question</span>}
+            {r.basis}
+          </li>
         ))}
       </ul>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Supported when the whole 95% range of supporting answers is above {VERDICT_MAJORITY_PCT}%, contradicted when it&apos;s
+        all below, with at least {VERDICT_MIN_ANSWERS} answers. Answers without an email can&apos;t be told apart, so one person
+        could answer more than once.
+      </p>
     </div>
   );
 }
