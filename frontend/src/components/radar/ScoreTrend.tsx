@@ -38,6 +38,9 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
     open = true;
   });
   const recent = snapshots.slice(0, 6);
+  // Where the scoring rules changed (e.g. score_v2 added the founder's experiments): marked so a jump isn't read as the
+  // market moving.
+  const change = points.findIndex((p, i) => i > 0 && (p.scoring_version || "") !== (points[i - 1].scoring_version || ""));
   const scored = points.filter((p) => p.score !== null);
   const first = scored[0];
   const last = scored.at(-1);
@@ -54,6 +57,7 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
           <line key={v} x1={pad} x2={w - pad} y1={y(v)} y2={y(v)} className="stroke-border" strokeDasharray="3 4" />
         ))}
         <line x1={pad} x2={w - pad} y1={band} y2={band} className="stroke-border" />
+        {change > 0 && <line x1={x(change) - 6} x2={x(change) - 6} y1={top} y2={band} className="stroke-muted-strong" strokeDasharray="2 3" />}
         {path && <path d={path} fill="none" className="stroke-primary" strokeWidth={2} />}
         {points.map((p, i) =>
           p.score === null ? (
@@ -67,6 +71,12 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
         Large points are research reports, small ones weekly re-checks of the same evidence (scores drift as evidence
         ages). Hollow points on the bottom line weren&apos;t scored.
       </p>
+      {change > 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">
+          The dashed line marks {fmtDate(points[change].created_at)}, when the scoring rules changed (your own experiments now
+          count): scores before and after aren&apos;t directly comparable.
+        </p>
+      )}
       <table className="mt-3 w-full text-sm">
         <caption className="sr-only">Most recent scores</caption>
         <thead className="text-xs text-muted-foreground">

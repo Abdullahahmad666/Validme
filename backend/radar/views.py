@@ -108,6 +108,9 @@ class SignalViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.Gen
     serializer_class = SignalSerializer
     permission_classes = [permissions.IsAuthenticated, ApiKeysReadOnly]
     http_method_names = ["get", "post", "patch", "head", "options"]
+    # Keys with monitoring:write may PATCH a signal's status (seen / acted / dismissed + feedback); nothing else.
+    api_key_write_scope = "monitoring:write"
+    api_key_write_methods = ("PATCH",)
     throttle_scope = "radar_refresh"
 
     def get_throttles(self):
@@ -179,6 +182,6 @@ class ScoreHistoryView(APIView):
     def get(self, request, project_pk: str):
         project = _owned_project(request, project_pk)
         rows = ScoreSnapshot.objects.filter(project=project).values(
-            "id", "created_at", "source", "score", "confidence", "recommendation", "evidence_count", "report_id"
+            "id", "created_at", "source", "score", "confidence", "recommendation", "evidence_count", "report_id", "scoring_version"
         )[:104]
         return Response({"count": len(rows), "results": list(rows)})

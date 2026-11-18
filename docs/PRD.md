@@ -66,6 +66,11 @@ Source-linked validation is now table stakes (Preuve AI, BigIdeasDB, Discury, Id
 
 High score + low confidence ⇒ recommendation is "research more", not "build".
 
+**Score v2 (Week 15):** the founder's own experiments are the strongest (tier-1) evidence. A Validation Lab result with
+enough views (waitlist sign-up rate → demand; "Choose a price" rate → willingness to pay) counts for 60% of its dimension,
+scored from the cautious end of its 95% range so small samples can't score high. Research-only and experiment parts stay
+visible separately. Survey answers mark the founder's assumptions supported or contradicted (the founder can override).
+
 ## 9. Pricing (to test)
 - **Free:** 1 Quick report (limited evidence preview).
 - **Credit packs:** 3 reports $19 · 10 reports $49 (no subscription needed).

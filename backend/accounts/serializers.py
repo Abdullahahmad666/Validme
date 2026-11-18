@@ -36,8 +36,20 @@ class MeSerializer(serializers.ModelSerializer):
 
 class ApiKeySerializer(serializers.ModelSerializer):
     name = serializers.CharField(min_length=1, max_length=80)
+    scopes = serializers.ListField(child=serializers.CharField(max_length=40), max_length=20, required=False)
 
     class Meta:
         model = ApiKey
-        fields = ["id", "name", "prefix", "created_at", "last_used_at", "revoked"]
+        fields = ["id", "name", "prefix", "created_at", "last_used_at", "revoked", "scopes"]
         read_only_fields = ["id", "prefix", "created_at", "last_used_at", "revoked"]
+
+    def validate_scopes(self, value):
+        from accounts.scopes import SCOPES, clean_scopes
+
+        unknown = sorted(set(value) - set(SCOPES))
+        if unknown:
+            raise serializers.ValidationError(f"Unknown permission: {', '.join(unknown)}.")
+        value = clean_scopes(value)
+        if not value:
+            raise serializers.ValidationError("Choose at least one permission.")
+        return value

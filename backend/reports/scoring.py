@@ -5,6 +5,10 @@ a plain explanation with the actual counts. Unavailable dimensions are left out 
 weights renormalised; the report shows which ones were missing and what would fill them.
 Overall confidence = the weakest of evidence volume, source diversity and recency.
 High score + low confidence ⇒ "research_more", never "build".
+
+score_v2 (Week 15, ADR-7 tiers): the founder's own experiments (lab.experiments) are tier 1. When a Lab result has
+enough views it is blended into its dimension at EXPERIMENT_SHARE (60%), or scores the dimension on its own when research
+found nothing; `research_score` and `experiment` keep both parts visible. Too-small results are only mentioned.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from datetime import date, timedelta
 from evidence.models import Category, Evidence, EvidenceCluster
 from reports.models import Competitor
 
-SCORING_VERSION = "score_v1"
+SCORING_VERSION = "score_v2"
 LEVELS = ["low", "medium", "high"]
 
 WEIGHTS = {
@@ -47,6 +51,10 @@ class Dimension:
     confidence: str
     explanation: str
     evidence_ids: list[int] = field(default_factory=list)
+    research_score: int | None = None  # tier 2-3: from research evidence only (before experiments)
+    research_confidence: str | None = None
+    research_explanation: str | None = None
+    experiment: dict | None = None  # tier 1: lab.experiments.ExperimentResult, when the founder has one
 
     @property
     def label(self) -> str:
@@ -227,12 +235,42 @@ def what_would_change(dims: list[Dimension], items: list[Evidence]) -> list[str]
     return tips
 
 
-def score_project(items: list[Evidence], clusters: list[EvidenceCluster], competitors: list[Competitor]) -> dict:
+def with_experiment(dim: Dimension, exp) -> Dimension:
+    """Blend a tier-1 experiment result into a research dimension (see module docstring)."""
+    from lab.experiments import EXPERIMENT_SHARE
+
+    dim.research_score, dim.research_confidence, dim.research_explanation = dim.score, dim.confidence, dim.explanation
+    if exp is None:
+        return dim
+    dim.experiment = exp.as_dict()
+    if not exp.counted:
+        dim.explanation = f"{dim.explanation} {exp.explanation}"
+        return dim
+    if dim.score is None:
+        dim.score, dim.confidence = exp.score, exp.confidence
+        dim.explanation = f"{exp.explanation} Research: {dim.explanation} So it's scored from your experiment alone."
+        return dim
+    blended = round(EXPERIMENT_SHARE * exp.score + (1 - EXPERIMENT_SHARE) * dim.score)
+    dim.explanation = (
+        f"Research: {dim.explanation} ({dim.score}/100). {exp.explanation} Your experiment counts for "
+        f"{round(EXPERIMENT_SHARE * 100)}% of this dimension: {blended}/100."
+    )
+    dim.score = blended
+    # The weaker of the two: 60% of this rests on the experiment, so a small one can't borrow research's confidence.
+    dim.confidence = min(dim.confidence, exp.confidence, key=LEVELS.index)
+    return dim
+
+
+def score_project(
+    items: list[Evidence], clusters: list[EvidenceCluster], competitors: list[Competitor], experiments: dict | None = None
+) -> dict:
+    """`experiments`: lab.experiments.project_experiments(project), or None to score research alone."""
+    experiments = experiments or {}
     by_id = {e.id: e for e in items}
     dims = [
-        demand(items),
+        with_experiment(demand(items), experiments.get("demand_evidence")),
         pain(items, clusters),
-        willingness_to_pay(items, competitors),
+        with_experiment(willingness_to_pay(items, competitors), experiments.get("willingness_to_pay")),
         competitive_gap(competitors, by_id),
         audience_accessibility(items),
         Dimension("product_feasibility", None, "low", "Your judgement: market research can't measure how hard this is to build."),
@@ -248,11 +286,29 @@ def score_project(items: list[Evidence], clusters: list[EvidenceCluster], compet
         recommendation = "research_more"
     else:
         recommendation = "pivot"
+    tips = what_would_change(dims, items)
+    if not any(e.counted for e in experiments.values()):
+        from lab.experiments import MIN_VIEWS
+
+        pending = [e for e in experiments.values() if not e.counted]
+        if pending:
+            short = max(0, MIN_VIEWS - max(e.trials for e in pending))
+            tips.insert(0, f"Your test page needs about {short} more views before its results count: share it with likely customers.")
+        else:
+            tips.insert(
+                0,
+                "What real people do beats what they say: publish a test page with a waitlist (and a price test) in the "
+                "Validation Lab and share it with likely customers. Once it has enough views it counts as your strongest evidence.",
+            )
+    from lab.experiments import RULES_NOTE
+
     return {
         "score": score,
         "confidence": confidence,
         "recommendation": recommendation,
         "dimensions": [x.as_dict() for x in dims],
-        "what_would_change": what_would_change(dims, items),
+        "what_would_change": tips,
         "scored_weight": sum(x.weight for x in available),
+        "experiments_used": sorted(k for k, e in experiments.items() if e.counted),
+        "experiment_rules": RULES_NOTE if experiments else "",
     }

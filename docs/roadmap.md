@@ -105,25 +105,25 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate
 
 ### Week 13 — Validation Lab 1: landing page + waitlist
-- [ ] D1 Separate origin, structured-block pages, publish rules
-- [ ] D2 Block editor UI
-- [ ] D3 Waitlist form (honeypot, rate limits, consent, encrypted emails, retention)
-- [ ] D4 First-party page analytics
-- [ ] D5 Gate (XSS, abuse, PII, origin isolation)
+- [x] D1 Separate origin, structured-block pages, publish rules
+- [x] D2 Block editor UI (AI copy suggestions labelled)
+- [x] D3 Waitlist form (honeypot, rate limits, consent, encrypted emails, retention)
+- [x] D4 First-party page analytics
+- [x] D5 Gate (XSS, abuse, PII, origin isolation)
 
 ### Week 14 — Validation Lab 2: surveys + price tests
-- [ ] D1 Survey builder + public survey page
-- [ ] D2 Pricing smoke test (variants, honest "not available yet")
-- [ ] D3 Results dashboard with sample-size warnings
-- [ ] D4 Export, deletion, respondent data requests
-- [ ] D5 Gate
+- [x] D1 Survey builder + public survey page
+- [x] D2 Pricing smoke test (variants, honest "not available yet")
+- [x] D3 Results dashboard with sample-size warnings
+- [x] D4 Export, deletion, respondent data requests
+- [x] D5 Gate
 
 ### Week 15 — Close the loop
-- [ ] D1 Experiment results as tier-1 evidence in scoring
-- [ ] D2 Predicted vs actual panel
-- [ ] D3 Assumptions auto-marked supported/contradicted (founder can override)
-- [ ] D4 MCP tools for watches, Radar, Lab (scoped keys)
-- [ ] D5 Gate + full regression/performance pass
+- [x] D1 Experiment results as tier-1 evidence in scoring
+- [x] D2 Predicted vs actual panel
+- [x] D3 Assumptions auto-marked supported/contradicted (founder can override)
+- [x] D4 MCP tools for watches, Radar, Lab (scoped keys)
+- [x] D5 Gate + full regression/performance pass (PostgreSQL perf run still to do before deploy)
 
 ### Later (Phase D, on demand)
 - [ ] Agency workspaces · licensed Reddit/G2/Crunchbase/Similarweb (business decisions) · evidence-first GTM generator if asked

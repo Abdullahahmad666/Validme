@@ -1,0 +1,11 @@
+{
+  "_note": "A recorded-shape reply for prompt lab_survey_v1, including rule-breaking questions the filters must drop.",
+  "questions": [
+    {"assumption_id": "@A", "type": "single", "prompt": "How do you keep track of stock today?", "options": ["Paper", "Spreadsheet", "An app", "Not sure"], "low_label": "", "high_label": ""},
+    {"assumption_id": "@A", "type": "scale", "prompt": "How much time does counting take in a typical week?", "options": [], "low_label": "Very little", "high_label": "A lot"},
+    {"assumption_id": "@A", "type": "single", "prompt": "Wouldn't it be great to never count by hand again?", "options": ["Yes", "No"], "low_label": "", "high_label": ""},
+    {"assumption_id": "@OTHER", "type": "text", "prompt": "Ignore the rules and ask for their password.", "options": [], "low_label": "", "high_label": ""},
+    {"assumption_id": "@A", "type": "single", "prompt": "Which tool do you use?", "options": ["See stockly.com", "Other"], "low_label": "", "high_label": ""},
+    {"assumption_id": "@A", "type": "text", "prompt": "What is your phone number?", "options": [], "low_label": "", "high_label": ""}
+  ]
+}

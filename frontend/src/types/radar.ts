@@ -46,4 +46,6 @@ export type ScoreSnapshot = {
   recommendation: string;
   evidence_count: number;
   report_id: number | null;
+  /** Rules the point was computed with; points from different rules aren't directly comparable. */
+  scoring_version?: string;
 };

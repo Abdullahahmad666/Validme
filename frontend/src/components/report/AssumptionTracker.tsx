@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, CircleHelp, ExternalLink, Plus, Trash2, XCircle } from "lucide-react";
 import { useId, useState } from "react";
+import { ExperimentVerdict } from "@/components/lab/ExperimentVerdict";
 import { AiLabel, Panel } from "@/components/report/parts";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { labKeys } from "@/hooks/useLab";
 import { cn, safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
 import type { Assumption, AssumptionStatus, Report } from "@/types/report";
@@ -53,7 +55,10 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
     onSuccess: (_d, body) => {
       if (body.note !== undefined) setNoteSaved(true);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: key });
+      qc.invalidateQueries({ queryKey: labKeys.predictedVsActual(projectId) });
+    },
   });
   const remove = useMutation({
     mutationFn: () => api.deleteAssumption(projectId, a.id),
@@ -91,6 +96,24 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
           </select>
         </div>
       </div>
+
+      {a.auto_status && (
+        <div className="mt-3 flex flex-col gap-2" aria-live="polite">
+          <ExperimentVerdict a={a} />
+          {a.status_locked ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>You set this status yourself, so it doesn&apos;t follow the survey.</span>
+              {(a.auto_status === "supported" || a.auto_status === "contradicted") && a.auto_status !== a.status && (
+                <Button variant="outline" className="min-h-11" disabled={update.isPending} onClick={() => update.mutate({ follow_experiments: true })}>
+                  Use the survey result
+                </Button>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">The status follows your survey until you set one yourself.</p>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-col gap-1.5">
         <Label htmlFor={`${ids}-note`} className="text-xs text-muted-foreground">

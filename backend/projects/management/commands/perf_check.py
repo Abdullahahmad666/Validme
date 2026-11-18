@@ -117,6 +117,9 @@ def _measure(path: str, user, n: int, ids: dict) -> dict:
     if len(executed) > QUERY_BUDGET:
         flags.append("queries")
     label = path.replace(str(ids["project"]), "{id}").replace(str(ids["other_project"]), "{id2}")
+    label = label.replace(f"lab-pages/{ids['lab_page']}/", "lab-pages/{pid}/").replace(
+        f"lab-surveys/{ids['survey']}/", "lab-surveys/{sid}/"
+    )
     return {
         "path": label,
         "label": label,
@@ -152,6 +155,13 @@ def _endpoints(ids: dict) -> list[str]:
         f"/api/projects/{p}/signals?status=all&type=opportunity",
         f"/api/projects/{p}/score-history",
         f"/api/projects/{p}/distribution",
+        f"/api/projects/{p}/lab-pages",
+        f"/api/projects/{p}/lab-pages/{ids['lab_page']}/stats",
+        f"/api/projects/{p}/lab-surveys",
+        f"/api/projects/{p}/lab-surveys/{ids['survey']}/results",
+        f"/api/projects/{p}/lab-surveys/{ids['survey']}/responses",
+        f"/api/projects/{p}/predicted-vs-actual",
+        f"/api/projects/{p}/lab-notices",
         "/api/monitoring/changes",
         "/api/notifications",
         "/api/billing/packs",
@@ -304,4 +314,62 @@ def _seed(n_evidence: int) -> dict:
         )
         for i in range(40)
     )
-    return {"user": user, "project": main.pk, "other_project": projects[1].pk}
+    # Validation Lab (Weeks 13-15): 3 live pages with 90 days of stats (one with a price test), a survey with 2,000
+    # answers linked to assumptions (typed answers encrypted), and the verdicts computed from them.
+    import json as _json
+
+    from lab import crypto
+    from lab.blocks import price_test
+    from lab.models import LabDailyStat, LabPage, LabVariantStat, Survey, SurveyResponse
+    from lab.verdicts import evaluate_assumptions
+    from projects.models import Assumption
+
+    priced = [
+        {"type": "hero", "headline": "Count stock faster"},
+        {"type": "pricing", "items": [{"name": "Basic", "price": "$9"}], "test_variants": [[{"name": "Basic", "price": "$19"}]]},
+        {"type": "waitlist"},
+    ]
+    pages = [
+        LabPage.objects.create(
+            project=main, title=f"Page {i}", slug=f"perf-page-{i}", blocks=priced, status="published", published_at=now
+        )
+        for i in range(3)
+    ]
+    today = timezone.localdate()
+    LabDailyStat.objects.bulk_create(
+        LabDailyStat(page=pg, day=today - timedelta(days=d), views=20 + d % 7, signups=d % 4) for pg in pages for d in range(90)
+    )
+    key = price_test(priced)["key"]
+    LabVariantStat.objects.bulk_create(
+        LabVariantStat(page=pages[0], test_key=key, variant=v, day=today - timedelta(days=d), views=10, clicks=d % 3, signups=d % 2)
+        for v in range(2)
+        for d in range(90)
+    )
+    assumptions = [Assumption.objects.create(project=main, text=f"Perf assumption {i}") for i in range(4)]
+    questions = [
+        {
+            "id": f"q{i + 1}",
+            "type": "single",
+            "prompt": f"Question {i}",
+            "options": ["A", "B", "C"],
+            "assumption_id": a.id,
+            "support_options": [0],
+        }
+        for i, a in enumerate(assumptions)
+    ] + [{"id": "q5", "type": "scale", "prompt": "Pain"}, {"id": "q6", "type": "text", "prompt": "Tried?"}]
+    survey = Survey.objects.create(
+        project=main, title="Perf survey", slug="perf-survey", questions=questions, status="published", published_at=now
+    )
+    typed = crypto.encrypt_text(_json.dumps({"q6": "A notebook and a spreadsheet"}))
+    SurveyResponse.objects.bulk_create(
+        SurveyResponse(
+            survey=survey,
+            answers={**{f"q{i + 1}": (r + i) % 3 for i in range(4)}, "q5": 1 + r % 5},
+            text_encrypted=typed,
+            consent_version="v",
+            expires_at=now + timedelta(days=180),
+        )
+        for r in range(2000)
+    )
+    evaluate_assumptions(main)
+    return {"user": user, "project": main.pk, "other_project": projects[1].pk, "lab_page": pages[0].pk, "survey": survey.pk}

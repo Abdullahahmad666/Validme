@@ -79,7 +79,7 @@ def summarize_change(change: Change) -> bool:
 
 
 # Operations that count against the per-account daily AI cap: change summaries and Radar rationales.
-AI_CAPPED_OPERATIONS = ("monitoring_summary", "radar_rationale")
+AI_CAPPED_OPERATIONS = ("monitoring_summary", "radar_rationale", "lab_copy")
 
 
 def under_daily_ai_cap(owner) -> bool:

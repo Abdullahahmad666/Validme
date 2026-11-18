@@ -91,6 +91,53 @@ export default function PrivacyPage() {
               be listed here before public launch.
             </p>
 
+            <h2>If you join a waitlist or answer a survey on a test page</h2>
+            <p>
+              Founders can publish simple test pages with a waitlist, and short surveys. These are on a separate web address
+              from {BRAND_NAME}, set no cookies and run no tracking scripts. If you join a waitlist:
+            </p>
+            <ul>
+              <li>
+                we store your email address encrypted, with the time you agreed and the consent wording you saw. We don&apos;t
+                store your IP address;
+              </li>
+              <li>
+                only the founder who made the page can see it, and only to tell you about that product (they can&apos;t message
+                you through {BRAND_NAME});
+              </li>
+              <li>it&apos;s deleted automatically after the period shown on the form (at most a year), or sooner on request;</li>
+              <li>
+                pages count views and sign-ups per day, nothing about you. If a page uses Cloudflare Turnstile to block bots,
+                Cloudflare processes your visit to check it.
+              </li>
+            </ul>
+            <p>If you answer a survey:</p>
+            <ul>
+              <li>
+                the founder who made it sees your answers. Anything you type, and your email if you choose to leave one, is
+                stored encrypted. Choices are stored as which option you picked;
+              </li>
+              <li>answers are deleted automatically after the period shown on the form (at most a year), or sooner on request;</li>
+              <li>
+                without an email, your answers can&apos;t be traced back to you, which also means they can&apos;t be found later
+                to delete.
+              </li>
+              <li>
+                emails typed into waitlists and surveys aren&apos;t verified, so someone could enter yours. If you hear from a
+                founder you don&apos;t know, use the link below to see and delete what&apos;s stored.
+              </li>
+            </ul>
+            <p>
+              Some test pages show prices being considered. Nothing is for sale and nothing is charged: pressing
+              &ldquo;Choose&rdquo; is counted per day as interest in that price, without anything about you. Which prices you see
+              is picked from your network address and the day; the address itself isn&apos;t stored.
+            </p>
+            <p>
+              To get a copy of what&apos;s stored with your email, or have it deleted, use the &ldquo;Get a copy or delete your
+              data&rdquo; link at the bottom of any test page or survey. We email you a confirmation link first. When you delete,
+              we tell the founder so they can also delete any copy they downloaded. You can also <Link href="/contact">contact us</Link>.
+            </p>
+
             <h2>Who can see your projects</h2>
             <p>
               Your projects, evidence and reports are visible only to your account. Every request to our API is checked

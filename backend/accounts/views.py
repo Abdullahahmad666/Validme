@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import generics, mixins, permissions, status, viewsets
 from rest_framework.exceptions import APIException
 from rest_framework.response import Response
@@ -5,6 +7,8 @@ from rest_framework.response import Response
 from accounts.models import ApiKey
 from accounts.serializers import ApiKeySerializer, MeSerializer
 from accounts.services import TooManyApiKeys, issue_api_key, revoke_api_key
+
+logger = logging.getLogger(__name__)
 
 
 class ApiKeyLimit(APIException):
@@ -34,11 +38,15 @@ class MeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-class ApiKeyViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet):
-    """Keys for the MCP server. The raw key is returned once, on create; only its hash is stored."""
+class ApiKeyViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, mixins.DestroyModelMixin, viewsets.GenericViewSet
+):
+    """Keys for the MCP server. The raw key is returned once, on create; only its hash is stored. Name and scopes can be
+    changed later (web app only)."""
 
     serializer_class = ApiKeySerializer
     permission_classes = [permissions.IsAuthenticated, NoApiKeyForAccountChanges]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         # Owner isolation: never remove this filter.
@@ -48,10 +56,17 @@ class ApiKeyViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, mixins.Destr
         body = self.get_serializer(data=request.data)
         body.is_valid(raise_exception=True)
         try:
-            key, raw = issue_api_key(request.user, body.validated_data["name"])
+            key, raw = issue_api_key(request.user, body.validated_data["name"], body.validated_data.get("scopes"))
         except TooManyApiKeys as exc:
             raise ApiKeyLimit(str(exc)) from exc
         return Response({**ApiKeySerializer(key).data, "key": raw}, status=status.HTTP_201_CREATED)
+
+    def perform_update(self, serializer):
+        before = list(serializer.instance.scopes or [])
+        key = serializer.save()
+        if before != key.scopes:
+            # Audit trail without secrets: which key, old and new scopes.
+            logger.info("api key %s scopes changed by user %s: %s -> %s", key.prefix, key.user_id, before, key.scopes)
 
     def perform_destroy(self, instance):
         revoke_api_key(instance)

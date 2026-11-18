@@ -18,6 +18,31 @@ if not DEBUG and SECRET_KEY.startswith("dev-only"):
     raise RuntimeError("Set DJANGO_SECRET_KEY when DEBUG is off.")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+# Validation Lab: founder pages are served only on LAB_HOST, a separate origin from the app (no shared cookies).
+# Locally 127.0.0.1:8000 (the app uses localhost); in production e.g. pages.<domain> or a separate domain.
+LAB_HOST = env("LAB_HOST", default="127.0.0.1:8000")
+LAB_ORIGIN = env("LAB_ORIGIN", default=f"http://{LAB_HOST}")
+# Fernet keys for respondents' emails, newest first (rotate by prepending). Required when DEBUG is off.
+LAB_ENCRYPTION_KEYS = [k.strip() for k in env.list("LAB_ENCRYPTION_KEYS", default=[]) if k.strip()]
+LAB_HASH_KEY = env("LAB_HASH_KEY", default="")  # HMAC key for duplicate detection; derived from SECRET_KEY if empty
+LAB_PAGES = {
+    "free": env.int("LAB_PAGES_FREE", default=1),
+    "paid": env.int("LAB_PAGES_PAID", default=1),
+    "founder": env.int("LAB_PAGES_FOUNDER", default=3),
+    "pro": env.int("LAB_PAGES_PRO", default=10),
+}
+LAB_SURVEYS = {  # surveys per account, like LAB_PAGES
+    "free": env.int("LAB_SURVEYS_FREE", default=1),
+    "paid": env.int("LAB_SURVEYS_PAID", default=1),
+    "founder": env.int("LAB_SURVEYS_FOUNDER", default=3),
+    "pro": env.int("LAB_SURVEYS_PRO", default=10),
+}
+# Optional Cloudflare Turnstile on the waitlist form (adds Cloudflare's script to Lab pages only).
+# Support inbox for page reports (required in production). Respondents ask for copies or deletion at LAB_ORIGIN/data-request.
+CONTACT_EMAIL = env("CONTACT_EMAIL", default="")
+TURNSTILE_SITE_KEY = env("TURNSTILE_SITE_KEY", default="")
+TURNSTILE_SECRET_KEY = env("TURNSTILE_SECRET_KEY", default="")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -43,9 +68,11 @@ INSTALLED_APPS = [
     "mailer",
     "radar",
     "distribution",
+    "lab",
 ]
 
 MIDDLEWARE = [
+    "lab.middleware.LabHostMiddleware",  # first: founder pages get their own URL map, headers and no cookies
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -132,6 +159,33 @@ SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_SECURE = SESSION_COOKIE_SECURE
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
+# Lab isolation guards: cookies must stay host-only and the pages origin must differ from the app's.
+if env("SESSION_COOKIE_DOMAIN", default="") or env("CSRF_COOKIE_DOMAIN", default=""):
+    raise RuntimeError("Don't set SESSION/CSRF_COOKIE_DOMAIN: app cookies must not reach the Validation Lab pages origin.")
+if not DEBUG:
+    from urllib.parse import urlsplit as _urlsplit
+
+    if not LAB_ENCRYPTION_KEYS:
+        raise RuntimeError("Set LAB_ENCRYPTION_KEYS (Fernet key) when DEBUG is off: waitlist emails are encrypted with it.")
+    from cryptography.fernet import Fernet as _Fernet
+
+    try:
+        [_Fernet(k.encode()) for k in LAB_ENCRYPTION_KEYS]
+    except (ValueError, TypeError) as _exc:
+        raise RuntimeError("LAB_ENCRYPTION_KEYS contains an invalid Fernet key.") from _exc
+    if not LAB_HASH_KEY:
+        raise RuntimeError("Set LAB_HASH_KEY when DEBUG is off (duplicate detection must survive a SECRET_KEY rotation).")
+    _lab_domain = LAB_HOST.split(":")[0].rstrip(".").lower()
+    if not env("LAB_HOST", default="") or _lab_domain in ("127.0.0.1", "localhost", "::1", "[::1]"):
+        raise RuntimeError("Set LAB_HOST to the public pages domain when DEBUG is off.")
+    if bool(TURNSTILE_SITE_KEY) != bool(TURNSTILE_SECRET_KEY):
+        raise RuntimeError("Set both TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, or neither.")
+    if env.bool("CELERY_TASK_ALWAYS_EAGER", default=False):
+        raise RuntimeError("CELERY_TASK_ALWAYS_EAGER must be off when DEBUG is off (data requests rely on queued email).")
+    if not CONTACT_EMAIL:
+        raise RuntimeError("Set CONTACT_EMAIL when DEBUG is off: visitors need a way to report a page.")
+    if LAB_HOST.split(":")[0].lower() == (_urlsplit(FRONTEND_URL).hostname or "").lower():
+        raise RuntimeError("LAB_HOST must be a different host from the app (FRONTEND_URL).")
 # Next.js forwards the browser host as X-Forwarded-Host, so URLs Django builds (the Google OAuth
 # redirect URI) point at the frontend origin. Django must only be reachable through that proxy.
 USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST", default=True)
@@ -213,6 +267,9 @@ CELERY_BEAT_SCHEDULE = {
     "radar-revalidate": {"task": "radar.tasks.revalidate_all", "schedule": crontab(hour=6, minute=0, day_of_week=1)},
     # YouTube API data may be stored for at most 30 days: delete expired rows daily.
     "purge-youtube": {"task": "distribution.tasks.purge_expired_youtube", "schedule": crontab(hour=3, minute=30)},
+    # Waitlist sign-ups past their retention period are deleted daily.
+    "purge-lab-signups": {"task": "lab.tasks.purge_expired_signups", "schedule": crontab(hour=3, minute=45)},
+    "purge-lab-responses": {"task": "lab.tasks.purge_expired_responses", "schedule": crontab(hour=3, minute=50)},
     "weekly-digest": {"task": "mailer.tasks.send_weekly_digests", "schedule": crontab(hour=8, minute=0, day_of_week=1)},
 }
 JOB_PENDING_TIMEOUT_MINUTES = env.int("JOB_PENDING_TIMEOUT_MINUTES", default=15)

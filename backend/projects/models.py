@@ -89,6 +89,13 @@ class Assumption(models.Model):
     note = models.TextField(blank=True, max_length=1000)
     dismissed = models.BooleanField(default=False)  # AI suggestion the founder removed; never re-seeded
     evidence = models.ManyToManyField("evidence.Evidence", blank=True, related_name="assumptions")
+    # Week 15: what the founder's survey results say (lab.verdicts), kept apart from the founder's own call. While
+    # `status_locked` is False the status follows the experiment; setting a status by hand locks it (override).
+    status_locked = models.BooleanField(default=False)
+    auto_status = models.CharField(max_length=15, blank=True)  # "" | supported | contradicted | inconclusive
+    auto_basis = models.TextField(blank=True)  # the counts behind the verdict, in words
+    auto_refs = models.JSONField(default=list, blank=True)  # [{survey_id, survey_title, question_id, prompt, n, k, ...}]
+    auto_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

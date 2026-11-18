@@ -101,3 +101,97 @@ def evidence(project_id: str, query: str, category: str) -> dict:
         q = query.lower()
         items = [e for e in items if q in e["excerpt"].lower() or q in e["title"].lower()]
     return {"sample": True, "note": SAMPLE_NOTE, "project_id": project_id, "results": items}
+
+
+# --- Week 15: monitoring, Radar and the Lab (sample payloads, same shapes as the live API) ---------------------------
+
+
+def _sample(**payload) -> dict:
+    return {"sample": True, "note": SAMPLE_NOTE, **payload}
+
+
+def watches(project_id: str) -> dict:
+    return _sample(
+        project_id=project_id,
+        results=[
+            {"id": 1, "url": "https://example.com/pricing", "label": "Example competitor pricing", "cadence": "weekly", "active": True}
+        ],
+    )
+
+
+def changes(project_id: str) -> dict:
+    return _sample(
+        project_id=project_id,
+        results=[
+            {
+                "id": 1,
+                "watch": 1,
+                "kind": "pricing",
+                "significance": "high",
+                "summary": "Plan 'Pro' price changed from $29 to $39.",
+                "detected_at": "2026-11-10T08:00:00Z",
+            }
+        ],
+    )
+
+
+def signals(project_id: str, status: str) -> dict:
+    return _sample(
+        project_id=project_id,
+        results=[
+            {
+                "id": 1,
+                "kind": "complaint_theme",
+                "type": "opportunity",
+                "title": "Example theme: POS sync",
+                "status": "open",
+                "confidence": "medium",
+                "facts": {"records": 6, "sources": 4},
+            }
+        ],
+    )
+
+
+def score_history(project_id: str) -> dict:
+    return _sample(
+        project_id=project_id, results=[{"score": 64, "confidence": "low", "source": "report", "created_at": "2026-11-08T00:00:00Z"}]
+    )
+
+
+def update_signal(project_id: str, signal_id: int, status: str, feedback: str) -> dict:
+    return _sample(id=signal_id, status=status, feedback=feedback or None)
+
+
+def lab_results(project_id: str) -> dict:
+    return _sample(
+        project_id=project_id,
+        pages=[
+            {
+                "id": 1,
+                "title": "Example test page",
+                "status": "published",
+                "stats": {
+                    "views": 40,
+                    "signups": 3,
+                    "conversion": 0.075,
+                    "sample": {"level": "small", "message": "40 views: early hints only."},
+                },
+            }
+        ],
+        surveys=[],
+    )
+
+
+def predicted_vs_actual(project_id: str) -> dict:
+    return _sample(
+        project_id=project_id,
+        dimensions=[
+            {"key": "demand_evidence", "label": "Demand", "predicted": {"score": 40, "confidence": "medium"}, "actual": None},
+            {"key": "willingness_to_pay", "label": "Willingness to pay", "predicted": None, "actual": None},
+        ],
+        assumptions=[{"id": 1, "text": "Owners count stock on paper", "status": "untested", "auto_status": "", "auto_basis": ""}],
+    )
+
+
+def set_assumption(project_id: str, assumption_id: int, body: dict) -> dict:
+    return _sample(id=assumption_id, **body)

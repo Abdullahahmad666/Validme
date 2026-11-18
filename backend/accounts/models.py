@@ -20,13 +20,17 @@ class ApiKey(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked = models.BooleanField(default=False)
+    scopes = models.JSONField(default=list)  # accounts.scopes.SCOPES; enforced in ApiKeyAuthentication
 
     @staticmethod
     def hash(raw: str) -> str:
         return hashlib.sha256(raw.encode()).hexdigest()
 
     @classmethod
-    def issue(cls, user: User, name: str) -> tuple["ApiKey", str]:
+    def issue(cls, user: User, name: str, scopes: list[str] | None = None) -> tuple["ApiKey", str]:
+        from accounts.scopes import DEFAULT_SCOPES, clean_scopes
+
         raw = "vm_" + secrets.token_urlsafe(32)
-        key = cls.objects.create(user=user, name=name, prefix=raw[:12], key_hash=cls.hash(raw))
+        chosen = clean_scopes(scopes) if scopes is not None else list(DEFAULT_SCOPES)
+        key = cls.objects.create(user=user, name=name, prefix=raw[:12], key_hash=cls.hash(raw), scopes=chosen)
         return key, raw

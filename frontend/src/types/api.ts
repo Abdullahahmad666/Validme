@@ -275,6 +275,7 @@ export type ApiKey = {
   created_at: string;
   last_used_at: string | null;
   revoked: boolean;
+  scopes: string[];
 };
 
 export type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
