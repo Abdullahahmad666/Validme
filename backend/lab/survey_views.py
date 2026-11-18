@@ -22,6 +22,7 @@ from rest_framework.views import APIView
 from accounts.models import ApiKey, User
 from lab import crypto
 from lab.blocks import clean_text, slug_problem, slug_taken, text_problem
+from lab.experiments import wilson
 from lab.models import RetiredSlug, Survey, SurveyDailyStat
 from lab.surveys import clean_questions, publish_problems, sample_note, structure, validate_questions
 from lab.views import MAX_BODY_BYTES, MAX_JSON_DEPTH, MAX_RETENTION_DAYS, MIN_RETENTION_DAYS, _json_depth
@@ -284,10 +285,19 @@ class SurveyViewSet(viewsets.ModelViewSet):
                     for i in v if isinstance(v, list) else [v]:
                         if isinstance(i, int) and 0 <= i < len(counts):
                             counts[i] += 1
-                entry["options"] = [
-                    {"label": label, "count": c, "share": round(c / answered, 4) if answered else None}
-                    for label, c in zip(q["options"], counts, strict=True)
-                ]
+                entry["options"] = []
+                for label, c in zip(q["options"], counts, strict=True):
+                    # The 95% Wilson range of the share, so the chart can show how uncertain a small sample is.
+                    rng = wilson(c, answered)
+                    entry["options"].append(
+                        {
+                            "label": label,
+                            "count": c,
+                            "share": round(c / answered, 4) if answered else None,
+                            "low": round(rng[0], 4) if rng else None,
+                            "high": round(rng[1], 4) if rng else None,
+                        }
+                    )
                 entry["note"] = "People could pick several, so shares add up to more than 100%." if kind == "multi" else ""
             else:
                 dist = [sum(1 for v in values if v == k) for k in range(1, 6)]

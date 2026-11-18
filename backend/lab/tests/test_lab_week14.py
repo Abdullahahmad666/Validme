@@ -227,6 +227,8 @@ def test_results_with_sample_warnings_and_structure_lock(api, project, survey):
     q1 = r["questions"][0]
     assert r["responses"] == 3 and r["sample"]["level"] == "too_small" and "far too few" in r["sample"]["message"]
     assert [o["count"] for o in q1["options"]] == [2, 1, 0] and q1["options"][0]["share"] == round(2 / 3, 4)
+    assert 0 < q1["options"][0]["low"] < q1["options"][0]["share"] < q1["options"][0]["high"] <= 1  # 95% range around it
+    assert q1["options"][2]["low"] == 0.0 and q1["options"][2]["high"] > 0  # zero picks still has an upper bound
     q3 = r["questions"][2]
     assert q3["median"] == 4.0 and [d["count"] for d in q3["distribution"]] == [0, 0, 0, 3, 0]
     assert r["questions"][3] == {"id": "q4", "type": "text", "prompt": "What did you try?", "answered": 3, "sample": sample_note(3)}

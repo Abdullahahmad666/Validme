@@ -1,6 +1,7 @@
 import json
 import logging
 
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, serializers, status
@@ -173,6 +174,44 @@ class CheckoutView(APIView):
 
 class UsagePagination(PageNumberPagination):
     page_size = 20
+
+
+def _months_back(n: int) -> list[str]:
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    y, m = today.year, today.month
+    out = []
+    for _ in range(n):
+        out.append(f"{y:04d}-{m:02d}")
+        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+    return list(reversed(out))
+
+
+class UsageMonthlyView(APIView):
+    """GET /billing/usage/monthly — credits used and added per month (last 12 months, zero-filled). Credits only."""
+
+    def get(self, request):
+        from django.db.models import Sum
+        from django.db.models.functions import TruncMonth
+
+        months = _months_back(12)
+        rows = (
+            UsageTransaction.objects.filter(user=request.user, created_at__date__gte=f"{months[0]}-01")  # owner isolation
+            .exclude(credits=0)
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(used=Sum("credits", filter=Q(credits__lt=0)), added=Sum("credits", filter=Q(credits__gt=0)))
+        )
+        by = {r["month"].strftime("%Y-%m"): r for r in rows}
+        return Response(
+            {
+                "results": [
+                    {"month": m, "used": -(by[m]["used"] or 0) if m in by else 0, "added": (by[m]["added"] or 0) if m in by else 0}
+                    for m in months
+                ]
+            }
+        )
 
 
 class UsageView(APIView):

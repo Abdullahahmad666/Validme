@@ -26,6 +26,10 @@ export function useSurveyResults(projectId: string, id: number) {
   return useQuery({ queryKey: labKeys.results(projectId, id), queryFn: () => api.labSurveyResults(projectId, id) });
 }
 
+export function useSurveyStats(projectId: string, id: number) {
+  return useQuery({ queryKey: ["lab-survey-stats", projectId, id], queryFn: () => api.labSurveyStats(projectId, id) });
+}
+
 export function useSurveyResponses(projectId: string, id: number) {
   return useQuery({ queryKey: labKeys.responses(projectId, id), queryFn: () => api.labSurveyResponses(projectId, id) });
 }

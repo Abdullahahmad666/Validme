@@ -5,6 +5,7 @@ import { CheckCircle2, Coins, ExternalLink, Lock, ShoppingCart, Sparkles } from 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { DailyChart } from "@/components/charts/DailyChart";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Badge } from "@/components/ui/badge";
@@ -286,11 +287,25 @@ function Packs() {
 function Usage() {
   const [page, setPage] = useState(1);
   const usage = useQuery({ queryKey: ["billing", "usage", page], queryFn: () => api.usage(page), placeholderData: keepPreviousData });
+  const monthly = useQuery({ queryKey: ["billing", "usage-monthly"], queryFn: api.usageMonthly });
   return (
     <section aria-labelledby="usage-h" className="rounded-card border border-border bg-card p-5">
       <h2 id="usage-h" className="font-semibold">
         Usage history
       </h2>
+      {monthly.data && monthly.data.results.some((m) => m.used || m.added) && (
+        <div className="mt-3">
+          <DailyChart
+            rows={monthly.data.results.map((m) => ({ day: m.month, used: m.used, added: m.added }))}
+            series={[
+              { key: "used", label: "Credits used", kind: "bar", color: "var(--series-1)" },
+              { key: "added", label: "Credits added", kind: "line", color: "var(--series-2)" },
+            ]}
+            period="month"
+            height={180}
+          />
+        </div>
+      )}
       {usage.isPending ? (
         <Skeleton className="mt-4 h-24" />
       ) : usage.isError ? (

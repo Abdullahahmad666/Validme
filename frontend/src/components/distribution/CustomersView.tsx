@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, ExternalLink, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
+import { BarList } from "@/components/charts/BarList";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { ChannelCard } from "@/components/report/DistributionSections";
 import { AiLabel, Cited, Panel } from "@/components/report/parts";
@@ -121,9 +122,26 @@ function Keywords({ d }: { d: Distribution["keywords"] }) {
           .
         </p>
       )}
+      {d.rows.some((r) => r.search_volume != null) && (
+        <div className="mt-3">
+          <h3 className="mb-1 text-sm font-semibold">Monthly searches, top keywords</h3>
+          <BarList
+            rows={d.rows
+              .filter((r) => r.search_volume != null)
+              .sort((a, b) => (b.search_volume ?? 0) - (a.search_volume ?? 0))
+              .slice(0, 8)
+              .map((r) => ({ label: r.keyword, value: r.search_volume ?? 0 }))}
+            unit="searches a month"
+            labelWidth={240}
+          />
+          {d.rows.some((r) => r.search_volume == null) && (
+            <p className="text-xs text-muted-foreground">Keywords without a figure from the provider aren&apos;t drawn; they&apos;re in the table as unavailable.</p>
+          )}
+        </div>
+      )}
       {d.rows.length > 0 && (
         <div
-          className="mt-3 overflow-x-auto rounded-control focus-visible:outline-2 focus-visible:outline-ring"
+          className="relative mt-3 overflow-x-auto rounded-control focus-visible:outline-2 focus-visible:outline-ring"
           tabIndex={0}
           role="region"
           aria-label="Search demand table (scrolls sideways on small screens)"

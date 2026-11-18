@@ -247,6 +247,10 @@ export const api = {
     request<Survey>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/${action}`, { method: "POST" }),
   labSurveyResults: (projectId: string, id: number) =>
     request<SurveyResults>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/results`),
+  labSurveyStats: (projectId: string, id: number) =>
+    request<{ daily: { day: string; views: number; responses: number }[]; since: string }>(
+      `/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/stats`,
+    ),
   labSurveyResponses: (projectId: string, id: number) =>
     request<{ results: SurveyResponseRow[] }>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/responses`),
   deleteLabSurveyResponses: (projectId: string, id: number, body: { ids?: number[]; all?: boolean }) =>
@@ -269,6 +273,7 @@ export const api = {
     request<{ results: { week: string; high: number; medium: number; low: number }[] }>(
       `/projects/${encodeURIComponent(projectId)}/changes/weekly`,
     ),
+  usageMonthly: () => request<{ results: { month: string; used: number; added: number }[] }>("/billing/usage/monthly"),
   monitoringFeed: (page = 1) => request<Paginated<Change>>(`/monitoring/changes${page > 1 ? `?page=${page}` : ""}`),
   notifications: () => request<Paginated<AppNotification> & { unread: number }>("/notifications"),
   markNotificationsRead: (body: { ids?: number[]; all?: boolean }) =>

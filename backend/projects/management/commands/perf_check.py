@@ -166,6 +166,7 @@ def _endpoints(ids: dict) -> list[str]:
         "/api/notifications",
         "/api/billing/packs",
         "/api/billing/usage",
+        "/api/billing/usage/monthly",
         "/api/email/preferences",
     ]
 

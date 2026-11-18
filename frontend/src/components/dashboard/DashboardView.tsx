@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { planLabel } from "@/components/billing/BillingView";
+import { DailyChart } from "@/components/charts/DailyChart";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -62,6 +63,21 @@ export function DashboardView() {
           <MetricCard label="Reports generated" value={summary.data?.reports ?? null} loading={summary.isPending} />
           <MetricCard label="Evidence records" value={summary.data?.evidence ?? null} loading={summary.isPending} />
           <MetricCard label="Active jobs" value={summary.data?.active_jobs ?? null} loading={summary.isPending} />
+        </section>
+      )}
+
+      {summary.data && summary.data.weekly_evidence.some((w) => w.records > 0) && (
+        <section aria-labelledby="weekly-evidence" className="rounded-card border border-border bg-card p-5">
+          <h2 id="weekly-evidence" className="text-base font-medium">
+            Evidence collected per week
+          </h2>
+          <p className="mb-2 text-xs text-muted-foreground">Across your projects, last 12 weeks (duplicates merged).</p>
+          <DailyChart
+            rows={summary.data.weekly_evidence.map((w) => ({ day: w.week, records: w.records }))}
+            series={[{ key: "records", label: "Records", kind: "bar", color: "var(--series-1)" }]}
+            period="week"
+            height={170}
+          />
         </section>
       )}
 

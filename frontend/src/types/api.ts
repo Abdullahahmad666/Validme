@@ -227,6 +227,8 @@ export type DashboardSummary = {
   credits: number;
   recent_activity: ActivityEvent[];
   next_actions: NextAction[];
+  /** Evidence records collected per week (Monday start), last 12 weeks, zero-filled. */
+  weekly_evidence: { week: string; records: number }[];
 };
 
 /** Card summary: the latest run's stages and, for completed projects with a report, its score (null = not scored). */

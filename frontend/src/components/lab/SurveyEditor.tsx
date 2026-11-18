@@ -10,7 +10,11 @@ import { QuestionFields } from "@/components/lab/QuestionFields";
 import { SampleWarning } from "@/components/lab/SampleWarning";
 import { type SlugCheck, SlugHint } from "@/components/lab/SlugHint";
 import { StatusBadge } from "@/components/lab/StatusBadge";
-import { AiLabel, HBar, Panel } from "@/components/report/parts";
+import { BarList } from "@/components/charts/BarList";
+import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
+import { fillDays } from "@/components/charts/daily";
+import { ShareBars } from "@/components/charts/ShareBars";
+import { AiLabel, Panel } from "@/components/report/parts";
 import { AISuggestedBadge } from "@/components/shared/AISuggestedBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -19,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { labKeys, useAssumptions, useLabSurvey, useSurveyResponses, useSurveyResults } from "@/hooks/useLab";
+import { labKeys, useAssumptions, useLabSurvey, useSurveyResponses, useSurveyResults, useSurveyStats } from "@/hooks/useLab";
 import { emptyQuestion, moveItem, nextQuestionId, pct, QUESTION_LABELS, RETENTION_OPTIONS, slugify, structureOf } from "@/lib/lab";
 import { safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
@@ -65,6 +69,7 @@ function Results({ projectId, surveyId, assumptions }: { projectId: string; surv
             </div>
           </dl>
           <SampleWarning sample={results.data.sample} />
+          <SurveyDaily projectId={projectId} surveyId={surveyId} />
           {results.data.responses === 0 ? (
             <p className="mt-3 text-sm text-muted-foreground">No answers yet. Share the survey&apos;s link with people you think have the problem.</p>
           ) : (
@@ -77,25 +82,24 @@ function Results({ projectId, surveyId, assumptions }: { projectId: string; surv
                   <p className="text-xs text-muted-foreground">
                     {q.answered} answered{q.assumption_id && byId.get(q.assumption_id) ? ` · tests: “${byId.get(q.assumption_id)}”` : ""}
                   </p>
-                  {q.options && (
-                    <ul className="mt-2 flex flex-col gap-2">
-                      {q.options.map((o) => (
-                        <HBar key={o.label} label={`${o.label} · ${pct(o.share)}`} value={o.count} max={q.answered} />
-                      ))}
-                    </ul>
+                  {q.options && q.answered > 0 && (
+                    <div className="mt-2">
+                      <ShareBars rows={q.options} answered={q.answered} />
+                    </div>
                   )}
                   {q.distribution && (
                     <>
-                      <ul className="mt-2 flex flex-col gap-2">
-                        {q.distribution.map((d) => (
-                          <HBar
-                            key={d.value}
-                            label={d.value === 1 ? `1 · ${q.low_label}` : d.value === 5 ? `5 · ${q.high_label}` : String(d.value)}
-                            value={d.count}
-                            max={q.answered}
-                          />
-                        ))}
-                      </ul>
+                      <div className="mt-2">
+                        <BarList
+                          rows={q.distribution.map((d) => ({
+                            label: d.value === 1 ? `1 · ${q.low_label}` : d.value === 5 ? `5 · ${q.high_label}` : String(d.value),
+                            value: d.count,
+                          }))}
+                          unit="answers"
+                          rowHeight={28}
+                          emptyText="No answers to this question yet."
+                        />
+                      </div>
                       <p className="mt-1 text-xs text-muted-foreground">Median: {q.median ?? "—"}</p>
                     </>
                   )}
@@ -110,6 +114,25 @@ function Results({ projectId, surveyId, assumptions }: { projectId: string; surv
         </>
       )}
     </Panel>
+  );
+}
+
+const SURVEY_SERIES: DailySeries[] = [
+  { key: "views", label: "Views", kind: "bar", color: "var(--series-1)" },
+  { key: "responses", label: "Answers", kind: "line", color: "var(--series-2)" },
+];
+
+/** Views and answers per day over the last 30 days (zero where nothing was counted). */
+function SurveyDaily({ projectId, surveyId }: { projectId: string; surveyId: number }) {
+  const stats = useSurveyStats(projectId, surveyId);
+  if (!stats.data) return null;
+  const until = new Date(`${stats.data.since}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + 29);
+  return (
+    <div className="mt-4">
+      <h3 className="mb-2 text-sm font-semibold">Last 30 days</h3>
+      <DailyChart rows={fillDays(stats.data.daily, stats.data.since, until.toISOString().slice(0, 10), ["views", "responses"])} series={SURVEY_SERIES} height={180} />
+    </div>
   );
 }
 

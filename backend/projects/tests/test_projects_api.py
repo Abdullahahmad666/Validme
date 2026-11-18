@@ -182,3 +182,19 @@ def test_project_cards_show_stages_and_score_without_extra_queries(api, django_a
         rows = api.get("/api/projects").json()["results"]
     prog = rows[0]["progress"]
     assert [s["name"] for s in prog["stages"]] == ["web_research", "report"] and prog["score"] == 62
+
+
+def test_dashboard_weekly_evidence_is_zero_filled_and_own(api, other_api):
+    mine = Project.objects.get(pk=create(api)["id"])
+    theirs = Project.objects.get(pk=create(other_api)["id"])
+    for p, h in ((mine, "a"), (mine, "b"), (theirs, "c")):
+        Evidence.objects.create(
+            project=p,
+            provider="hackernews",
+            source_url=f"https://x.test/{h}",
+            excerpt="e",
+            retrieved_at=timezone.now(),
+            content_hash=h,
+        )
+    weeks = api.get("/api/dashboard/summary").json()["weekly_evidence"]
+    assert len(weeks) == 12 and weeks[-1]["records"] == 2 and sum(w["records"] for w in weeks) == 2

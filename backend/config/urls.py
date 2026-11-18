@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 
 from accounts.views import ApiKeyViewSet, MeView
 from analytics.views import EventView
-from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, PortalView, SubscribeView, UsageView
+from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, PortalView, SubscribeView, UsageMonthlyView, UsageView
 from distribution.views import DistributionRefreshView, DistributionView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
 from lab.survey_views import SurveySuggestView, SurveyViewSet
@@ -52,6 +52,7 @@ urlpatterns = [
     path("api/billing/subscribe", SubscribeView.as_view()),
     path("api/billing/portal", PortalView.as_view()),
     path("api/billing/usage", UsageView.as_view()),
+    path("api/billing/usage/monthly", UsageMonthlyView.as_view()),
     path("api/billing/webhooks/lemonsqueezy", LemonSqueezyWebhookView.as_view()),
     path("api/analytics/events", EventView.as_view()),
     path("api/notifications", NotificationsView.as_view()),

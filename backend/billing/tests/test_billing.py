@@ -250,3 +250,16 @@ def test_client_analytics_whitelist_and_cleaning(client, db):
     assert e.path == "/pricing" and e.props == {"source": "landing"} and e.user is None
     client.post("/api/analytics/events", {"event": "made_up"}, content_type="application/json")
     assert AnalyticsEvent.objects.count() == 1
+
+
+def test_monthly_usage_is_zero_filled_and_own(api, other_api, user, other):
+    from billing.models import UsageTransaction
+
+    UsageTransaction.objects.create(user=user, operation="research_job", credits=-2)
+    UsageTransaction.objects.create(user=user, operation="purchase", credits=6)
+    UsageTransaction.objects.create(user=user, operation="ai_summary", credits=0)  # internal cost: never shown
+    UsageTransaction.objects.create(user=other, operation="research_job", credits=-9)
+    rows = api.get("/api/billing/usage/monthly").json()["results"]
+    assert len(rows) == 12 and rows[-1]["used"] == 2 and rows[-1]["added"] == 6
+    assert sum(r["used"] for r in rows) == 2  # the other user's spend isn't here
+    assert other_api.get("/api/billing/usage/monthly").json()["results"][-1]["used"] == 9

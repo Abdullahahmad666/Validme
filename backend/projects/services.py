@@ -209,5 +209,34 @@ def next_actions(user, limit: int = 5) -> list[dict]:
     return out[:limit]
 
 
+def weekly_evidence(user, weeks: int = 12) -> list[dict]:
+    """Evidence records collected per week (Monday start) across the user's projects, zero-filled, oldest first."""
+    from datetime import timedelta
+
+    from django.db.models import Count
+    from django.db.models.functions import TruncWeek
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    start = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks - 1)
+    rows = (
+        Evidence.objects.filter(project__owner=user, duplicate_of__isnull=True, retrieved_at__date__gte=start)
+        .annotate(week=TruncWeek("retrieved_at"))
+        .values("week")
+        .annotate(n=Count("id"))
+    )
+    counts = {r["week"].date().isoformat() if hasattr(r["week"], "date") else str(r["week"]): r["n"] for r in rows}
+    return [
+        {"week": (start + timedelta(weeks=i)).isoformat(), "records": counts.get((start + timedelta(weeks=i)).isoformat(), 0)}
+        for i in range(weeks)
+    ]
+
+
 def dashboard_details(user) -> dict:
-    return {**dashboard_summary(user), **_plan(user), "recent_activity": recent_activity(user), "next_actions": next_actions(user)}
+    return {
+        **dashboard_summary(user),
+        **_plan(user),
+        "recent_activity": recent_activity(user),
+        "next_actions": next_actions(user),
+        "weekly_evidence": weekly_evidence(user),
+    }

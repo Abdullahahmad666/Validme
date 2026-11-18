@@ -120,7 +120,7 @@ export type QuestionResult = {
   answered: number;
   sample: SampleNote;
   assumption_id?: number;
-  options?: { label: string; count: number; share: number | null }[];
+  options?: { label: string; count: number; share: number | null; low?: number | null; high?: number | null }[];
   note?: string;
   distribution?: { value: number; count: number }[];
   median?: number | null;

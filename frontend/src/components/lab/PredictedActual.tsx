@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, FlaskConical, SearchCheck } from "lucide-react";
 import Link from "next/link";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
+import { GroupedBars } from "@/components/charts/GroupedBars";
 import { ExperimentVerdict } from "@/components/lab/ExperimentVerdict";
 import { Panel } from "@/components/report/parts";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -51,6 +52,21 @@ export function PredictedActualView({ data, projectId }: { data: Data; projectId
         <p className="mb-3 text-sm text-muted-foreground">
           Once a test page or survey has been live, what real people did shows up here next to what the research predicted.
         </p>
+      )}
+      {data.dimensions.some((d) => d.predicted?.score != null || d.actual?.counted) && (
+        <div className="mb-4">
+          <GroupedBars
+            groups={data.dimensions.map((d) => ({
+              label: d.label,
+              values: { predicted: d.predicted?.score ?? null, actual: d.actual?.counted ? d.actual.score : null },
+            }))}
+            series={[
+              { key: "predicted", label: "Research predicted", color: "var(--series-1)" },
+              { key: "actual", label: "Your experiment", color: "var(--series-2)" },
+            ]}
+            height={200}
+          />
+        </div>
       )}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[30rem] text-left text-sm">
