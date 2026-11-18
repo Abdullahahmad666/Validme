@@ -11,7 +11,8 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen">
+      {/* app-glass: frosted cards over a soft gradient (globals.css), signed-in app only. */}
+      <div className="app-glass flex min-h-screen">
         {/* Nav reads the URL for its active state; Suspense keeps dynamic routes prerenderable. */}
         {/* Chrome is hidden when printing (report PDF export). */}
         <div className="contents print:hidden">

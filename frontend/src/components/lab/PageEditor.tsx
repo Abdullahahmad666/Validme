@@ -17,11 +17,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
+import { fillDays } from "@/components/charts/daily";
 import { SampleWarning } from "@/components/lab/SampleWarning";
 import { BLOCK_LABELS, comparisonText, emptyBlock, moveItem, pct, RETENTION_OPTIONS, slugify } from "@/lib/lab";
 import { safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
-import type { Block, BlockType, LabPage, PriceTestResults } from "@/types/lab";
+import type { Block, BlockType, LabPage, LabStats, PriceTestResults } from "@/types/lab";
 
 type Draft = Pick<LabPage, "title" | "slug" | "blocks" | "retention_days">;
 
@@ -31,6 +33,18 @@ function errorList(err: unknown): string[] {
   const flat = (v: unknown): string[] => (Array.isArray(v) ? v.flatMap(flat) : typeof v === "string" ? [v] : v && typeof v === "object" ? Object.values(v).flatMap(flat) : []);
   const fromDetails = d ? flat(d.details ?? d) : [];
   return fromDetails.length ? fromDetails.slice(0, 6) : [err.message];
+}
+
+const TRAFFIC_SERIES: DailySeries[] = [
+  { key: "views", label: "Views", kind: "bar", color: "var(--series-1)" },
+  { key: "signups", label: "Sign-ups", kind: "line", color: "var(--series-2)" },
+];
+
+/** The 30 days the API reports, with zero for days nothing was counted. */
+function last30(stats: LabStats) {
+  const until = new Date(`${stats.since}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + 29);
+  return fillDays(stats.daily, stats.since, until.toISOString().slice(0, 10), ["views", "signups"]);
 }
 
 function Stats({ projectId, pageId }: { projectId: string; pageId: number }) {
@@ -59,6 +73,10 @@ function Stats({ projectId, pageId }: { projectId: string; pageId: number }) {
               </dd>
             </div>
           </dl>
+          <div className="mt-4">
+            <h3 className="mb-2 text-sm font-semibold">Last 30 days</h3>
+            <DailyChart rows={last30(stats.data)} series={TRAFFIC_SERIES} />
+          </div>
           <SampleWarning sample={stats.data.sample} />
           <p className="mt-2 text-xs text-muted-foreground">
             Views count page loads (bots and repeat loads after joining excluded); without cookies we can&apos;t tell repeat
@@ -465,7 +483,7 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
       </div>
 
       <div className="flex flex-col gap-5">
-        <section aria-labelledby="preview-h" className="lg:sticky lg:top-4">
+        <section aria-labelledby="preview-h">
           <h2 id="preview-h" className="mb-2 font-semibold">
             Preview
           </h2>

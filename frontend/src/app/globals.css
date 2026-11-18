@@ -39,6 +39,12 @@
   --muted-strong: #475569;
   --accent-soft: #7fa6e6;
   --radius: 10px;
+  /* Chart series, fixed order (validated with the dataviz palette checks on white, #f8fafc and the glass panes:
+     CVD ΔE 22, normal ΔE 31, both >= 3:1). Never reuse status colours as series. */
+  --series-1: #315eaa;
+  --series-2: #d95926;
+  --chart-grid: #e2e8f0;
+  --chart-axis: #556479;
 
   --sidebar: #ffffff;
   --sidebar-foreground: #172033;
@@ -202,5 +208,59 @@ html { scroll-padding-top: 5.5rem; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Glass app shell (signed-in app only; the marketing site keeps its own look).
+   Cards are frosted panes over a soft gradient. Text contrast is kept at AA:
+   cards stay >= 78% white, and secondary text is darkened to #556479 (5.7:1 on
+   the most tinted pane). Visitors who ask for less transparency get solid cards.
+   --------------------------------------------------------------------------- */
+.app-glass {
+  --muted-foreground: #556479;
+  --glass-fill: rgb(255 255 255 / 0.78);
+  --glass-border: rgb(255 255 255 / 0.7);
+  --glass-shadow: 0 1px 2px rgb(23 45 77 / 0.04), 0 12px 32px -16px rgb(23 45 77 / 0.18);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60rem 40rem at 0% 0%, rgb(219 230 251 / 0.9), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 10%, rgb(233 226 251 / 0.8), transparent 60%),
+    radial-gradient(56rem 40rem at 60% 100%, rgb(217 240 234 / 0.7), transparent 60%);
+  background-attachment: fixed;
+}
+.app-glass .bg-card {
+  background-color: var(--glass-fill);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+/* Sticky bars sit over other content: nearly opaque, so nothing reads through behind their buttons. */
+.app-glass .sticky.bg-card,
+.app-glass .fixed.bg-card {
+  background-color: rgb(255 255 255 / 0.94);
+}
+.app-glass .rounded-card.border.bg-card,
+.app-glass .rounded-card.bg-card {
+  border-color: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .app-glass {
+    background-image: none;
+  }
+  .app-glass .bg-card {
+    background-color: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media print {
+  .app-glass {
+    background: #fff;
+  }
+  .app-glass .bg-card {
+    background-color: #fff;
+    backdrop-filter: none;
+    box-shadow: none;
   }
 }
