@@ -54,7 +54,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] Landing page (hero with animated preview, sources, problem, how it works, features, evidence-first, TAM/SAM/SOM, use cases, pricing, FAQ, final CTA)
 - [x] Pricing, sample report, about, contact, glossary, privacy/terms/cookies (drafts), coming-soon blog/guides/feedback
 - [x] SEO: metadata, OG image, sitemap, robots, JSON-LD; analytics abstraction (no vendor)
-- [ ] Product walkthrough video/animation for the demo slot (`DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
+- [x] Product walkthrough animation for the demo slot (code-drawn, sample data labelled, pausable; a real video still plugs in via `DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
 - [x] Final plan prices + allowances: both — Founder $19/mo, Pro $39/mo subscriptions plus $19/$49 credit packs (Week 10)
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
 - [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`
