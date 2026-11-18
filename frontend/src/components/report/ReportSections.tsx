@@ -4,7 +4,11 @@ import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, FlaskConical, He
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CATEGORY_META, PROVIDER_LABELS, fmtDate } from "@/components/evidence/EvidenceCard";
-import { AiLabel, Cited, ConfidenceBadge, EvidenceQuote, HBar, LEVEL_STYLE, Panel } from "@/components/report/parts";
+import { BarList } from "@/components/charts/BarList";
+import { DailyChart } from "@/components/charts/DailyChart";
+import { priceLadder } from "@/components/charts/prices";
+import { ScoreBreakdown, ScoreRing } from "@/components/charts/ScoreCharts";
+import { AiLabel, Cited, ConfidenceBadge, EvidenceQuote, LEVEL_STYLE, Panel } from "@/components/report/parts";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn, safeHref } from "@/lib/utils";
@@ -16,7 +20,6 @@ const RECOMMENDATION: Record<Recommendation, { label: string; className: string 
   research_more: { label: "Research more before deciding", className: "bg-warning/10 text-warning-text" },
   pivot: { label: "Weak signal: consider a different angle", className: "bg-destructive/10 text-destructive-text" },
 };
-const SOURCE_TONES = ["bg-primary", "bg-navy", "bg-success", "bg-warning", "bg-ai"];
 
 export function Overview({ r }: { r: Report }) {
   const o = r.overview;
@@ -26,14 +29,9 @@ export function Overview({ r }: { r: Report }) {
       <div className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
         <section className="rounded-card border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">Opportunity score</p>
-          {o.score === null ? (
-            <p className="mt-1 text-lg font-semibold">Not enough evidence to score</p>
-          ) : (
-            <p className="mt-1 text-5xl font-semibold tabular-nums">
-              {o.score}
-              <span className="text-xl font-normal text-muted-foreground">/100</span>
-            </p>
-          )}
+          <div className="mt-3">
+            <ScoreRing score={o.score} />
+          </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <ConfidenceBadge level={o.confidence} />
           </div>
@@ -82,6 +80,10 @@ export function Overview({ r }: { r: Report }) {
           </p>
         </section>
       </div>
+      <Panel title="What the score is made of" aside={<span className="text-xs text-muted-foreground">Each part out of 100 · weight after the name</span>}>
+        <ScoreBreakdown dimensions={r.opportunity.dimensions} />
+        <p className="mt-2 text-xs text-muted-foreground">Explanations and evidence for each part are on the Market gaps tab.</p>
+      </Panel>
     </div>
   );
 }
@@ -89,7 +91,6 @@ export function Overview({ r }: { r: Report }) {
 export function Demand({ r }: { r: Report }) {
   const d = r.demand;
   const cats = Object.entries(d.by_category).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0)) as [EvidenceCategory, number][];
-  const max = Math.max(1, ...cats.map(([, n]) => n));
   const sources = Object.entries(d.by_source);
   const total = sources.reduce((n, [, v]) => n + v, 0);
   return (
@@ -98,32 +99,17 @@ export function Demand({ r }: { r: Report }) {
         {!d.classified ? (
           <p className="text-sm text-muted-foreground">Evidence wasn&apos;t classified (AI unavailable when this ran), so signals can&apos;t be broken down.</p>
         ) : (
-          <ul className="flex flex-col gap-3">
-            {cats.map(([c, n]) => (
-              <HBar key={c} label={CATEGORY_META[c]?.label ?? c} value={n} max={max} />
-            ))}
-          </ul>
+          <BarList rows={cats.map(([c, n]) => ({ label: CATEGORY_META[c]?.label ?? c, value: n }))} unit="records" />
         )}
       </Panel>
       <Panel title="Evidence by source">
         {total === 0 ? (
           <p className="text-sm text-muted-foreground">No evidence collected.</p>
         ) : (
-          <>
-            <div className="flex h-3 overflow-hidden rounded-full" role="img" aria-label={sources.map(([k, n]) => `${PROVIDER_LABELS[k] ?? k}: ${n}`).join(", ")}>
-              {sources.map(([k, n], i) => (
-                <span key={k} className={SOURCE_TONES[i % SOURCE_TONES.length]} style={{ width: `${(n / total) * 100}%` }} />
-              ))}
-            </div>
-            <ul className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              {sources.map(([k, n], i) => (
-                <li key={k} className="flex items-center gap-2">
-                  <span className={cn("size-2.5 rounded-full", SOURCE_TONES[i % SOURCE_TONES.length])} aria-hidden />
-                  {PROVIDER_LABELS[k] ?? k} <span className="tabular-nums text-muted-foreground">{n}</span>
-                </li>
-              ))}
-            </ul>
-          </>
+          <BarList
+            rows={[...sources].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: PROVIDER_LABELS[k] ?? k, value: n, note: `${Math.round((n / total) * 100)}% of the evidence` }))}
+            unit="records"
+          />
         )}
         <p className="mt-5 text-sm text-muted-foreground">
           {d.date_range ? `Published ${fmtDate(d.date_range[0])} – ${fmtDate(d.date_range[1])}.` : "Publication dates unavailable."}{" "}
@@ -134,6 +120,20 @@ export function Demand({ r }: { r: Report }) {
           .
         </p>
       </Panel>
+      {d.by_month && d.by_month.length > 1 && (
+        <Panel title="Published over time" className="lg:col-span-2">
+          <DailyChart
+            rows={d.by_month.map((m) => ({ day: m.month, records: m.records }))}
+            series={[{ key: "records", label: "Records", kind: "bar", color: "var(--series-1)" }]}
+            period="month"
+            height={200}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            By the date each post or page was published (last 24 months at most).
+            {d.undated ? ` ${d.undated} record${d.undated === 1 ? " has" : "s have"} no publication date and ${d.undated === 1 ? "isn't" : "aren't"} shown.` : ""}
+          </p>
+        </Panel>
+      )}
       <Panel title="Buying intent" className="lg:col-span-2">
         {d.buying_intent.length === 0 ? (
           <p className="text-sm text-muted-foreground">No buying-intent evidence found. That doesn&apos;t mean none exists, only that these sources didn&apos;t show it.</p>
@@ -159,7 +159,21 @@ export function PainPoints({ r }: { r: Report }) {
       </Panel>
     );
   }
+  const ranked = [...r.pain_points].sort((a, b) => b.distinct_sources - a.distinct_sources);
   return (
+    <div className="flex flex-col gap-4">
+    <Panel title="Themes by number of separate sources" aside={<AiLabel>AI themes</AiLabel>}>
+      <BarList
+        rows={ranked.map((t) => ({
+          label: t.name,
+          value: t.distinct_sources,
+          note: `${t.records} records · severity (AI): ${t.severity || "not rated"}`,
+        }))}
+        unit="sources"
+        labelWidth={190}
+      />
+      <p className="mt-1 text-xs text-muted-foreground">Separate sources, not posts: several posts from one page count once.</p>
+    </Panel>
     <ul className="grid gap-4 lg:grid-cols-2">
       {r.pain_points.map((t) => (
         <li key={t.id} className="rounded-card border border-border bg-card p-5">
@@ -195,6 +209,7 @@ export function PainPoints({ r }: { r: Report }) {
         </li>
       ))}
     </ul>
+    </div>
   );
 }
 
@@ -217,6 +232,22 @@ function Pricing({ c }: { c: ReportCompetitor }) {
   );
 }
 
+/** Verified monthly prices on one scale, cheapest first (only what their own pricing pages said). */
+function PriceLadderPanel({ competitors }: { competitors: ReportCompetitor[] }) {
+  const { currency, points, excluded } = priceLadder(competitors);
+  if (points.length === 0) return null;
+  return (
+    <Panel title="Verified monthly prices" aside={<span className="text-xs text-muted-foreground">From their own pricing pages</span>}>
+      <BarList rows={points} unit={`${currency} per month`} labelWidth={200} />
+      <p className="mt-1 text-xs text-muted-foreground">
+        Only prices shown exactly on a competitor&apos;s page and billed monthly in {currency}.
+        {excluded > 0 && ` ${excluded} other plan${excluded === 1 ? " (free, yearly, per-seat, another currency or no exact price) is" : "s (free, yearly, per-seat, another currency or no exact price) are"} not drawn.`}{" "}
+        Unverified prices are never shown.
+      </p>
+    </Panel>
+  );
+}
+
 export function Competitors({ r }: { r: Report }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<ReportCompetitor | null>(null);
@@ -236,6 +267,7 @@ export function Competitors({ r }: { r: Report }) {
   }
   return (
     <div className="flex flex-col gap-4">
+      <PriceLadderPanel competitors={r.competitors} />
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search competitors" aria-label="Search competitors" className="h-11 pl-9" />
@@ -341,6 +373,9 @@ export function MarketGaps({ r, assumptions }: { r: Report; assumptions?: React.
   return (
     <div className="flex flex-col gap-4">
       <Panel title="Score breakdown" aside={<span className="text-xs text-muted-foreground">Computed from evidence counts, not by AI</span>}>
+        <div className="mb-4">
+          <ScoreBreakdown dimensions={o.dimensions} />
+        </div>
         {o.experiment_rules && <p className="mb-3 text-xs text-muted-foreground">{o.experiment_rules}</p>}
         <ul className="flex flex-col gap-4">
           {o.dimensions.map((d) => (

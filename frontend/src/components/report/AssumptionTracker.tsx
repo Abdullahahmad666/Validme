@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, CircleHelp, ExternalLink, Plus, Trash2, XCircle } from "lucide-react";
 import { useId, useState } from "react";
+import { SegmentBar } from "@/components/charts/SegmentBar";
 import { ExperimentVerdict } from "@/components/lab/ExperimentVerdict";
 import { AiLabel, Panel } from "@/components/report/parts";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -247,17 +248,22 @@ export function AssumptionTracker({ r }: { r: Report }) {
   return (
     <Panel
       title="Assumptions to test"
-      aside={
-        list.data && list.data.length > 0 ? (
-          <span className="text-xs text-muted-foreground">
-            {counts.supported ?? 0} supported · {counts.contradicted ?? 0} contradicted · {counts.untested ?? 0} untested
-          </span>
-        ) : undefined
-      }
     >
       <p className="mb-3 text-sm text-muted-foreground">
         Your call, not the AI&apos;s: mark each one as you learn from customers, and link the evidence you rely on.
       </p>
+      {list.data && list.data.length > 0 && (
+        <div className="mb-4">
+          <SegmentBar
+            label="Assumption statuses"
+            segments={[
+              { key: "supported", label: "supported", value: counts.supported ?? 0, color: "var(--success)", icon: CheckCircle2 },
+              { key: "contradicted", label: "contradicted", value: counts.contradicted ?? 0, color: "var(--destructive)", icon: XCircle },
+              { key: "untested", label: "untested", value: counts.untested ?? 0, color: "#94a3b8", icon: CircleHelp },
+            ]}
+          />
+        </div>
+      )}
       {list.isPending ? (
         <div aria-busy="true">
           <span className="sr-only">Loading assumptions</span>

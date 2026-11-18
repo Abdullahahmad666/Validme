@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { type DayRow, fmtDay, num, summarize } from "@/components/charts/daily";
+import { type DayRow, fmtDay, fmtMonth, fmtPeriod, num, type Period, summarize } from "@/components/charts/daily";
 
 export type DailySeries = { key: string; label: string; kind: "bar" | "line"; color: string };
 
@@ -12,9 +12,22 @@ export type DailySeries = { key: string; label: string; kind: "bar" | "line"; co
  * at the hovered day (values first), a one-line summary for screen readers, and the same numbers as a table.
  * Series colours come from the validated --series-* tokens, in fixed order.
  */
-export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; series: DailySeries[]; height?: number }) {
+export function DailyChart({
+  rows,
+  series,
+  height = 220,
+  period = "day",
+  emptyText = "Nothing counted in this period yet.",
+}: {
+  rows: DayRow[];
+  series: DailySeries[];
+  height?: number;
+  period?: Period;
+  emptyText?: string;
+}) {
   const id = useId();
-  const summary = summarize(rows, series);
+  const summary = summarize(rows, series, period);
+  const tick = (k: string) => (period === "month" ? fmtMonth(k) : fmtDay(k));
   const anyData = rows.some((r) => series.some((s) => num(r, s.key) > 0));
   return (
     <figure className="flex flex-col gap-2" aria-labelledby={`${id}-cap`}>
@@ -37,7 +50,7 @@ export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; ser
               <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="0" />
               <XAxis
                 dataKey="day"
-                tickFormatter={fmtDay}
+                tickFormatter={tick}
                 tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
                 axisLine={{ stroke: "var(--chart-grid)" }}
                 tickLine={false}
@@ -49,7 +62,7 @@ export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; ser
                 content={({ active, label, payload }) =>
                   active && payload?.length ? (
                     <div className="rounded-control border border-border bg-popover px-3 py-2 text-xs shadow-md">
-                      <p className="mb-1 text-muted-foreground">{fmtDay(String(label))}</p>
+                      <p className="mb-1 text-muted-foreground">{fmtPeriod(String(label), period)}</p>
                       {series.map((s) => {
                         const v = payload.find((p) => p.dataKey === s.key)?.value ?? 0;
                         return (
@@ -84,7 +97,7 @@ export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; ser
           </ResponsiveContainer>
         ) : (
           <div className="flex h-full items-center justify-center rounded-control border border-dashed border-border text-sm text-muted-foreground">
-            Nothing counted in this period yet.
+            {emptyText}
           </div>
         )}
       </div>
@@ -98,7 +111,7 @@ export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; ser
             <thead className="sticky top-0 bg-card text-muted-foreground">
               <tr>
                 <th scope="col" className="px-2 py-1 font-medium">
-                  Day
+                  {period === "month" ? "Month" : period === "week" ? "Week of" : "Day"}
                 </th>
                 {series.map((s) => (
                   <th key={s.key} scope="col" className="px-2 py-1 text-right font-medium">
@@ -111,7 +124,7 @@ export function DailyChart({ rows, series, height = 220 }: { rows: DayRow[]; ser
               {[...rows].reverse().map((r) => (
                 <tr key={r.day}>
                   <th scope="row" className="px-2 py-1 font-normal">
-                    {fmtDay(r.day)}
+                    {tick(r.day)}
                   </th>
                   {series.map((s) => (
                     <td key={s.key} className="px-2 py-1 text-right tabular-nums">

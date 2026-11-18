@@ -271,3 +271,14 @@ def test_completed_project_can_rerun_but_not_while_running(api, setup):
     assert project.status == "RESEARCHING"
     r = api.post("/api/research/jobs", {"project": str(project.id), "depth": "quick"}, format="json", HTTP_IDEMPOTENCY_KEY="rerun-2")
     assert r.status_code == 409
+
+
+def test_by_month_counts_fill_gaps_and_cap_at_24_months():
+    from datetime import date
+
+    from reports.services import _by_month
+
+    rows = _by_month([date(2026, 1, 5), date(2026, 1, 20), date(2026, 3, 2)])
+    assert rows == [{"month": "2026-01", "records": 2}, {"month": "2026-02", "records": 0}, {"month": "2026-03", "records": 1}]
+    long = _by_month([date(2020, 1, 1), date(2026, 6, 1)])
+    assert len(long) == 24 and long[-1] == {"month": "2026-06", "records": 1} and _by_month([]) == []

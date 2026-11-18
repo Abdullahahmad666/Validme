@@ -84,6 +84,21 @@ def _risks(items: list[Evidence], competitors: list[Competitor], scoring: dict) 
     return risks
 
 
+def _by_month(dated: list) -> list[dict]:
+    """[{month: "YYYY-MM", records}] for every month from the first to the last dated record, capped at 24 months."""
+    if not dated:
+        return []
+    counts = Counter(d.strftime("%Y-%m") for d in dated)
+    last = dated[-1].replace(day=1)
+    months = []
+    y, m = last.year, last.month
+    first = dated[0].replace(day=1)
+    while len(months) < 24 and (y, m) >= (first.year, first.month):
+        months.append(f"{y:04d}-{m:02d}")
+        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+    return [{"month": k, "records": counts.get(k, 0)} for k in reversed(months)]
+
+
 def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
     competitors, cost, notes = build_competitors(job)
     project = job.project
@@ -178,6 +193,10 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
             "by_category": dict(by_category),
             "by_source": dict(by_source),
             "date_range": [dated[0].isoformat(), dated[-1].isoformat()] if dated else None,
+            # Records per publication month (last 24 months with any), for the "published over time" chart. Undated
+            # records are counted apart so the chart never implies they don't exist.
+            "by_month": _by_month(dated),
+            "undated": sum(1 for e in items if not e.published_at),
             "buying_intent": [_evidence_card(e) for e in intent],
             "classified": any(e.classifier_version for e in items),
         },

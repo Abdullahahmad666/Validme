@@ -157,6 +157,9 @@ export type Report = {
     by_category: Partial<Record<EvidenceCategory, number>>;
     by_source: Record<string, number>;
     date_range: [string, string] | null;
+    /** Reports since the chart rollout: records per publication month, and how many had no date. */
+    by_month?: { month: string; records: number }[];
+    undated?: number;
     buying_intent: ReportEvidence[];
     classified: boolean;
   };
