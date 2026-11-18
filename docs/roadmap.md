@@ -59,6 +59,11 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
 - [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`
 
+## UI v2: glass and charts
+- [x] Glass app shell (frosted cards, AA contrast kept, solid fallback for reduced transparency)
+- [x] Charts on every data screen: report (score ring, breakdown, demand, themes, prices, assumption statuses), evidence, Radar, monitoring (weekly), compare, Lab page and survey results, predicted vs actual, customers, billing, dashboard
+- [x] Shared chart components + validated colour tokens (`docs/design/design-system.md` → Charts)
+
 ## v2: continuous intelligence (plan in `docs/strategy-v2.md`)
 Every week ends with a **gate day**: security-reviewer, research-quality/ui reviewer, performance (query counts, p95, LLM cost per unit), exposure check, tests + build, docs. Nothing is pushed before the gate passes.
 
