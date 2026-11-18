@@ -283,6 +283,31 @@ class ChangeViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.Gen
             qs = qs.filter(significance=p["significance"])
         return qs
 
+    @action(detail=False, methods=["get"])
+    def weekly(self, request, project_pk=None):
+        """GET /projects/{id}/changes/weekly — changes per week (Monday start) for the last 12 weeks, by significance.
+        Every week is listed, with zeros, so a quiet week shows as quiet rather than missing."""
+        from datetime import timedelta
+
+        from django.db.models import Count
+        from django.db.models.functions import TruncWeek
+
+        project = _owned_project(request, project_pk)
+        today = timezone.localdate()
+        start = today - timedelta(days=today.weekday()) - timedelta(weeks=11)
+        rows = (
+            Change.objects.filter(project=project, detected_at__date__gte=start)
+            .annotate(week=TruncWeek("detected_at"))
+            .values("week", "significance")
+            .annotate(n=Count("id"))
+        )
+        weeks = {(start + timedelta(weeks=i)).isoformat(): {"high": 0, "medium": 0, "low": 0} for i in range(12)}
+        for r in rows:
+            key = r["week"].date().isoformat() if hasattr(r["week"], "date") else str(r["week"])
+            if key in weeks and r["significance"] in weeks[key]:
+                weeks[key][r["significance"]] += r["n"]
+        return Response({"results": [{"week": k, **v} for k, v in weeks.items()]})
+
 
 class FeedChangeSerializer(ChangeSerializer):
     project = serializers.SerializerMethodField()

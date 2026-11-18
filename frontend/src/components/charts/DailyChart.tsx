@@ -4,7 +4,8 @@ import { useId } from "react";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { type DayRow, fmtDay, fmtMonth, fmtPeriod, num, type Period, summarize } from "@/components/charts/daily";
 
-export type DailySeries = { key: string; label: string; kind: "bar" | "line"; color: string };
+/** `stack`: bars with the same value stack (bottom first, in series order); a 2px surface gap separates them. */
+export type DailySeries = { key: string; label: string; kind: "bar" | "line"; color: string; stack?: string };
 
 /**
  * Day-by-day counts that share one unit (e.g. views and sign-ups, both people per day): one axis, bars for the main
@@ -26,7 +27,8 @@ export function DailyChart({
   emptyText?: string;
 }) {
   const id = useId();
-  const summary = summarize(rows, series, period);
+  const stacked = series.length > 1 && series.every((s) => s.stack && s.stack === series[0].stack);
+  const summary = summarize(rows, series, period, stacked);
   const tick = (k: string) => (period === "month" ? fmtMonth(k) : fmtDay(k));
   const anyData = rows.some((r) => series.some((s) => num(r, s.key) > 0));
   return (
@@ -46,7 +48,7 @@ export function DailyChart({
       <div aria-hidden className="w-full" style={{ height }}>
         {anyData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -16 }} barCategoryGap="20%">
+            <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} barCategoryGap="20%">
               <CartesianGrid vertical={false} stroke="var(--chart-grid)" strokeDasharray="0" />
               <XAxis
                 dataKey="day"
@@ -79,7 +81,17 @@ export function DailyChart({
               />
               {series.map((s) =>
                 s.kind === "bar" ? (
-                  <Bar key={s.key} dataKey={s.key} fill={s.color} maxBarSize={24} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  <Bar
+                    key={s.key}
+                    dataKey={s.key}
+                    fill={s.color}
+                    stackId={s.stack}
+                    maxBarSize={24}
+                    radius={!s.stack || s === [...series].reverse().find((x) => x.stack === s.stack) ? [4, 4, 0, 0] : 0}
+                    stroke={s.stack ? "#fff" : undefined}
+                    strokeWidth={s.stack ? 1 : 0}
+                    isAnimationActive={false}
+                  />
                 ) : (
                   <Line
                     key={s.key}

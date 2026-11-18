@@ -22,3 +22,22 @@ describe("daily chart helpers", () => {
     expect(fmtDay("2026-01-31")).toBe("Jan 31");
   });
 });
+
+describe("summaries of stacked series", () => {
+  it("rank by the total, not the first series", () => {
+    const rows = fillDays(
+      [
+        { day: "2026-11-02", low: 5, high: 0 },
+        { day: "2026-11-09", low: 1, high: 9 },
+      ],
+      "2026-11-02",
+      "2026-11-09",
+      ["low", "high"],
+    ).filter((r) => r.day === "2026-11-02" || r.day === "2026-11-09");
+    const series = [
+      { key: "low", label: "Low" },
+      { key: "high", label: "High" },
+    ];
+    expect(summarize(rows, series, "week", true)).toContain("Busiest week (starting) Nov 9 (10 in all)");
+  });
+});

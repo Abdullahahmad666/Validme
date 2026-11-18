@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { ChangeCard } from "@/components/monitoring/ChangeCard";
+import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
 import { Panel } from "@/components/report/parts";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -280,6 +281,34 @@ function WatchRow({ w, projectId, canDaily }: { w: Watch; projectId: string; can
   );
 }
 
+const WEEKLY_SERIES: DailySeries[] = [
+  { key: "low", label: "Low significance", kind: "bar", color: "var(--ordinal-1)", stack: "s" },
+  { key: "medium", label: "Medium", kind: "bar", color: "var(--ordinal-2)", stack: "s" },
+  { key: "high", label: "High", kind: "bar", color: "var(--ordinal-3)", stack: "s" },
+];
+
+/** Detected changes per week (last 12 weeks), stacked by significance; quiet weeks show as zero. */
+function WeeklyChanges({ projectId }: { projectId: string }) {
+  const weekly = useQuery({ queryKey: ["changes-weekly", projectId], queryFn: () => api.changesWeekly(projectId) });
+  return (
+    <Panel title="Changes per week" aside={<span className="text-xs text-muted-foreground">Last 12 weeks</span>}>
+      {weekly.isPending ? (
+        <Skeleton className="h-52" />
+      ) : weekly.isError ? (
+        <ErrorState title="Couldn't load the weekly counts" onRetry={() => weekly.refetch()} />
+      ) : (
+        <DailyChart
+          rows={weekly.data.results.map((w) => ({ day: w.week, low: w.low, medium: w.medium, high: w.high }))}
+          series={WEEKLY_SERIES}
+          period="week"
+          height={200}
+          emptyText="No changes detected in the last 12 weeks."
+        />
+      )}
+    </Panel>
+  );
+}
+
 function Timeline({ projectId, watches }: { projectId: string; watches: Watch[] }) {
   const qc = useQueryClient();
   const params = useSearchParams();
@@ -503,6 +532,8 @@ export function MonitoringView({ projectId }: { projectId: string }) {
           .
         </p>
       </header>
+
+      {list.length > 0 && <WeeklyChanges projectId={projectId} />}
 
       <Panel
         title="Watched pages"

@@ -42,15 +42,17 @@ export function fillDays(rows: DayRow[], since: string, until: string, keys: str
 }
 
 /** One plain sentence for screen readers and the chart caption: totals and the busiest day. */
-export function summarize(rows: DayRow[], series: { key: string; label: string }[], period: Period = "day"): string {
+/** `byTotal`: rank periods by the sum of all series (stacked bars), and say "in all"; otherwise by the first series. */
+export function summarize(rows: DayRow[], series: { key: string; label: string }[], period: Period = "day", byTotal = false): string {
   if (rows.length === 0) return "No data yet.";
   const totals = series.map((s) => `${rows.reduce((n, r) => n + num(r, s.key), 0)} ${s.label.toLowerCase()}`);
-  const first = series[0].key;
-  const busiest = rows.reduce((a, b) => (num(b, first) > num(a, first) ? b : a));
+  const value = (r: DayRow) => (byTotal ? series.reduce((n, s) => n + num(r, s.key), 0) : num(r, series[0].key));
+  const busiest = rows.reduce((a, b) => (value(b) > value(a) ? b : a));
   const f = (k: string) => (period === "month" ? fmtMonth(k) : fmtDay(k));
   const span = `${f(rows[0].day)}–${f(rows[rows.length - 1].day)}`;
   const unit = period === "month" ? "month" : period === "week" ? "week (starting)" : "day";
-  return num(busiest, first) > 0
-    ? `${span}: ${totals.join(", ")}. Busiest ${unit} ${f(busiest.day)} (${num(busiest, first)} ${series[0].label.toLowerCase()}).`
+  const what = byTotal ? "in all" : series[0].label.toLowerCase();
+  return value(busiest) > 0
+    ? `${span}: ${totals.join(", ")}. Busiest ${unit} ${f(busiest.day)} (${value(busiest)} ${what}).`
     : `${span}: ${totals.join(", ")}.`;
 }

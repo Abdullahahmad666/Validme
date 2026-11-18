@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BarList } from "@/components/charts/BarList";
 import { useEvidence, useEvidenceFacets, useSaveEvidence, useThemes } from "@/hooks/useEvidence";
 import { useProjects } from "@/hooks/useProjects";
 import { cn } from "@/lib/utils";
@@ -386,6 +387,33 @@ export function EvidenceExplorer() {
         </div>
 
         <aside className="flex flex-col gap-4">
+          {f && f.total > 0 && (
+            <section aria-labelledby="glance-title" className="rounded-card border border-border bg-card p-5">
+              <h2 id="glance-title" className="font-semibold">
+                At a glance
+              </h2>
+              <p className="mb-2 text-xs text-muted-foreground">
+                {f.total} records{f.duplicates ? ` · ${f.duplicates} duplicates merged` : ""}
+              </p>
+              <h3 className="text-xs font-medium text-muted-foreground">By category</h3>
+              <BarList
+                rows={(Object.entries(f.categories) as [EvidenceCategory, number][])
+                  .filter(([, n]) => n > 0)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([c, n]) => ({ label: CATEGORY_META[c]?.label ?? c, value: n }))}
+                unit="records"
+                rowHeight={28}
+              />
+              <h3 className="mt-2 text-xs font-medium text-muted-foreground">By source</h3>
+              <BarList
+                rows={Object.entries(f.providers)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([k, n]) => ({ label: PROVIDER_LABELS[k] ?? k, value: n }))}
+                unit="records"
+                rowHeight={28}
+              />
+            </section>
+          )}
           {themes.data && themes.data.length > 0 ? (
             <ThemeList themes={themes.data} active={filters.cluster} onPick={(id) => setFilters({ cluster: id })} />
           ) : (

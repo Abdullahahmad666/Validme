@@ -380,3 +380,22 @@ def test_resume_respects_cooldown(api, project, public_dns):
     w.refresh_from_db()
     assert r["last_status"] == "pending" and w.consecutive_errors == 0
     assert w.next_run_at >= timezone.now() + timedelta(minutes=9)
+
+
+def test_weekly_change_counts_are_zero_filled_and_owner_only(api, other_api, project):
+    from datetime import timedelta
+
+    from monitoring.models import Change
+
+    w = watch(project)
+    now = timezone.now()
+    for days, sig in ((0, "high"), (1, "high"), (8, "medium"), (200, "low")):  # the last one is outside 12 weeks
+        Change.objects.create(
+            watch=w, project=project, kind="pricing", significance=sig, summary="x", detected_at=now - timedelta(days=days)
+        )
+    url = f"/api/projects/{project.id}/changes/weekly"
+    rows = api.get(url).json()["results"]
+    assert len(rows) == 12 and all(set(r) == {"week", "high", "medium", "low"} for r in rows)
+    assert sum(r["high"] for r in rows) == 2 and sum(r["medium"] for r in rows) == 1 and sum(r["low"] for r in rows) == 0
+    assert rows[-1]["week"] == (timezone.localdate() - timedelta(days=timezone.localdate().weekday())).isoformat()
+    assert other_api.get(url).status_code == 404

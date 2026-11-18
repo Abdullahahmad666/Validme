@@ -101,7 +101,8 @@ describe("ScoreTrend", () => {
     const out = renderToStaticMarkup(createElement(ScoreTrend, { snapshots: [snap(3, 61), snap(2, null), snap(1, 55, "report")] }));
     expect(out).toContain("Not scored");
     expect(out).toMatch(/61\/100 on .*, from 55\/100 on .* \(3 points\)/);
-    expect(out.match(/<path /g)?.length).toBe(1);
+    expect(out).toContain("1 point wasn&#x27;t scored and is left as a gap, not drawn as 0.");
+    expect(out).not.toContain("0/100");
     expect(out).toContain("Research report");
   });
 

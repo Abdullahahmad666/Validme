@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { GroupedBars, seriesColors } from "@/components/charts/GroupedBars";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { ConfidenceBadge } from "@/components/report/parts";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -148,6 +149,23 @@ export function CompareView() {
           ) : compare.isError ? (
             <ErrorState title="Couldn't compare these ideas" onRetry={() => compare.refetch()} />
           ) : (
+            <>
+              <section aria-labelledby="compare-chart-h" className="rounded-card border border-border bg-card p-5">
+                <h2 id="compare-chart-h" className="mb-2 font-semibold">
+                  Score parts side by side
+                </h2>
+                <GroupedBars
+                  groups={dims.map((d) => ({
+                    label: d.label,
+                    values: Object.fromEntries(rows.map((r) => [r.id, r.dimensions.find((x) => x.key === d.key)?.score ?? null])),
+                  }))}
+                  series={rows.map((r, i) => ({ key: r.id, label: r.name, color: seriesColors(rows.length)[i] }))}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Each part out of 100, from each idea&apos;s latest report. A missing bar means not scored, not zero. The table
+                  below has every value and the details.
+                </p>
+              </section>
             <div className="overflow-x-auto rounded-card border border-border bg-card">
               <table className="w-full min-w-[560px] text-sm">
                 <caption className="sr-only">Idea comparison</caption>
@@ -240,6 +258,7 @@ export function CompareView() {
                 on low confidence isn&apos;t a better idea yet.
               </p>
             </div>
+            </>
           )}
         </>
       )}

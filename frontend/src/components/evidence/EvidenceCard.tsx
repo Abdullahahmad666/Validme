@@ -27,7 +27,8 @@ const dateFmt = new Intl.DateTimeFormat("en", { month: "short", day: "numeric", 
 export const fmtDate = (d: string | null) => (d ? dateFmt.format(new Date(d)) : "Unknown");
 
 export function CategoryBadge({ evidence }: { evidence: Evidence }) {
-  const meta = CATEGORY_META[evidence.classification.category];
+  // An unknown category (older data, a new classifier label) shows its raw name instead of breaking the page.
+  const meta = CATEGORY_META[evidence.classification.category] ?? { label: String(evidence.classification.category), className: "bg-muted text-muted-foreground" };
   const ai = evidence.classification.ai_classified;
   return (
     <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", meta.className)}>

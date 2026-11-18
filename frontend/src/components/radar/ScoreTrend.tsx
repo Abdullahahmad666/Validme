@@ -1,3 +1,7 @@
+"use client";
+
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { fmtDay } from "@/components/charts/daily";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { Panel } from "@/components/report/parts";
 import type { ScoreSnapshot } from "@/types/radar";
@@ -5,8 +9,8 @@ import type { ScoreSnapshot } from "@/types/radar";
 const SOURCE_LABEL = { report: "Research report", revalidation: "Weekly re-check" } as const;
 
 /**
- * Score over time from snapshots (oldest → newest). Unscored points sit on a separate "not scored" line below
- * the 0–100 scale and break the line: never drawn as 0, never interpolated.
+ * Score over time from snapshots (oldest → newest). Unscored points break the line and are counted in words: never
+ * drawn as 0, never interpolated.
  */
 export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
   if (snapshots.length < 2) {
@@ -19,31 +23,15 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
     );
   }
   const points = [...snapshots].reverse();
-  const w = 560;
-  const top = 10;
-  const plotBottom = 120;
-  const band = 140;
-  const h = 152;
-  const pad = 12;
-  const x = (i: number) => pad + (i * (w - pad * 2)) / Math.max(1, points.length - 1);
-  const y = (s: number) => plotBottom - (s / 100) * (plotBottom - top);
-  let path = "";
-  let open = false;
-  points.forEach((p, i) => {
-    if (p.score === null) {
-      open = false;
-      return;
-    }
-    path += `${open ? "L" : "M"}${x(i).toFixed(1)},${y(p.score).toFixed(1)} `;
-    open = true;
-  });
   const recent = snapshots.slice(0, 6);
-  // Where the scoring rules changed (e.g. score_v2 added the founder's experiments): marked so a jump isn't read as the
-  // market moving.
-  const change = points.findIndex((p, i) => i > 0 && (p.scoring_version || "") !== (points[i - 1].scoring_version || ""));
   const scored = points.filter((p) => p.score !== null);
   const first = scored[0];
   const last = scored.at(-1);
+  const unscored = points.length - scored.length;
+  // Where the scoring rules changed (e.g. score_v2 added the founder's experiments): marked so a jump isn't read as the
+  // market moving.
+  const change = points.findIndex((p, i) => i > 0 && (p.scoring_version || "") !== (points[i - 1].scoring_version || ""));
+  const data = points.map((p) => ({ ...p, at: p.created_at.slice(0, 10) }));
   return (
     <Panel title="Score over time">
       {first && last && first !== last && (
@@ -52,24 +40,67 @@ export function ScoreTrend({ snapshots }: { snapshots: ScoreSnapshot[] }) {
           points).
         </p>
       )}
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full" aria-hidden>
-        {[0, 50, 100].map((v) => (
-          <line key={v} x1={pad} x2={w - pad} y1={y(v)} y2={y(v)} className="stroke-border" strokeDasharray="3 4" />
-        ))}
-        <line x1={pad} x2={w - pad} y1={band} y2={band} className="stroke-border" />
-        {change > 0 && <line x1={x(change) - 6} x2={x(change) - 6} y1={top} y2={band} className="stroke-muted-strong" strokeDasharray="2 3" />}
-        {path && <path d={path} fill="none" className="stroke-primary" strokeWidth={2} />}
-        {points.map((p, i) =>
-          p.score === null ? (
-            <circle key={p.id} cx={x(i)} cy={band} r={4} fill="none" className="stroke-muted-strong" strokeWidth={1.5} />
-          ) : (
-            <circle key={p.id} cx={x(i)} cy={y(p.score)} r={p.source === "report" ? 5 : 3.5} className="fill-primary" />
-          ),
+      <ul className="mb-1 flex flex-wrap gap-4 text-xs text-muted-foreground" aria-hidden>
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block size-2.5 rounded-full" style={{ background: "var(--series-1)" }} /> Research report
+        </li>
+        <li className="inline-flex items-center gap-1.5">
+          <span className="inline-block size-1.5 rounded-full" style={{ background: "var(--series-1)" }} /> Weekly re-check
+        </li>
+        {change > 0 && (
+          <li className="inline-flex items-center gap-1.5">
+            <span className="inline-block h-3 w-0 border-l border-dashed" style={{ borderColor: "var(--chart-axis)" }} /> Scoring rules changed
+          </li>
         )}
-      </svg>
+      </ul>
+      <div aria-hidden className="h-52 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+            <XAxis
+              dataKey="at"
+              tickFormatter={fmtDay}
+              tick={{ fill: "var(--chart-axis)", fontSize: 11 }}
+              axisLine={{ stroke: "var(--chart-grid)" }}
+              tickLine={false}
+              minTickGap={28}
+            />
+            <YAxis domain={[0, 100]} ticks={[0, 50, 100]} tick={{ fill: "var(--chart-axis)", fontSize: 11 }} axisLine={false} tickLine={false} width={40} />
+            {change > 0 && (
+              <ReferenceLine x={data[change].at} stroke="var(--chart-axis)" strokeDasharray="3 4" />
+            )}
+            <Tooltip
+              cursor={{ stroke: "var(--chart-axis)", strokeDasharray: "2 3" }}
+              content={({ active, payload }) => {
+                const p = active && payload?.[0] ? (payload[0].payload as ScoreSnapshot & { at: string }) : null;
+                return p ? (
+                  <div className="rounded-control border border-border bg-popover px-3 py-2 text-xs shadow-md">
+                    <p className="text-muted-foreground">{fmtDate(p.created_at)}</p>
+                    <p className="font-semibold tabular-nums">{p.score === null ? "Not scored" : `${p.score}/100`}</p>
+                    <p className="text-muted-foreground">{SOURCE_LABEL[p.source]}</p>
+                  </div>
+                ) : null;
+              }}
+            />
+            <Line
+              dataKey="score"
+              stroke="var(--series-1)"
+              strokeWidth={2}
+              connectNulls={false}
+              isAnimationActive={false}
+              dot={(props) => {
+                const { cx, cy, payload, index } = props as { cx?: number; cy?: number; payload: ScoreSnapshot; index: number };
+                if (payload.score === null || cx === undefined || cy === undefined) return <g key={index} />;
+                return <circle key={index} cx={cx} cy={cy} r={payload.source === "report" ? 5 : 3} fill="var(--series-1)" stroke="#fff" strokeWidth={2} />;
+              }}
+              activeDot={{ r: 5, stroke: "#fff", strokeWidth: 2 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Large points are research reports, small ones weekly re-checks of the same evidence (scores drift as evidence
-        ages). Hollow points on the bottom line weren&apos;t scored.
+        Large points are research reports, small ones weekly re-checks of the same evidence (scores drift as evidence ages).
+        {unscored > 0 && ` ${unscored} point${unscored === 1 ? " wasn't" : "s weren't"} scored and ${unscored === 1 ? "is" : "are"} left as a gap, not drawn as 0.`}
       </p>
       {change > 0 && (
         <p className="mt-1 text-xs text-muted-foreground">

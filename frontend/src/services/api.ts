@@ -265,6 +265,10 @@ export const api = {
     }),
   scoreHistory: (projectId: string) =>
     request<{ count: number; results: ScoreSnapshot[] }>(`/projects/${encodeURIComponent(projectId)}/score-history`),
+  changesWeekly: (projectId: string) =>
+    request<{ results: { week: string; high: number; medium: number; low: number }[] }>(
+      `/projects/${encodeURIComponent(projectId)}/changes/weekly`,
+    ),
   monitoringFeed: (page = 1) => request<Paginated<Change>>(`/monitoring/changes${page > 1 ? `?page=${page}` : ""}`),
   notifications: () => request<Paginated<AppNotification> & { unread: number }>("/notifications"),
   markNotificationsRead: (body: { ids?: number[]; all?: boolean }) =>
