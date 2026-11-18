@@ -99,3 +99,12 @@ describe("assumption verdicts", () => {
     expect(unlinked).not.toContain("Which answers support");
   });
 });
+
+describe("type changes keep the supporting-answer rule between choice types", () => {
+  it("single ↔ multi keeps it; scale drops it", async () => {
+    const { changeType } = await import("@/lib/lab");
+    const q: Question = { id: "q1", type: "single", prompt: "How?", options: ["A", "B"], assumption_id: 1, support_options: [1] };
+    expect(changeType(q, "multi").support_options).toEqual([1]);
+    expect(changeType(q, "scale").support_options).toBeUndefined();
+  });
+});

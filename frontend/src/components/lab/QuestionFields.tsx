@@ -5,6 +5,7 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VERDICT_MAJORITY_PCT, VERDICT_MIN_ANSWERS } from "@/lib/apiScopes";
 import { changeType, hasLink, QUESTION_LABELS, removeOption } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionType } from "@/types/lab";
@@ -110,8 +111,8 @@ function SupportRule({ q, onChange, locked }: { q: Question; onChange: (q: Quest
         </label>
       ))}
       <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-        The assumption is marked supported when most people who answered (the whole 95% range above half, with at least 10
-        answers) picked one of these, and contradicted when clearly fewer than half did. Leave all unticked to judge it
+        The assumption is marked supported when most people who answered (the whole 95% range above {VERDICT_MAJORITY_PCT}%,
+        with at least {VERDICT_MIN_ANSWERS} answers) picked one of these, and contradicted when the whole range is below it. Leave all unticked to judge it
         yourself. Decide this before you read the results.{late}
       </p>
     </fieldset>

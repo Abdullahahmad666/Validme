@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { API_SCOPES, DEFAULT_SCOPES, scopeLabel } from "@/lib/apiScopes";
+import { API_SCOPES, DEFAULT_SCOPES, scopeInfo } from "@/lib/apiScopes";
 import { SITE_URL } from "@/lib/brand";
 import { api, ApiError } from "@/services/api";
 import type { ApiKey } from "@/types/api";
@@ -58,6 +58,11 @@ function ScopePicker({ value, onChange, idPrefix }: { value: string[]; onChange:
           </span>
         </label>
       ))}
+      {value.length === 0 && (
+        <p className="text-sm text-destructive-text" role="alert">
+          Choose at least one permission.
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         Never possible with a key: managing keys or your account, billing, creating watches, publishing or deleting Lab pages,
         and reading waitlist emails or survey answers.
@@ -87,7 +92,16 @@ function KeyRow({ k, onRevoke, revoking }: { k: ApiKey; onRevoke: () => void; re
           </p>
         </div>
         <span className="flex flex-wrap gap-1">
-          <Button variant="ghost" className="min-h-11" onClick={() => (setEditing((e) => !e), setScopes(k.scopes))} aria-expanded={editing}>
+          <Button
+            variant="ghost"
+            className="min-h-11"
+            aria-expanded={editing}
+            aria-controls={`key-${k.id}-perms`}
+            onClick={() => {
+              setEditing((e) => !e);
+              setScopes(k.scopes);
+            }}
+          >
             <SlidersHorizontal aria-hidden /> Permissions
           </Button>
           <Button variant="ghost" className="min-h-11" disabled={revoking} onClick={onRevoke}>
@@ -99,18 +113,25 @@ function KeyRow({ k, onRevoke, revoking }: { k: ApiKey; onRevoke: () => void; re
         {k.scopes.length === 0 ? (
           <li className="text-xs text-muted-foreground">No permissions: this key can&apos;t do anything.</li>
         ) : (
-          k.scopes.map((s) => (
-            <li key={s} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium" title={scopeLabel(s)}>
-              {s}
-            </li>
-          ))
+          k.scopes.map((s) => {
+            const info = scopeInfo(s);
+            return (
+              <li
+                key={s}
+                className={info.write ? "rounded-full bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning-text" : "rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium"}
+              >
+                {info.short}
+                {info.write && <span className="sr-only"> (changes data)</span>}
+              </li>
+            );
+          })
         )}
       </ul>
       {editing && (
-        <div className="rounded-control border border-border p-3">
+        <div id={`key-${k.id}-perms`} className="rounded-control border border-border p-3">
           <ScopePicker value={scopes} onChange={setScopes} idPrefix={`key-${k.id}`} />
           <div className="mt-2 flex gap-2">
-            <Button className="min-h-11" onClick={() => save.mutate()} disabled={save.isPending}>
+            <Button className="min-h-11" onClick={() => save.mutate()} disabled={save.isPending || scopes.length === 0}>
               {save.isPending ? "Saving…" : "Save permissions"}
             </Button>
             <Button variant="ghost" className="min-h-11" onClick={() => setEditing(false)}>
@@ -119,7 +140,7 @@ function KeyRow({ k, onRevoke, revoking }: { k: ApiKey; onRevoke: () => void; re
           </div>
           {save.isError && (
             <p role="alert" className="mt-2 text-sm text-destructive-text">
-              Couldn&apos;t save the permissions. Please try again.
+              {save.error instanceof ApiError ? save.error.message : "Couldn't save the permissions. Please try again."}
             </p>
           )}
         </div>
@@ -172,7 +193,7 @@ export function ApiKeys() {
             <Input id="key-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className="h-11" />
           </div>
           <ScopePicker value={scopes} onChange={setScopes} idPrefix="new-key" />
-          <Button type="submit" disabled={create.isPending} className="h-11 self-start">
+          <Button type="submit" disabled={create.isPending || scopes.length === 0} className="h-11 self-start">
             {create.isPending ? "Creating…" : "Create key"}
           </Button>
         </form>

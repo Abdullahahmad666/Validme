@@ -8,11 +8,13 @@ import { ExperimentVerdict } from "@/components/lab/ExperimentVerdict";
 import { Panel } from "@/components/report/parts";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { labKeys } from "@/hooks/useLab";
 import { pct } from "@/lib/lab";
 import { api } from "@/services/api";
 import type { ExperimentResult, PredictedActual as Data } from "@/types/report";
 
 const STATUS_WORDS = { untested: "Untested", supported: "Supported", contradicted: "Contradicted" } as const;
+const whoSet = (locked: boolean, auto: string) => (locked ? "set by you" : auto === "inconclusive" ? "waiting for a clear survey result" : "from your survey");
 
 function Actual({ e }: { e: ExperimentResult | null }) {
   if (!e) return <span className="text-muted-foreground">No result yet</span>;
@@ -50,7 +52,9 @@ export function PredictedActualView({ data, projectId }: { data: Data; projectId
           <caption className="sr-only">Research prediction and your experiment result for each score dimension</caption>
           <thead className="text-xs text-muted-foreground">
             <tr>
-              <th scope="col" className="py-1 pr-2 font-medium" />
+              <th scope="col" className="py-1 pr-2 font-medium">
+                <span className="sr-only">Score dimension</span>
+              </th>
               <th scope="col" className="py-1 pr-2 font-medium">
                 <SearchCheck className="mr-1 inline size-3.5" aria-hidden />
                 Research predicted
@@ -110,8 +114,7 @@ export function PredictedActualView({ data, projectId }: { data: Data; projectId
                   {a.text}
                   <ArrowRight className="size-3.5 text-muted-foreground" aria-hidden />
                   <span className="text-muted-foreground">
-                    Status: {STATUS_WORDS[a.status]}
-                    {a.status_locked ? " (set by you)" : " (from your survey)"}
+                    Status: {STATUS_WORDS[a.status]} ({whoSet(a.status_locked, a.auto_status)})
                   </span>
                 </p>
                 <ExperimentVerdict a={a} className="mt-2" />
@@ -131,7 +134,7 @@ export function PredictedActualView({ data, projectId }: { data: Data; projectId
 }
 
 export function PredictedActual({ projectId }: { projectId: string }) {
-  const q = useQuery({ queryKey: ["predicted-vs-actual", projectId], queryFn: () => api.predictedVsActual(projectId) });
+  const q = useQuery({ queryKey: labKeys.predictedVsActual(projectId), queryFn: () => api.predictedVsActual(projectId) });
   if (q.isPending) return <Skeleton className="h-48" aria-busy="true" />;
   if (q.isError) return <ErrorState title="Couldn't load predicted vs actual" onRetry={() => q.refetch()} />;
   return <PredictedActualView data={q.data} projectId={projectId} />;

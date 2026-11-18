@@ -387,6 +387,7 @@ def test_scopes_are_managed_only_in_the_web_app(api, user):
     assert r.status_code == 201 and r.json()["scopes"] == ["research:read", "lab:read"]
     kid = r.json()["id"]
     assert api.post("/api/api-keys", {"name": "x", "scopes": ["admin"]}, format="json").status_code == 400
+    assert api.post("/api/api-keys", {"name": "x", "scopes": []}, format="json").status_code == 400  # a key that can do nothing
     assert api.patch(f"/api/api-keys/{kid}", {"scopes": ["research:read"]}, format="json").json()["scopes"] == ["research:read"]
     key = key_client(user, ["research:read"])
     assert key.patch(f"/api/api-keys/{kid}", {"scopes": ["lab:read"]}, format="json").status_code == 403

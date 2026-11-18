@@ -10,6 +10,8 @@ export const labKeys = {
   results: (projectId: string, id: number) => ["lab-survey-results", projectId, id] as const,
   responses: (projectId: string, id: number) => ["lab-survey-responses", projectId, id] as const,
   notices: (projectId: string) => ["lab-notices", projectId] as const,
+  predictedVsActual: (projectId: string) => ["predicted-vs-actual", projectId] as const,
+  assumptions: (projectId: string) => ["assumptions", projectId] as const,
 };
 
 export function useLabSurveys(projectId: string) {

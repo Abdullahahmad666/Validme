@@ -114,7 +114,10 @@ export function emptyQuestion(type: QuestionType, id: string): Question {
 /** Turn a question into another type, keeping its id, wording and linked assumption. */
 export function changeType(q: Question, type: QuestionType): Question {
   const next: Question = { ...emptyQuestion(type, q.id), prompt: q.prompt, required: q.required ?? false, assumption_id: q.assumption_id ?? null };
-  if ((type === "single" || type === "multi") && q.options?.length) next.options = q.options;
+  if ((type === "single" || type === "multi") && q.options?.length) {
+    next.options = q.options;
+    if (q.support_options?.length && (q.type === "single" || q.type === "multi")) next.support_options = q.support_options;
+  }
   return next;
 }
 

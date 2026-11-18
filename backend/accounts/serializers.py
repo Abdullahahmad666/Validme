@@ -49,4 +49,7 @@ class ApiKeySerializer(serializers.ModelSerializer):
         unknown = sorted(set(value) - set(SCOPES))
         if unknown:
             raise serializers.ValidationError(f"Unknown permission: {', '.join(unknown)}.")
-        return clean_scopes(value)
+        value = clean_scopes(value)
+        if not value:
+            raise serializers.ValidationError("Choose at least one permission.")
+        return value

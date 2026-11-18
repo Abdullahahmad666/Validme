@@ -314,8 +314,8 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
   const refresh = (s: Survey) => {
     qc.setQueryData(labKeys.survey(projectId, survey.id), s);
     qc.invalidateQueries({ queryKey: labKeys.surveys(projectId) });
-    qc.invalidateQueries({ queryKey: ["predicted-vs-actual", projectId] });
-    qc.invalidateQueries({ queryKey: ["assumptions", projectId] });
+    qc.invalidateQueries({ queryKey: labKeys.predictedVsActual(projectId) });
+    qc.invalidateQueries({ queryKey: labKeys.assumptions(projectId) });
     // The server cleans text (trims, strips control characters): show what was actually saved.
     setDraft({ title: s.title, intro: s.intro, slug: s.slug, questions: s.questions, ask_email: s.ask_email, retention_days: s.retention_days });
     setAiIds(new Set());
