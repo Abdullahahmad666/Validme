@@ -14,6 +14,7 @@ from django.core import signing
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
+from django.db import transaction
 from django.db.models import F
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
@@ -170,4 +171,8 @@ def answer(request, slug: str):
         expires_at=now + timedelta(days=survey.retention_days),
     )
     _bump(survey, "responses")
+    if any(q.get("assumption_id") is not None for q in survey.questions):
+        from lab.tasks import evaluate_assumptions_task
+
+        transaction.on_commit(lambda: evaluate_assumptions_task.delay(survey.project_id))
     return done

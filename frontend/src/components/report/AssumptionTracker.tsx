@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
+import { ExperimentVerdict } from "@/components/lab/ExperimentVerdict";
 import type { Assumption, AssumptionStatus, Report } from "@/types/report";
 
 const STATUS: Record<AssumptionStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
@@ -53,7 +54,10 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
     onSuccess: (_d, body) => {
       if (body.note !== undefined) setNoteSaved(true);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: key });
+      qc.invalidateQueries({ queryKey: ["predicted-vs-actual", projectId] });
+    },
   });
   const remove = useMutation({
     mutationFn: () => api.deleteAssumption(projectId, a.id),
@@ -91,6 +95,21 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
           </select>
         </div>
       </div>
+
+      {a.auto_status && (
+        <div className="mt-3 flex flex-col gap-2">
+          <ExperimentVerdict a={a} />
+          {a.status_locked && (a.auto_status === "supported" || a.auto_status === "contradicted") && a.auto_status !== a.status && (
+            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              You set this yourself, so it doesn&apos;t follow the survey.
+              <Button variant="outline" className="min-h-11" disabled={update.isPending} onClick={() => update.mutate({ follow_experiments: true })}>
+                Use the survey result
+              </Button>
+            </p>
+          )}
+          {!a.status_locked && <p className="text-xs text-muted-foreground">The status follows your survey until you set one yourself.</p>}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-col gap-1.5">
         <Label htmlFor={`${ids}-note`} className="text-xs text-muted-foreground">

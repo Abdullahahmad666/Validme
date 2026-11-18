@@ -186,8 +186,52 @@ class AssumptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Assumption
-        fields = ["id", "text", "source", "status", "note", "evidence_ids", "evidence", "created_at", "updated_at"]
-        read_only_fields = ["id", "source", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "text",
+            "source",
+            "status",
+            "note",
+            "evidence_ids",
+            "evidence",
+            "created_at",
+            "updated_at",
+            "status_locked",
+            "auto_status",
+            "auto_basis",
+            "auto_refs",
+            "auto_at",
+            "follow_experiments",
+        ]
+        read_only_fields = [
+            "id",
+            "source",
+            "created_at",
+            "updated_at",
+            "status_locked",
+            "auto_status",
+            "auto_basis",
+            "auto_refs",
+            "auto_at",
+        ]
+
+    # Week 15: PATCH {follow_experiments: true} hands the status back to the experiment verdict (undoes an override).
+    follow_experiments = serializers.BooleanField(write_only=True, required=False)
+
+    def create(self, validated):
+        validated.pop("follow_experiments", None)
+        if validated.get("status", "untested") != "untested":
+            validated["status_locked"] = True
+        return super().create(validated)
+
+    def update(self, instance, validated):
+        follow = validated.pop("follow_experiments", None)
+        if "status" in validated:
+            validated["status_locked"] = True  # the founder's call overrides any experiment verdict
+        elif follow:
+            validated["status_locked"] = False
+            validated["status"] = instance.auto_status if instance.auto_status in ("supported", "contradicted") else "untested"
+        return super().update(instance, validated)
 
     def get_evidence(self, obj) -> list[dict]:
         return [

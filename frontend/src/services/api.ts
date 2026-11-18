@@ -4,7 +4,7 @@ import type { AppNotification, Cadence, Change, CompetitorCandidate, Significanc
 import type { Distribution, RefreshResult } from "@/types/distribution";
 import type { Block, DataNotice, LabPage, LabSignup, LabStats, Question, Survey, SurveyResponseRow, SurveyResults } from "@/types/lab";
 import type { ScoreSnapshot, Signal, SignalFeedback, SignalType } from "@/types/radar";
-import type { Assumption, CompareRow, CompetitiveMatrix, Report, ReportVersion } from "@/types/report";
+import type { Assumption, CompareRow, CompetitiveMatrix, PredictedActual, Report, ReportVersion } from "@/types/report";
 import type {
   ApiKey,
   BillingInterval,
@@ -138,7 +138,10 @@ export const api = {
   deleteProject: (id: string) => request<void>(`/projects/${id}`, { method: "DELETE" }),
 
   listApiKeys: () => request<Paginated<ApiKey>>("/api-keys"),
-  createApiKey: (name: string) => request<ApiKey & { key: string }>("/api-keys", { method: "POST", body: json({ name }) }),
+  createApiKey: (name: string, scopes: string[]) =>
+    request<ApiKey & { key: string }>("/api-keys", { method: "POST", body: json({ name, scopes }) }),
+  updateApiKey: (id: number, body: { name?: string; scopes?: string[] }) =>
+    request<ApiKey>(`/api-keys/${id}`, { method: "PATCH", body: json(body) }),
   revokeApiKey: (id: number) => request<void>(`/api-keys/${id}`, { method: "DELETE" }),
 
   getSources: () => request<{ results: ResearchSource[] }>("/research/sources"),
@@ -154,7 +157,11 @@ export const api = {
   listAssumptions: (projectId: string) => request<Assumption[]>(`/projects/${encodeURIComponent(projectId)}/assumptions`),
   createAssumption: (projectId: string, body: { text: string; evidence_ids?: number[] }) =>
     request<Assumption>(`/projects/${encodeURIComponent(projectId)}/assumptions`, { method: "POST", body: json(body) }),
-  updateAssumption: (projectId: string, id: number, body: Partial<Pick<Assumption, "status" | "note" | "text">> & { evidence_ids?: number[] }) =>
+  updateAssumption: (
+    projectId: string,
+    id: number,
+    body: Partial<Pick<Assumption, "status" | "note" | "text">> & { evidence_ids?: number[]; follow_experiments?: boolean },
+  ) =>
     request<Assumption>(`/projects/${encodeURIComponent(projectId)}/assumptions/${id}`, { method: "PATCH", body: json(body) }),
   deleteAssumption: (projectId: string, id: number) =>
     request<void>(`/projects/${encodeURIComponent(projectId)}/assumptions/${id}`, { method: "DELETE" }),
@@ -246,6 +253,7 @@ export const api = {
     request<{ deleted: number }>(`/projects/${encodeURIComponent(projectId)}/lab-surveys/${id}/responses/delete`, { method: "POST", body: json(body) }),
   labSurveySuggest: (projectId: string) =>
     request<{ questions: Question[]; ai: true }>(`/projects/${encodeURIComponent(projectId)}/lab-survey-suggest`, { method: "POST" }),
+  predictedVsActual: (projectId: string) => request<PredictedActual>(`/projects/${encodeURIComponent(projectId)}/predicted-vs-actual`),
   labNotices: (projectId: string) => request<{ results: DataNotice[] }>(`/projects/${encodeURIComponent(projectId)}/lab-notices`),
   markLabNoticesSeen: (projectId: string) =>
     request<{ marked: number }>(`/projects/${encodeURIComponent(projectId)}/lab-notices`, { method: "POST" }),

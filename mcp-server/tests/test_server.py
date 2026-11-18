@@ -42,8 +42,21 @@ def test_missing_api_key_returns_error(monkeypatch):
 async def test_tools_are_registered():
     names = {t.name for t in await server.server.list_tools()}
     assert names == {
-        "validate_idea", "get_research_status", "get_report",
-        "search_evidence", "list_competitors", "suggest_channels", "list_reports",
+        "validate_idea",
+        "get_research_status",
+        "get_report",
+        "search_evidence",
+        "list_competitors",
+        "suggest_channels",
+        "list_reports",
+        "list_watches",
+        "list_changes",
+        "list_signals",
+        "get_score_history",
+        "update_signal",
+        "get_lab_results",
+        "get_predicted_vs_actual",
+        "set_assumption_status",
     }
 
 
@@ -55,3 +68,55 @@ def test_channels_come_from_report_distribution():
 
 def test_list_reports_mock():
     assert server.list_reports("prj_sample")["count"] == 1
+
+
+def test_read_tools_return_labelled_sample_data():
+    for fn in (
+        server.list_watches,
+        server.list_changes,
+        server.list_signals,
+        server.get_score_history,
+        server.get_lab_results,
+        server.get_predicted_vs_actual,
+    ):
+        assert fn("prj_sample")["sample"] is True, fn.__name__
+
+
+def test_write_tools_need_confirmation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(server.client(), "update_signal", lambda *a: calls.append(a) or {"ok": True})
+    preview = server.update_signal("prj_sample", 3, "acted")
+    assert preview["confirm_required"] is True and preview["would_change"]["status"] == "acted" and calls == []
+    assert server.update_signal("prj_sample", 3, "acted", confirm=True) == {"ok": True} and len(calls) == 1
+
+
+def test_set_assumption_status_body():
+    preview = server.set_assumption_status("prj_sample", 4, "follow_survey", note=" from calls ")
+    assert preview["would_change"] == {
+        "project_id": "prj_sample",
+        "assumption_id": 4,
+        "follow_experiments": True,
+        "note": "from calls",
+    }
+    done = server.set_assumption_status("prj_sample", 4, "supported", confirm=True)
+    assert done["sample"] is True and done["status"] == "supported"
+
+
+def test_permission_errors_are_passed_on(monkeypatch):
+    from validme_mcp.client import ValidMeError
+
+    def denied(*a):
+        raise ValidMeError("ValidMe API error 403: This API key doesn't have the “lab:read” permission")
+
+    monkeypatch.setattr(server.client(), "predicted_vs_actual", denied)
+    assert "lab:read" in server.get_predicted_vs_actual("prj_sample")["error"]
+
+
+def test_live_client_paths_are_safe(monkeypatch):
+    seen = []
+    c = ValidMeClient(api_key="k", use_mock=False)
+    monkeypatch.setattr(c, "_request", lambda method, path, **kw: seen.append((method, path, kw)) or {})
+    c.update_signal("a/b", 7, "dismissed")
+    c.set_assumption("p1", 2, {"status": "supported"})
+    assert seen[0][:2] == ("PATCH", "/projects/a%2Fb/signals/7") and seen[0][2]["json"] == {"status": "dismissed"}
+    assert seen[1][:2] == ("PATCH", "/projects/p1/assumptions/2")

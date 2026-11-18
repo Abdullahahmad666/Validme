@@ -145,6 +145,11 @@ class SurveySerializer(serializers.ModelSerializer):
                         )
                     }
                 )
+        if "questions" in validated and instance.responses.exists():
+            before = {q.get("id"): _rule(q) for q in instance.questions}
+            late = set(instance.late_rules or [])
+            late |= {q["id"] for q in validated["questions"] if _rule(q) != before.get(q["id"])}
+            validated["late_rules"] = sorted(late)
         if "ask_email" in validated and validated["ask_email"] != instance.ask_email and instance.responses.exists():
             raise ValidationError({"ask_email": "People answered under the current consent text; delete the answers to change this."})
         if instance.status == Survey.Status.PUBLISHED:
@@ -204,7 +209,13 @@ class SurveyViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if instance.published_at and instance.slug:
             RetiredSlug.objects.get_or_create(slug=instance.slug)
+        project = instance.project
         instance.delete()
+        _reevaluate(project)
+
+    def perform_update(self, serializer):
+        survey = serializer.save()
+        _reevaluate(survey.project)
 
     def _fresh(self, survey):
         return Response(self.get_serializer(self.get_queryset().get(pk=survey.pk)).data)
@@ -222,6 +233,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
         survey.status = Survey.Status.PUBLISHED
         survey.published_at = survey.published_at or timezone.now()
         survey.save(update_fields=["status", "published_at", "updated_at"])
+        _reevaluate(survey.project)
         return self._fresh(survey)
 
     @action(detail=True, methods=["post"])
@@ -346,6 +358,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
             raw = body.get("ids")
             ids = [i for i in raw if type(i) is int][:500] if isinstance(raw, list) else []
             n, _ = qs.filter(pk__in=ids).delete()
+        _reevaluate(self._project())
         return Response({"deleted": n})
 
     @action(detail=True, methods=["get"])
@@ -354,6 +367,17 @@ class SurveyViewSet(viewsets.ModelViewSet):
         since = timezone.localdate() - timedelta(days=29)
         rows = list(SurveyDailyStat.objects.filter(survey=survey, day__gte=since).values("day", "views", "responses"))
         return Response({"daily": rows, "since": since})
+
+
+def _reevaluate(project) -> None:
+    from lab.verdicts import evaluate_assumptions
+
+    evaluate_assumptions(project)
+
+
+def _rule(q: dict) -> tuple:
+    """A question's link and supporting-answer rule (what decides an assumption's verdict)."""
+    return (q.get("assumption_id"), tuple(sorted(q.get("support_options") or [])), q.get("support_min"))
 
 
 def _typed_keys(token: str) -> set:

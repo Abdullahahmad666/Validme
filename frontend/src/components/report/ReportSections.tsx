@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, HelpCircle, Info, Lightbulb, MinusCircle, Search } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, FlaskConical, HelpCircle, Info, Lightbulb, MinusCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CATEGORY_META, PROVIDER_LABELS, fmtDate } from "@/components/evidence/EvidenceCard";
@@ -363,6 +363,11 @@ export function MarketGaps({ r, assumptions }: { r: Report; assumptions?: React.
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-hidden>
                   <div className="h-full rounded-full bg-primary" style={{ width: `${d.score}%` }} />
                 </div>
+              )}
+              {d.experiment?.counted && (
+                <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  <FlaskConical className="size-3" aria-hidden /> Includes your experiment (strongest evidence)
+                </p>
               )}
               <p className="mt-2 text-sm text-muted-foreground">{d.explanation}</p>
               {d.evidence_ids.length > 0 && (

@@ -376,6 +376,57 @@ def _price_test_results(page: LabPage) -> dict | None:
     }
 
 
+class PredictedActualView(APIView):
+    """GET /projects/{id}/predicted-vs-actual — what research predicted next to what the founder's experiments show
+    (Week 15). Aggregates only: no emails or typed answers, so read-only API keys may use it."""
+
+    permission_classes = [permissions.IsAuthenticated, ApiKeysReadOnly]
+
+    def get(self, request, project_pk: str):
+        from lab.experiments import RULES_NOTE, project_experiments
+        from lab.models import Survey
+        from projects.models import Assumption
+        from reports.models import Report
+
+        project = _owned_project(request, project_pk)
+        report = Report.objects.filter(project=project).order_by("-created_at").only("id", "created_at", "content").first()
+        dims = {d["key"]: d for d in ((report.content.get("opportunity") or {}).get("dimensions") or [])} if report else {}
+        experiments = project_experiments(project)
+        rows = []
+        for key, label in (("demand_evidence", "Demand"), ("willingness_to_pay", "Willingness to pay")):
+            d = dims.get(key)
+            # Reports from before Week 15 were research-only, so their score is the research prediction.
+            predicted = None
+            if d is not None:
+                research = d["research_score"] if "research_score" in d else d.get("score")
+                predicted = {"score": research, "confidence": d.get("confidence"), "explanation": d.get("explanation", "")}
+            exp = experiments.get(key)
+            rows.append({"key": key, "label": label, "predicted": predicted, "actual": exp.as_dict() if exp else None})
+        assumptions = [
+            {
+                "id": a.id,
+                "text": a.text,
+                "source": a.source,
+                "status": a.status,
+                "status_locked": a.status_locked,
+                "auto_status": a.auto_status,
+                "auto_basis": a.auto_basis,
+                "auto_refs": a.auto_refs,
+            }
+            for a in Assumption.objects.filter(project=project, dismissed=False)
+        ]
+        return Response(
+            {
+                "report": {"id": report.id, "created_at": report.created_at} if report else None,
+                "dimensions": rows,
+                "assumptions": assumptions,
+                "live_pages": LabPage.objects.filter(project=project, published_at__isnull=False).count(),
+                "live_surveys": Survey.objects.filter(project=project, published_at__isnull=False).count(),
+                "rules": RULES_NOTE,
+            }
+        )
+
+
 class NoticesView(APIView):
     """GET /projects/{id}/lab-notices — respondents who had their data deleted (so the founder cleans exports too).
     POST marks them seen."""

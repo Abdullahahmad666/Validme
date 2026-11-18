@@ -136,7 +136,9 @@ def rescore(project, now=None) -> ScoreSnapshot | None:
     items = list(Evidence.objects.filter(project=project, duplicate_of__isnull=True))
     clusters = list(EvidenceCluster.objects.filter(project=project).prefetch_related("evidence"))
     competitors = list(Competitor.objects.filter(project=project))
-    result = score_project(items, clusters, competitors)
+    from lab.experiments import project_experiments
+
+    result = score_project(items, clusters, competitors, project_experiments(project))
     last = ScoreSnapshot.objects.filter(project=project).first()
     same = last and (last.score, last.confidence, last.recommendation) == (
         result["score"],
@@ -160,6 +162,9 @@ def rescore(project, now=None) -> ScoreSnapshot | None:
 
 def revalidate(project) -> dict:
     """Re-score and look for new signals. Safe to run any time; returns what happened."""
+    from lab.verdicts import evaluate_assumptions
+
+    evaluate_assumptions(project)  # answers can expire (retention), which can change a verdict
     snapshot = rescore(project)
     new = generate(project)
     return {"snapshot": snapshot.pk if snapshot else None, "new_signals": len(new)}

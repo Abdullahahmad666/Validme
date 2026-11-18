@@ -118,7 +118,11 @@ class ApiKeysReadOnly(permissions.BasePermission):
     message = "Manage monitoring from the web app."
 
     def has_permission(self, request, view) -> bool:
-        return not isinstance(request.auth, ApiKey) or request.method in permissions.SAFE_METHODS
+        if not isinstance(request.auth, ApiKey) or request.method in permissions.SAFE_METHODS:
+            return True
+        # Week 15: a view may allow one confirm-style write to keys that hold its scope (e.g. marking a signal acted on).
+        scope = getattr(view, "api_key_write_scope", None)
+        return bool(scope) and request.method in getattr(view, "api_key_write_methods", ()) and scope in (request.auth.scopes or [])
 
 
 def enforce_watch_caps(user, project: Project, adding: int = 1) -> None:

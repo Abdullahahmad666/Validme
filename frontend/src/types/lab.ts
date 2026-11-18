@@ -88,6 +88,9 @@ export type Question = {
   high_label?: string;
   required?: boolean;
   assumption_id?: number | null;
+  /** Week 15: answers that support the linked assumption (choice: option numbers; scale: lowest supporting value). */
+  support_options?: number[];
+  support_min?: number | null;
 };
 
 export type Survey = {

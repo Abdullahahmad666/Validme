@@ -94,3 +94,73 @@ class ValidMeClient:
             return mock.evidence(project_id, query, category)
         params = {"project": project_id, "q": query, "category": category}
         return self._request("GET", "/evidence", params={k: v for k, v in params.items() if v})
+
+    # -- Week 15: monitoring, Radar, Lab (each needs its scope on the API key) -------------------------------------
+    def _project_path(self, project_id: str, rest: str) -> str:
+        from urllib.parse import quote
+
+        return f"/projects/{quote(str(project_id), safe='')}/{rest}"
+
+    def watches(self, project_id: str) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.watches(project_id)
+        return self._request("GET", self._project_path(project_id, "watches"))
+
+    def changes(self, project_id: str) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.changes(project_id)
+        return self._request("GET", self._project_path(project_id, "changes"))
+
+    def signals(self, project_id: str, status: str = "open") -> dict[str, Any]:
+        if self.use_mock:
+            return mock.signals(project_id, status)
+        return self._request("GET", self._project_path(project_id, "signals"), params={"status": status})
+
+    def score_history(self, project_id: str) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.score_history(project_id)
+        return self._request("GET", self._project_path(project_id, "score-history"))
+
+    def update_signal(self, project_id: str, signal_id: int, status: str, feedback: str = "") -> dict[str, Any]:
+        if self.use_mock:
+            return mock.update_signal(project_id, signal_id, status, feedback)
+        body: dict[str, Any] = {"status": status}
+        if feedback:
+            body["feedback"] = feedback
+        return self._request("PATCH", self._project_path(project_id, f"signals/{int(signal_id)}"), json=body)
+
+    def lab_results(self, project_id: str) -> dict[str, Any]:
+        """Pages with their stats and surveys with their aggregate results. Never emails or individual answers."""
+        if self.use_mock:
+            return mock.lab_results(project_id)
+        pages = self._request("GET", self._project_path(project_id, "lab-pages"))
+        surveys = self._request("GET", self._project_path(project_id, "lab-surveys"))
+        out_pages = [
+            {
+                "id": p["id"],
+                "title": p["title"],
+                "status": p["status"],
+                "stats": self._request("GET", self._project_path(project_id, f"lab-pages/{int(p['id'])}/stats")),
+            }
+            for p in pages
+        ]
+        out_surveys = [
+            {
+                "id": s["id"],
+                "title": s["title"],
+                "status": s["status"],
+                "results": self._request("GET", self._project_path(project_id, f"lab-surveys/{int(s['id'])}/results")),
+            }
+            for s in surveys
+        ]
+        return {"project_id": project_id, "pages": out_pages, "surveys": out_surveys}
+
+    def predicted_vs_actual(self, project_id: str) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.predicted_vs_actual(project_id)
+        return self._request("GET", self._project_path(project_id, "predicted-vs-actual"))
+
+    def set_assumption(self, project_id: str, assumption_id: int, body: dict[str, Any]) -> dict[str, Any]:
+        if self.use_mock:
+            return mock.set_assumption(project_id, assumption_id, body)
+        return self._request("PATCH", self._project_path(project_id, f"assumptions/{int(assumption_id)}"), json=body)

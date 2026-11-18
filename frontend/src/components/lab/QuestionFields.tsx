@@ -5,7 +5,7 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { changeType, hasLink, QUESTION_LABELS } from "@/lib/lab";
+import { changeType, hasLink, QUESTION_LABELS, removeOption } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionType } from "@/types/lab";
 import type { Assumption } from "@/types/report";
@@ -49,6 +49,72 @@ function Text({
         {linky ? "Links and web or email addresses aren't allowed." : `${value.length}/${max}`}
       </p>
     </div>
+  );
+}
+
+/**
+ * Which answers support the linked assumption: the founder's rule, set before reading results. With it, the assumption
+ * is marked from the answers (backend lab.verdicts). Allowed after answers too, but then flagged as chosen late.
+ */
+function SupportRule({ q, onChange, locked }: { q: Question; onChange: (q: Question) => void; locked: boolean }) {
+  const id = useId();
+  const late = locked ? " People have already answered, so a rule set now is marked as chosen after seeing results." : "";
+  if (q.type === "text") {
+    return <p className="text-xs text-muted-foreground">Typed answers aren&apos;t judged automatically: read them and set the assumption&apos;s status yourself.</p>;
+  }
+  if (q.type === "scale") {
+    return (
+      <div className="flex flex-col gap-1">
+        <Label htmlFor={id} className="text-xs">
+          Supports the assumption at
+        </Label>
+        <select
+          id={id}
+          className={selectClass}
+          value={q.support_min ?? ""}
+          onChange={(e) => onChange({ ...q, support_min: e.target.value ? Number(e.target.value) : null })}
+          aria-describedby={`${id}-hint`}
+        >
+          <option value="">No rule (don&apos;t judge automatically)</option>
+          {[2, 3, 4, 5].map((n) => (
+            <option key={n} value={n}>
+              {n} or higher
+            </option>
+          ))}
+        </select>
+        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+          Decide this before you read the results.{late}
+        </p>
+      </div>
+    );
+  }
+  const chosen = new Set(q.support_options ?? []);
+  const options = q.options ?? [];
+  return (
+    <fieldset className="grid gap-1 rounded-control border border-dashed border-border p-3" aria-describedby={`${id}-hint`}>
+      <legend className="px-1 text-xs font-medium">Which answers support the assumption?</legend>
+      {options.map((o, i) => (
+        <label key={i} className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-5 accent-primary"
+            checked={chosen.has(i)}
+            onChange={(e) => {
+              const next = new Set(chosen);
+              if (e.target.checked) next.add(i);
+              else next.delete(i);
+              onChange({ ...q, support_options: [...next].sort((a, b) => a - b) });
+            }}
+          />
+          {o || `Option ${i + 1}`}
+        </label>
+      ))}
+      <p id={`${id}-hint`} className="text-xs text-muted-foreground">
+        The assumption is marked supported when most people who answered (the whole 95% range above half, with at least 10
+        answers) picked one of these, and contradicted when clearly fewer than half did. Leave all unticked to judge it
+        yourself. Decide this before you read the results.{late}
+      </p>
+    </fieldset>
   );
 }
 
@@ -120,7 +186,7 @@ export function QuestionFields({
                 variant="ghost"
                 className="mb-5 size-11"
                 disabled={locked || options.length <= 2}
-                onClick={() => onChange({ ...q, options: options.filter((_, j) => j !== i) })}
+                onClick={() => onChange(removeOption(q, i))}
                 aria-label={`Remove option ${i + 1}`}
               >
                 <Trash2 aria-hidden />
@@ -141,6 +207,7 @@ export function QuestionFields({
           <Text label="Label for 5" value={q.high_label ?? ""} max={30} onChange={(v) => onChange({ ...q, high_label: v })} />
         </div>
       )}
+      {q.assumption_id != null && <SupportRule q={q} onChange={onChange} locked={locked} />}
       <label htmlFor={ids.required} className="flex min-h-11 items-center gap-2 text-sm">
         <input id={ids.required} type="checkbox" className="size-5 accent-primary" checked={!!q.required} onChange={(e) => onChange({ ...q, required: e.target.checked })} />
         Required

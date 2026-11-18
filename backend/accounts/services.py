@@ -10,11 +10,11 @@ class TooManyApiKeys(Exception):
 
 
 @transaction.atomic
-def issue_api_key(user: User, name: str) -> tuple[ApiKey, str]:
+def issue_api_key(user: User, name: str, scopes: list[str] | None = None) -> tuple[ApiKey, str]:
     User.objects.select_for_update().filter(pk=user.pk).first()  # serialize concurrent creates for the cap
     if ApiKey.objects.filter(user=user, revoked=False).count() >= MAX_ACTIVE_API_KEYS:
         raise TooManyApiKeys(f"You can have at most {MAX_ACTIVE_API_KEYS} active API keys.")
-    return ApiKey.issue(user, name)
+    return ApiKey.issue(user, name, scopes)
 
 
 def revoke_api_key(key: ApiKey) -> None:

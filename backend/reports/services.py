@@ -89,7 +89,9 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
     project = job.project
     items = list(Evidence.objects.filter(project=project, duplicate_of__isnull=True))
     clusters = list(EvidenceCluster.objects.filter(project=project).prefetch_related("evidence"))
-    scoring = score_project(items, clusters, competitors)
+    from lab.experiments import project_experiments
+
+    scoring = score_project(items, clusters, competitors, project_experiments(project))
     relevant = [e for e in items if e.category not in (Category.IRRELEVANT,)]
 
     # Demand tab
@@ -194,6 +196,9 @@ def build_report(job: ResearchJob) -> tuple[Report, Decimal, list[str]]:
                 ),
             },
             "what_would_change": scoring["what_would_change"],
+            # Tier 1 (Week 15): which dimensions used the founder's own experiments, and the rules behind them.
+            "experiments_used": scoring["experiments_used"],
+            "experiment_rules": scoring["experiment_rules"],
         },
         "audience": {"segments": segments},
         "distribution": {

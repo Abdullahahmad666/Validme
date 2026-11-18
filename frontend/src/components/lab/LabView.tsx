@@ -5,6 +5,7 @@ import { ChevronRight, ExternalLink, Plus, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
+import { PredictedActual } from "@/components/lab/PredictedActual";
 import { StatusBadge } from "@/components/lab/StatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -68,6 +69,7 @@ export function LabView({ projectId }: { projectId: string }) {
         </Button>
       </header>
       <Notices projectId={projectId} />
+      <PredictedActual projectId={projectId} />
       {create.isError && (
         <p role="alert" className="text-sm text-destructive-text">
           {create.error instanceof ApiError ? create.error.message : "Couldn't create the page. Please try again."}

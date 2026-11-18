@@ -22,6 +22,39 @@ export type Dimension = {
   confidence: Level;
   explanation: string;
   evidence_ids: number[];
+  /** score_v2: the research-only part, and the founder's own experiment (tier 1) when there is one. */
+  research_score?: number | null;
+  experiment?: ExperimentResult | null;
+};
+
+/** A tier-1 result from the founder's Lab pages (backend lab.experiments). */
+export type ExperimentResult = {
+  dimension: string;
+  trials: number;
+  successes: number;
+  label: string;
+  sources: { kind: "waitlist" | "price_test"; id: number; title: string }[];
+  counted: boolean;
+  rate: number | null;
+  low: number | null;
+  high: number | null;
+  score: number | null;
+  confidence: Level;
+  explanation: string;
+};
+
+export type VerdictRef = {
+  survey_id: number;
+  survey_title: string;
+  question_id: string;
+  prompt: string;
+  n: number;
+  k: number;
+  low: number | null;
+  high: number | null;
+  verdict: "supported" | "contradicted" | "inconclusive";
+  late_rule: boolean;
+  basis: string;
 };
 
 export type Theme = {
@@ -176,6 +209,26 @@ export type Assumption = {
   evidence: { id: number; title: string; source_url: string; provider: string; category: string }[];
   created_at: string;
   updated_at: string;
+  /** Week 15: what the founder's survey results say. The status follows it until the founder sets one (locked). */
+  status_locked: boolean;
+  auto_status: "" | "supported" | "contradicted" | "inconclusive";
+  auto_basis: string;
+  auto_refs: VerdictRef[];
+  auto_at: string | null;
+};
+
+export type PredictedActual = {
+  report: { id: number; created_at: string } | null;
+  dimensions: {
+    key: "demand_evidence" | "willingness_to_pay";
+    label: string;
+    predicted: { score: number | null; confidence: Level; explanation: string } | null;
+    actual: ExperimentResult | null;
+  }[];
+  assumptions: Pick<Assumption, "id" | "text" | "source" | "status" | "status_locked" | "auto_status" | "auto_basis" | "auto_refs">[];
+  live_pages: number;
+  live_surveys: number;
+  rules: string;
 };
 
 export type CompareRow = {

@@ -5,7 +5,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
@@ -211,6 +211,17 @@ class AssumptionViewSet(
 
     serializer_class = AssumptionSerializer
     pagination_class = None  # bounded by MAX_ASSUMPTIONS
+    API_KEY_FIELDS = {"status", "note", "follow_experiments"}  # what a key with assumptions:write may change
+
+    def partial_update(self, request, *args, **kwargs):
+        from accounts.models import ApiKey
+
+        if isinstance(request.auth, ApiKey):
+            extra = set(request.data if isinstance(request.data, dict) else {"?"}) - self.API_KEY_FIELDS
+            if extra:
+                raise PermissionDenied("With an API key you can only change an assumption's status or note.")
+        return super().partial_update(request, *args, **kwargs)
+
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     MAX_ASSUMPTIONS = 30
 

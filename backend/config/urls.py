@@ -9,7 +9,7 @@ from billing.views import CheckoutView, LemonSqueezyWebhookView, PacksView, Port
 from distribution.views import DistributionRefreshView, DistributionView
 from evidence.views import EvidenceClusterViewSet, EvidenceViewSet
 from lab.survey_views import SurveySuggestView, SurveyViewSet
-from lab.views import LabPageViewSet, NoticesView, SlugCheckView, SuggestView
+from lab.views import LabPageViewSet, NoticesView, PredictedActualView, SlugCheckView, SuggestView
 from mailer.views import PreferencesView, ResendWebhookView, UnsubscribeView
 from monitoring.views import CandidateViewSet, ChangeViewSet, MonitoringFeedView, WatchViewSet
 from notifications.views import MarkReadView, NotificationsView
@@ -66,6 +66,7 @@ urlpatterns = [
     path("api/projects/<str:project_pk>/lab-suggest", SuggestView.as_view()),
     path("api/projects/<str:project_pk>/lab-survey-suggest", SurveySuggestView.as_view()),
     path("api/projects/<str:project_pk>/lab-notices", NoticesView.as_view()),
+    path("api/projects/<str:project_pk>/predicted-vs-actual", PredictedActualView.as_view()),
     path("api/lab/slug", SlugCheckView.as_view()),
     path("api/research/estimate", EstimateView.as_view()),
     path("api/reports/<str:project_id>", ReportView.as_view()),

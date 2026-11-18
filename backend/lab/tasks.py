@@ -30,3 +30,14 @@ def send_data_request_link(encrypted_email: str, kind: str) -> None:
     from lab.data_requests import send_link
 
     send_link(encrypted_email, kind)
+
+
+@shared_task(ignore_result=True)
+def evaluate_assumptions_task(project_id) -> None:
+    """Recompute assumption verdicts from survey answers (after answers arrive or are deleted, or questions change)."""
+    from lab.verdicts import evaluate_assumptions
+    from projects.models import Project
+
+    project = Project.objects.filter(pk=project_id).first()
+    if project is not None:
+        evaluate_assumptions(project)

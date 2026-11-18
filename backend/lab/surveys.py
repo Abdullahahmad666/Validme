@@ -36,6 +36,11 @@ _QUESTION = {
         "high_label": _t(30),
         "required": {"type": "boolean"},
         "assumption_id": {"type": ["integer", "null"]},
+        # Week 15: which answers support the linked assumption (the founder's own rule, set before reading results).
+        # Choice questions: option numbers; scale: the lowest value that supports it. Not part of the structure, so it
+        # can be set after people answered (the verdict is then recomputed from the same answers).
+        "support_options": {"type": "array", "maxItems": 8, "items": {"type": "integer", "minimum": 0, "maximum": 7}},
+        "support_min": {"type": ["integer", "null"], "minimum": 2, "maximum": 5},
     },
     "required": ["id", "type", "prompt"],
     "additionalProperties": False,
@@ -79,6 +84,15 @@ def validate_questions(questions, assumption_ids: set[int] | None = None) -> lis
             problems.append(f"Question {n}: only choice questions have options.")
         if assumption_ids is not None and q.get("assumption_id") is not None and q["assumption_id"] not in assumption_ids:
             problems.append(f"Question {n}: that assumption isn't in this project.")
+        support = q.get("support_options") or []
+        if support and q["type"] not in ("single", "multi"):
+            problems.append(f"Question {n}: only choice questions have supporting options.")
+        if any(i >= len(opts) for i in support) or len(set(support)) != len(support):
+            problems.append(f"Question {n}: supporting options must be among its options.")
+        if support and len(support) == len(opts):
+            problems.append(f"Question {n}: if every option supports the assumption, the question can't test it.")
+        if q.get("support_min") is not None and q["type"] != "scale":
+            problems.append(f"Question {n}: only scale questions have a supporting minimum.")
     for text in _strings([{k: v for k, v in q.items() if k not in ("id", "type")} for q in questions]):
         if _LINKY.search(text):
             problems.append("Links, web addresses and e-mail addresses aren't allowed in questions.")

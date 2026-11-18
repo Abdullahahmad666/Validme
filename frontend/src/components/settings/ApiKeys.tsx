@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, KeyRound, Trash2 } from "lucide-react";
+import { Check, Copy, KeyRound, SlidersHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { ErrorState } from "@/components/shared/ErrorState";
@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { API_SCOPES, DEFAULT_SCOPES, scopeLabel } from "@/lib/apiScopes";
 import { SITE_URL } from "@/lib/brand";
 import { api, ApiError } from "@/services/api";
+import type { ApiKey } from "@/types/api";
 
 function CopyBlock({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -36,13 +38,104 @@ function CopyBlock({ text, label }: { text: string; label: string }) {
   );
 }
 
+/** Checkboxes for a key's permissions. Write permissions are marked as such. */
+function ScopePicker({ value, onChange, idPrefix }: { value: string[]; onChange: (v: string[]) => void; idPrefix: string }) {
+  return (
+    <fieldset className="flex flex-col gap-0.5">
+      <legend className="mb-1 text-sm font-medium">What this key may do</legend>
+      {API_SCOPES.map((s) => (
+        <label key={s.key} htmlFor={`${idPrefix}-${s.key}`} className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            id={`${idPrefix}-${s.key}`}
+            type="checkbox"
+            className="size-5 shrink-0 accent-primary"
+            checked={value.includes(s.key)}
+            onChange={(e) => onChange(e.target.checked ? [...value, s.key] : value.filter((x) => x !== s.key))}
+          />
+          <span>
+            {s.label}
+            {s.write && <span className="ml-1 rounded-full bg-warning/10 px-1.5 py-0.5 text-[11px] font-semibold text-warning-text">changes data</span>}
+          </span>
+        </label>
+      ))}
+      <p className="text-xs text-muted-foreground">
+        Never possible with a key: managing keys or your account, billing, creating watches, publishing or deleting Lab pages,
+        and reading waitlist emails or survey answers.
+      </p>
+    </fieldset>
+  );
+}
+
+function KeyRow({ k, onRevoke, revoking }: { k: ApiKey; onRevoke: () => void; revoking: boolean }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [scopes, setScopes] = useState<string[]>(k.scopes);
+  const save = useMutation({
+    mutationFn: () => api.updateApiKey(k.id, { scopes }),
+    onSuccess: () => {
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["api-keys"] });
+    },
+  });
+  return (
+    <li className="flex flex-col gap-2 p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium">{k.name}</p>
+          <p className="text-xs text-muted-foreground">
+            <code>{k.prefix}…</code> · created {fmtDate(k.created_at)} · {k.last_used_at ? `last used ${fmtDate(k.last_used_at)}` : "never used"}
+          </p>
+        </div>
+        <span className="flex flex-wrap gap-1">
+          <Button variant="ghost" className="min-h-11" onClick={() => (setEditing((e) => !e), setScopes(k.scopes))} aria-expanded={editing}>
+            <SlidersHorizontal aria-hidden /> Permissions
+          </Button>
+          <Button variant="ghost" className="min-h-11" disabled={revoking} onClick={onRevoke}>
+            <Trash2 aria-hidden /> Revoke
+          </Button>
+        </span>
+      </div>
+      <ul className="flex flex-wrap gap-1" aria-label={`Permissions of ${k.name}`}>
+        {k.scopes.length === 0 ? (
+          <li className="text-xs text-muted-foreground">No permissions: this key can&apos;t do anything.</li>
+        ) : (
+          k.scopes.map((s) => (
+            <li key={s} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium" title={scopeLabel(s)}>
+              {s}
+            </li>
+          ))
+        )}
+      </ul>
+      {editing && (
+        <div className="rounded-control border border-border p-3">
+          <ScopePicker value={scopes} onChange={setScopes} idPrefix={`key-${k.id}`} />
+          <div className="mt-2 flex gap-2">
+            <Button className="min-h-11" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Saving…" : "Save permissions"}
+            </Button>
+            <Button variant="ghost" className="min-h-11" onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+          {save.isError && (
+            <p role="alert" className="mt-2 text-sm text-destructive-text">
+              Couldn&apos;t save the permissions. Please try again.
+            </p>
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function ApiKeys() {
   const qc = useQueryClient();
   const keys = useQuery({ queryKey: ["api-keys"], queryFn: api.listApiKeys });
   const [name, setName] = useState("Claude");
+  const [scopes, setScopes] = useState<string[]>(DEFAULT_SCOPES);
   const [created, setCreated] = useState<string | null>(null);
   const create = useMutation({
-    mutationFn: () => api.createApiKey(name.trim() || "Claude"),
+    mutationFn: () => api.createApiKey(name.trim() || "Claude", scopes),
     onSuccess: (k) => {
       setCreated(k.key);
       qc.invalidateQueries({ queryKey: ["api-keys"] });
@@ -63,22 +156,23 @@ export function ApiKeys() {
           <KeyRound className="size-4 text-primary" aria-hidden /> API keys
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Keys let the MCP server read your projects and start research from Claude. Research started this way spends your
-          credits. A key can&apos;t change your account or create other keys.
+          Keys let the MCP server work with your projects from Claude. Choose what each key may do; anything else is refused.
+          Research started this way spends your credits. A key can&apos;t change your account or create other keys.
         </p>
 
         <form
-          className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end"
+          className="mt-4 flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             create.mutate();
           }}
         >
-          <div className="flex flex-1 flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="key-name">Key name</Label>
             <Input id="key-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} className="h-11" />
           </div>
-          <Button type="submit" disabled={create.isPending} className="h-11">
+          <ScopePicker value={scopes} onChange={setScopes} idPrefix="new-key" />
+          <Button type="submit" disabled={create.isPending} className="h-11 self-start">
             {create.isPending ? "Creating…" : "Create key"}
           </Button>
         </form>
@@ -108,24 +202,14 @@ export function ApiKeys() {
           ) : (
             <ul className="divide-y divide-border rounded-control border border-border">
               {active.map((k) => (
-                <li key={k.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-                  <div className="min-w-0">
-                    <p className="font-medium">{k.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      <code>{k.prefix}…</code> · created {fmtDate(k.created_at)} · {k.last_used_at ? `last used ${fmtDate(k.last_used_at)}` : "never used"}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={revoke.isPending}
-                    onClick={() => {
-                      if (window.confirm(`Revoke “${k.name}”? Anything using it stops working immediately.`)) revoke.mutate(k.id);
-                    }}
-                  >
-                    <Trash2 aria-hidden /> Revoke
-                  </Button>
-                </li>
+                <KeyRow
+                  key={k.id}
+                  k={k}
+                  revoking={revoke.isPending}
+                  onRevoke={() => {
+                    if (window.confirm(`Revoke “${k.name}”? Anything using it stops working immediately.`)) revoke.mutate(k.id);
+                  }}
+                />
               ))}
             </ul>
           )}
@@ -174,7 +258,9 @@ export function ApiKeys() {
             <p className="font-medium">4. Ask Claude</p>
             <p className="mt-1 text-muted-foreground">
               “Validate my idea: … for … in the UK.” Claude starts the research, waits for it, then reads the report. Tools:
-              validate_idea, get_research_status, get_report, list_reports, search_evidence, list_competitors, suggest_channels.
+              validate_idea, get_research_status, get_report, list_reports, search_evidence, list_competitors, suggest_channels,
+              list_watches, list_changes, list_signals, get_score_history, get_lab_results, get_predicted_vs_actual, and, with the
+              matching permissions, update_signal and set_assumption_status (Claude asks you before changing anything).
             </p>
           </li>
         </ol>

@@ -99,6 +99,9 @@ class Survey(models.Model):
     intro = models.CharField(max_length=400, blank=True)
     questions = models.JSONField(default=list)  # validated by lab.surveys.validate_questions
     ask_email = models.BooleanField(default=False)  # optional email field (encrypted), e.g. for follow-up interviews
+    # Week 15: question ids whose "supporting answers" rule was set or changed after people had answered. The verdict
+    # says so, because a rule chosen after seeing results is weaker evidence.
+    late_rules = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     retention_days = models.PositiveSmallIntegerField(default=180)
     published_at = models.DateTimeField(null=True, blank=True)

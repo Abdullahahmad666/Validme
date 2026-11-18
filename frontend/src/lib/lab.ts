@@ -141,3 +141,9 @@ export function comparisonText(c: Comparison): string {
       return `${c.a} vs ${c.b} (${what}): ${c.b} is clearly higher among the people you reached.`;
   }
 }
+
+/** Remove option i and keep the supporting-answer rule pointing at the same options. */
+export function removeOption(q: Question, i: number): Question {
+  const support = (q.support_options ?? []).filter((x) => x !== i).map((x) => (x > i ? x - 1 : x));
+  return { ...q, options: (q.options ?? []).filter((_, j) => j !== i), ...(q.support_options ? { support_options: support } : {}) };
+}

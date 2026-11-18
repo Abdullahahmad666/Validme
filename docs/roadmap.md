@@ -119,10 +119,10 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D5 Gate
 
 ### Week 15 — Close the loop
-- [ ] D1 Experiment results as tier-1 evidence in scoring
-- [ ] D2 Predicted vs actual panel
-- [ ] D3 Assumptions auto-marked supported/contradicted (founder can override)
-- [ ] D4 MCP tools for watches, Radar, Lab (scoped keys)
+- [x] D1 Experiment results as tier-1 evidence in scoring
+- [x] D2 Predicted vs actual panel
+- [x] D3 Assumptions auto-marked supported/contradicted (founder can override)
+- [x] D4 MCP tools for watches, Radar, Lab (scoped keys)
 - [ ] D5 Gate + full regression/performance pass
 
 ### Later (Phase D, on demand)

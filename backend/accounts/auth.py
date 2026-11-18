@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework import authentication, exceptions
 
 from accounts.models import ApiKey
+from accounts.scopes import SCOPES, required_scope
 
 
 class ApiKeyAuthentication(authentication.BaseAuthentication):
@@ -23,6 +24,13 @@ class ApiKeyAuthentication(authentication.BaseAuthentication):
         if not key.user.is_active:
             # A deactivated account loses API access too, not just its web session.
             raise exceptions.AuthenticationFailed("Invalid API key.")
+        scope = required_scope(request.method, request.path)
+        if scope is None:
+            raise exceptions.PermissionDenied("API keys can't do this. Use the web app.")
+        if scope not in (key.scopes or []):
+            raise exceptions.PermissionDenied(
+                f"This API key doesn't have the “{scope}” permission ({SCOPES[scope]}). Change it in Settings → API keys."
+            )
         now = timezone.now()
         if key.last_used_at is None or now - key.last_used_at > timedelta(minutes=5):
             ApiKey.objects.filter(pk=key.pk).update(last_used_at=now)  # at most one write per 5 minutes
