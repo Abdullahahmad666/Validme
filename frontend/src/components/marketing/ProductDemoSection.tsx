@@ -27,7 +27,7 @@ export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }
                 preload="none"
                 poster={video.poster ?? undefined}
                 aria-label={video.title}
-                aria-describedby="demo-shows"
+                aria-describedby="demo-note"
               >
                 <source src={video.src} type="video/mp4" />
                 {video.captions && <track kind="captions" src={video.captions} srcLang="en" label="English" default />}
@@ -38,11 +38,20 @@ export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }
           </div>
           {video.src && (
             <div className="mt-4 text-sm text-muted-foreground">
-              <p>
-                {video.note} {video.credit}
+              <p id="demo-note">{video.note}</p>
+              <p className="mt-1">
+                Music: “{video.credit.track}” by {video.credit.author} (
+                <a href={video.credit.sourceUrl} className="underline underline-offset-2 hover:text-foreground" rel="noopener noreferrer" target="_blank">
+                  ende.app
+                </a>
+                ), licensed under{" "}
+                <a href={video.credit.licenseUrl} className="underline underline-offset-2 hover:text-foreground" rel="noopener noreferrer license" target="_blank">
+                  {video.credit.license}
+                </a>
+                .
               </p>
               <details className="mt-2">
-                <summary className="cursor-pointer font-medium text-foreground">What the video shows</summary>
+                <summary className="cursor-pointer py-3 font-medium text-foreground">What the video shows</summary>
                 <ol id="demo-shows" className="mt-2 list-decimal space-y-1 pl-5">
                   {video.shows.map((s) => (
                     <li key={s}>{s}</li>
@@ -64,7 +73,7 @@ export function demoVideoEntity(siteUrl: string, video: DemoVideo = DEMO_VIDEO) 
     "@type": "VideoObject",
     "@id": `${siteUrl}/#demo-video`,
     name: video.title,
-    description: `${video.shows.join(" ")} ${video.note}`,
+    description: video.summary,
     thumbnailUrl: video.poster ? `${siteUrl}${video.poster}` : undefined,
     contentUrl: `${siteUrl}${video.src}`,
     uploadDate: video.uploadDate,

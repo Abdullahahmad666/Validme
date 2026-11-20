@@ -56,6 +56,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] SEO: metadata, OG image, sitemap, robots, JSON-LD; analytics abstraction (no vendor)
 - [x] Product walkthrough animation for the demo slot (code-drawn, sample data labelled, pausable; a real video still plugs in via `DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
 - [x] Real 45 s demo video in the demo slot (`frontend/public/demo/`, real app screens on an example project with illustrative data, labelled; music credited; no autoplay; text alternative under the player; `VideoObject` structured data). The code-drawn walkthrough stays as the fallback when `DEMO_VIDEO.src` is unset.
+- [ ] Narrated, audio-described cut of the demo video (WCAG 2.2 AA 1.2.5; the current cut is music only with a text alternative, which meets 1.2.3 but not 1.2.5), plus a WebVTT captions track for the narration
 - [x] Final plan prices + allowances: both — Founder $19/mo, Pro $39/mo subscriptions plus $19/$49 credit packs (Week 10)
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies
 - [ ] Analytics vendor via `registerAnalyticsHandler`; server-side `first_research_started`, `first_report_completed`, `subscription_started`

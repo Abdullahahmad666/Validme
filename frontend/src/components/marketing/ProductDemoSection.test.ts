@@ -11,10 +11,13 @@ describe("ProductDemoSection", () => {
     expect(out).toContain('poster="/demo/validme-demo-poster.jpg"');
     expect(out).toContain('preload="none"');
     expect(out).not.toContain("autoplay");
-    expect(out).toContain("example project with illustrative data");
-    expect(out).toContain("Sascha Ende, ende.app (CC BY 4.0)");
+    expect(out).toContain("Example project with illustrative data");
+    expect(out).toContain("Music only, no narration");
+    expect(out).toContain("Sascha Ende");
+    expect(out).toContain('href="https://creativecommons.org/licenses/by/4.0/"');
+    expect(out).toContain("A score, and how sure it is"); // on-screen captions are quoted in the text alternative
     expect(out).toContain("What the video shows");
-    expect(out).toContain('aria-describedby="demo-shows"');
+    expect(out).toContain('aria-describedby="demo-note"');
     expect(out.match(/<li>/g)?.length).toBe(DEMO_VIDEO.shows.length);
   });
 
@@ -32,8 +35,11 @@ describe("ProductDemoSection", () => {
       contentUrl: "https://example.test/demo/validme-demo.mp4",
       thumbnailUrl: "https://example.test/demo/validme-demo-poster.jpg",
       duration: "PT45S",
-      uploadDate: "2026-11-20",
+      uploadDate: "2026-11-20T12:00:00+00:00",
     });
+    // Illustrative figures never lead the structured description: it opens with the example-data disclaimer.
+    expect(String(e?.description)).toMatch(/^A 45-second walkthrough of .+ using an example project with illustrative data/);
+    expect(String(e?.description)).not.toContain("81");
     expect(demoVideoEntity("https://example.test", { ...DEMO_VIDEO, src: null })).toBeNull();
   });
 });
