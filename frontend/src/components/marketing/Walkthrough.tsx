@@ -5,7 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * The demo slot's product walkthrough, drawn in code (no video): five steps from idea to "predicted vs actual".
+ * The demo slot's fallback when no video is set (`DEMO_VIDEO.src`), drawn in code: five steps from idea to "predicted vs actual".
  * Every value is illustrative and labelled "Sample data". Auto-advances every 4.5 s; pause, step buttons and
  * prefers-reduced-motion (starts paused) keep it accessible (WCAG 2.2.2).
  */

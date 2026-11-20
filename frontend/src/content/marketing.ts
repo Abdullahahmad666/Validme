@@ -344,12 +344,56 @@ export const FOOTER_COLUMNS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Product walkthrough animation / video slot (landing page "See it in action").
-// Drop a file in /public (e.g. /videos/validme-demo.mp4 + a poster image) and set the
-// paths here; the section switches from the storyboard placeholder to the player.
+// Product walkthrough video slot (landing page "See it in action").
+// With `src` set the section shows the player; with `src: null` it falls back to the code-drawn walkthrough.
+// The video has no speech (music only), so it carries no captions track; `shows` is its text alternative,
+// listing exactly what appears on screen. It uses an example project with illustrative data, labelled in the
+// video and under the player.
 // ---------------------------------------------------------------------------
-export const DEMO_VIDEO: { src: string | null; poster: string | null; captions: string | null } = {
-  src: null,
-  poster: null,
-  captions: null, // WebVTT path, required for accessibility once a narrated video exists
+export type DemoCredit = { track: string; author: string; sourceUrl: string; license: string; licenseUrl: string };
+
+export type DemoVideo = {
+  src: string | null;
+  poster: string | null;
+  captions: string | null; // WebVTT path, required once a narrated version exists
+  title: string;
+  /** Short, factual description for structured data: leads with the example-data disclaimer. */
+  summary: string;
+  /** ISO 8601 duration and publish date-time, for the VideoObject structured data. */
+  duration: string;
+  uploadDate: string;
+  note: string;
+  credit: DemoCredit;
+  /** Text alternative: everything on screen, in order, on-screen words quoted exactly. */
+  shows: readonly string[];
+};
+
+export const DEMO_VIDEO: DemoVideo = {
+  src: "/demo/validme-demo.mp4",
+  poster: "/demo/validme-demo-poster.jpg",
+  captions: null,
+  title: `${BRAND_NAME} product walkthrough`,
+  summary: `A 45-second walkthrough of ${BRAND_NAME} using an example project with illustrative data: describe an idea, gather evidence, read the score and how sure it is, check a finding's source, rank the pain points and see where customers already talk.`,
+  duration: "PT45S",
+  uploadDate: "2026-11-20T12:00:00+00:00",
+  note: "Example project with illustrative data, not a real customer’s research. Music only, no narration: everything on screen is described below.",
+  credit: {
+    track: "Happy Beats / Business Moves Vol. 1",
+    author: "Sascha Ende",
+    sourceUrl: "https://ende.app/en",
+    license: "CC BY 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+  },
+  shows: [
+    "Title: “Before you build it, find out if people actually want it.” A card labelled “Your idea” types in “A phone app that lets small cafés count stock in minutes”.",
+    "Three guesses appear and are struck out: “My friends love it”, “Feels like a big market”, “I’d use it myself”. Then: “Guesses aren’t evidence.”",
+    "The idea becomes the description in the new-research form (“Let’s understand your idea.”); the project name “Stock counting for small cafés” is typed in and the cursor clicks “Understand my idea”.",
+    "On a blue screen: “Reading what people already wrote”, a count rising to “36 evidence records found”, and seven example source sites (cafeowners.example, hospitality-forum.example, smallbiz-qa.example, baristas.example, foodservice-talk.example, indie-retail.example, kitchen-ops.example). From here on, a label reads “Example project · illustrative data”.",
+    "The report for “Stock counting for small cafés”. Caption: “A score, and how sure it is”. The opportunity score ring fills to “81 out of 100”, marked “Low confidence”, with “Based on 75% of the scoring model; the rest needs evidence this research can’t provide.” and the verdict “Research more before deciding”.",
+    "Caption: “Every finding links to its source”. The key finding “Weekly stock counts take hours” (AI theme, 8 sources, medium confidence) quotes “Every Sunday I spend about three hours counting milk, beans and cups on a clipboard.”; the cursor clicks its source link.",
+    "The evidence explorer opens on that quote’s row, with the link https://cafeowners.example/t/1000. A notice above the table reads “Free preview: you can browse the 10 most relevant of 36 records. Your report still links every source it cites. A plan or any credit pack unlocks all of them”.",
+    "Caption: “See what hurts most”. A chart, “Themes by number of separate sources” (AI themes): Weekly stock counts take hours 8; Over-ordering and waste 6; Would pay for a simple counting app 6; Spreadsheets break when staff change 5; Count by scanning on a phone 4; Existing tools are built for chains 4; Questions about how often to count 3.",
+    "Caption: “Find where your first 10 customers already talk”. Six cards land, one per example forum, each saying how many threads discuss the problem; the camera moves into cafeowners.example. Caption: “Read the threads. Answer in public.”",
+    `“Stop building on assumptions. Start building on evidence.” Then the ${BRAND_NAME} logo, a “Validate my idea” button and the line “Example data shown · Music: Sascha Ende, ende.app (CC BY 4.0)”.`,
+  ],
 };
