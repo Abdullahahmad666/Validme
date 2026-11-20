@@ -344,12 +344,43 @@ export const FOOTER_COLUMNS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Product walkthrough animation / video slot (landing page "See it in action").
-// Drop a file in /public (e.g. /videos/validme-demo.mp4 + a poster image) and set the
-// paths here; the section switches from the storyboard placeholder to the player.
+// Product walkthrough video slot (landing page "See it in action").
+// With `src` set the section shows the player; with `src: null` it falls back to the code-drawn walkthrough.
+// The video has no speech (music only), so it carries no captions track; `shows` is its text alternative,
+// listing exactly what appears on screen. It uses an example project with illustrative data, labelled in the
+// video and under the player.
 // ---------------------------------------------------------------------------
-export const DEMO_VIDEO: { src: string | null; poster: string | null; captions: string | null } = {
-  src: null,
-  poster: null,
-  captions: null, // WebVTT path, required for accessibility once a narrated video exists
+export type DemoVideo = {
+  src: string | null;
+  poster: string | null;
+  captions: string | null; // WebVTT path, required once a narrated version exists
+  title: string;
+  /** ISO 8601 duration and publish date, for the VideoObject structured data. */
+  duration: string;
+  uploadDate: string;
+  note: string;
+  credit: string;
+  shows: readonly string[];
+};
+
+export const DEMO_VIDEO: DemoVideo = {
+  src: "/demo/validme-demo.mp4",
+  poster: "/demo/validme-demo-poster.jpg",
+  captions: null,
+  title: "ValidMe product walkthrough",
+  duration: "PT45S",
+  uploadDate: "2026-11-20",
+  note: "Shows an example project with illustrative data, not a real customer’s research.",
+  credit: "Music: Sascha Ende, ende.app (CC BY 4.0).",
+  shows: [
+    "“Before you build it, find out if people actually want it.” A founder’s idea is typed in: “A phone app that lets small cafés count stock in minutes”.",
+    "Three guesses (“My friends love it”, “Feels like a big market”, “I’d use it myself”) are struck out: guesses aren’t evidence.",
+    "The idea goes into the new-research form, with the project name “Stock counting for small cafés”, and the founder clicks “Understand my idea”.",
+    "The research reads what people already wrote: 36 evidence records from example forums.",
+    "The report scores the idea 81 out of 100 with low confidence and the verdict “Research more before deciding”.",
+    "A key finding links to its source: the quote “Every Sunday I spend about three hours counting milk, beans and cups on a clipboard.” opens on its row in the evidence explorer.",
+    "The pain-point themes are ranked by how many separate sources mention them, led by “Weekly stock counts take hours”.",
+    "“Where to find your customers” lists the places the audience already talks, with advice to read the threads and answer in public.",
+    "“Stop building on assumptions. Start building on evidence.” Then the ValidMe logo and “Validate my idea”.",
+  ],
 };

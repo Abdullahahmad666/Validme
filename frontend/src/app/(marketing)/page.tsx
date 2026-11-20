@@ -7,7 +7,7 @@ import { HowItWorksSection } from "@/components/marketing/HowItWorksSection";
 import { MarketSizingSection } from "@/components/marketing/MarketSizingSection";
 import { PricingSection } from "@/components/marketing/PricingSection";
 import { ProblemSection } from "@/components/marketing/ProblemSection";
-import { ProductDemoSection } from "@/components/marketing/ProductDemoSection";
+import { demoVideoEntity, ProductDemoSection } from "@/components/marketing/ProductDemoSection";
 import { ProductFeatureSection } from "@/components/marketing/ProductFeatureSection";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { UseCasesSection } from "@/components/marketing/UseCasesSection";
@@ -20,6 +20,7 @@ import { PAGES } from "@/content/seo";
 export const metadata: Metadata = pageMetadata("home");
 
 export default function HomePage() {
+  const video = demoVideoEntity(SITE_URL);
   return (
     <>
       <HeroSection />
@@ -72,6 +73,7 @@ export default function HomePage() {
             step: STEPS.map((st, i) => ({ "@type": "HowToStep", position: i + 1, name: st.title, text: st.body })),
           },
           faqPageEntity(FAQS),
+          ...(video ? [video] : []),
         ]}
       />
     </>
