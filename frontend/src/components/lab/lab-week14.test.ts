@@ -82,7 +82,7 @@ describe("Week 14 components", () => {
   it("lock the type and options once a survey has answers, but not the wording", () => {
     const q: Question = { id: "q1", type: "single", prompt: "How?", options: ["A", "B"] };
     const out = renderToStaticMarkup(createElement(QuestionFields, { question: q, onChange: () => {}, assumptions: [], locked: true }));
-    expect(out).toMatch(/<select[^>]*disabled=""[^>]*>/);
+    expect(out).toMatch(/<button[^>]*role="combobox"[^>]*disabled=""[^>]*>/); // the type picker is locked
     expect(out).not.toContain("Add an option");
     expect(out).toMatch(/<input[^>]*value="How\?"(?![^>]*disabled)[^>]*>/);
   });

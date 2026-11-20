@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { labKeys, useAssumptions, useLabSurvey, useSurveyResponses, useSurveyResults, useSurveyStats } from "@/hooks/useLab";
 import { emptyQuestion, moveItem, nextQuestionId, pct, QUESTION_LABELS, RETENTION_OPTIONS, slugify, structureOf } from "@/lib/lab";
 import { safeHref } from "@/lib/utils";
@@ -454,13 +455,12 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <Label htmlFor={ids.retention}>Keep answers for</Label>
-                <select id={ids.retention} className="h-11 rounded-control border border-input bg-background px-3 text-sm" value={draft.retention_days} onChange={(e) => edit({ retention_days: Number(e.target.value) })}>
-                  {RETENTION_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d} days
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  id={ids.retention}
+                  value={draft.retention_days}
+                  onValueChange={(v) => edit({ retention_days: Number(v) })}
+                  options={RETENTION_OPTIONS.map((d) => ({ value: String(d), label: `${d} days` }))}
+                />
               </div>
               <label htmlFor={ids.email} className="flex min-h-11 items-center gap-2 self-end text-sm">
                 <input id={ids.email} type="checkbox" className="size-5 accent-primary" checked={draft.ask_email} disabled={locked} onChange={(e) => edit({ ask_email: e.target.checked })} />
@@ -569,13 +569,12 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
                 <Label htmlFor={ids.add} className="text-xs">
                   Add a question
                 </Label>
-                <select id={ids.add} className="h-11 rounded-control border border-input bg-background px-3 text-sm" value={addType} onChange={(e) => setAddType(e.target.value as QuestionType)}>
-                  {(Object.keys(QUESTION_LABELS) as QuestionType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {QUESTION_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  id={ids.add}
+                  value={addType}
+                  onValueChange={(v) => setAddType(v as QuestionType)}
+                  options={(Object.keys(QUESTION_LABELS) as QuestionType[]).map((t) => ({ value: t, label: QUESTION_LABELS[t] }))}
+                />
               </div>
               <Button variant="outline" className="min-h-11" onClick={() => edit({ questions: [...draft.questions, emptyQuestion(addType, nextQuestionId(draft.questions))] })}>
                 Add

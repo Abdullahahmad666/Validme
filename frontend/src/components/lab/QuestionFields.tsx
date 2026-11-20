@@ -5,13 +5,13 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { VERDICT_MAJORITY_PCT, VERDICT_MIN_ANSWERS } from "@/lib/apiScopes";
 import { changeType, hasLink, QUESTION_LABELS, removeOption } from "@/lib/lab";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionType } from "@/types/lab";
 import type { Assumption } from "@/types/report";
 
-const selectClass = "h-11 rounded-control border border-input bg-background px-3 text-sm disabled:opacity-60";
 
 function Text({
   label,
@@ -69,20 +69,16 @@ function SupportRule({ q, onChange, locked }: { q: Question; onChange: (q: Quest
         <Label htmlFor={id} className="text-xs">
           Supports the assumption at
         </Label>
-        <select
+        <Select
           id={id}
-          className={selectClass}
           value={q.support_min ?? ""}
-          onChange={(e) => onChange({ ...q, support_min: e.target.value ? Number(e.target.value) : null })}
+          onValueChange={(v) => onChange({ ...q, support_min: v ? Number(v) : null })}
           aria-describedby={`${id}-hint`}
-        >
-          <option value="">No rule (don&apos;t judge automatically)</option>
-          {[2, 3, 4, 5].map((n) => (
-            <option key={n} value={n}>
-              {n} or higher
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "No rule (don’t judge automatically)" },
+            ...[2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} or higher` })),
+          ]}
+        />
         <p id={`${id}-hint`} className="text-xs text-muted-foreground">
           Decide this before you read the results.{late}
         </p>
@@ -144,31 +140,27 @@ export function QuestionFields({
           <Label htmlFor={ids.type} className="text-xs">
             Answer type
           </Label>
-          <select id={ids.type} className={selectClass} value={q.type} disabled={locked} onChange={(e) => onChange(changeType(q, e.target.value as QuestionType))}>
-            {(Object.keys(QUESTION_LABELS) as QuestionType[]).map((t) => (
-              <option key={t} value={t}>
-                {QUESTION_LABELS[t]}
-              </option>
-            ))}
-          </select>
+          <Select
+            id={ids.type}
+            value={q.type}
+            disabled={locked}
+            onValueChange={(v) => onChange(changeType(q, v as QuestionType))}
+            options={(Object.keys(QUESTION_LABELS) as QuestionType[]).map((t) => ({ value: t, label: QUESTION_LABELS[t] }))}
+          />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor={ids.assumption} className="text-xs">
             Tests assumption (optional)
           </Label>
-          <select
+          <Select
             id={ids.assumption}
-            className={selectClass}
             value={q.assumption_id ?? ""}
-            onChange={(e) => onChange({ ...q, assumption_id: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">None</option>
-            {assumptions.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.text.length > 70 ? `${a.text.slice(0, 70)}…` : a.text}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => onChange({ ...q, assumption_id: v ? Number(v) : null })}
+            options={[
+              { value: "", label: "None" },
+              ...assumptions.map((a) => ({ value: String(a.id), label: a.text.length > 70 ? `${a.text.slice(0, 70)}…` : a.text })),
+            ]}
+          />
         </div>
       </div>
       <Text label="Question" value={q.prompt} max={200} required onChange={(v) => onChange({ ...q, prompt: v })} />

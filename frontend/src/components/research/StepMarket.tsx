@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { useAutosave } from "@/hooks/useAutosave";
 import { autosavePatch, BUSINESS_STAGES, COMMON_GEOGRAPHIES, stepSchemas, withoutAiFlags } from "@/lib/wizard";
 import { cn } from "@/lib/utils";
@@ -205,18 +206,22 @@ export function StepMarket() {
         </div>
 
         <FormField id="business_stage" label="Business stage">
-          <select
-            id="business_stage"
-            className="h-11 rounded-control border border-input bg-transparent px-3 text-sm"
-            {...form.register("business_stage")}
-          >
-            <option value="">Choose…</option>
-            {BUSINESS_STAGES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          <Controller
+            control={form.control}
+            name="business_stage"
+            render={({ field }) => (
+              <Select
+                id="business_stage"
+                name={field.name}
+                value={field.value ?? ""}
+                onValueChange={field.onChange}
+                onBlur={field.onBlur}
+                placeholder="Choose…"
+                className="w-full sm:max-w-sm"
+                options={BUSINESS_STAGES.map((s) => ({ value: s.value, label: s.label }))}
+              />
+            )}
+          />
         </FormField>
 
         <FormField

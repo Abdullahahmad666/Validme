@@ -7,6 +7,7 @@ import { useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useMe } from "@/hooks/useSession";
 import { track } from "@/lib/analytics";
@@ -40,21 +41,22 @@ export function ExportMenu({ projectId, reportId, onPrint }: { projectId: string
 export function HistorySelect({ versions, value, onChange }: { versions: ReportVersion[]; value: number; onChange: (id: number) => void }) {
   if (versions.length < 2) return null;
   return (
-    <label className="flex min-w-0 max-w-full items-center gap-2 text-sm">
-      <span className="text-muted-foreground">Version</span>
-      <select
+    <div className="flex min-w-0 max-w-full items-center gap-2 text-sm">
+      <span className="text-muted-foreground" aria-hidden>
+        Version
+      </span>
+      <Select
+        aria-label="Report version"
+        size="sm"
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="h-10 min-w-0 max-w-full flex-1 truncate rounded-control border border-input bg-card px-2 text-sm sm:max-w-xs"
-      >
-        {versions.map((v, i) => (
-          <option key={v.id} value={v.id}>
-            #{v.id} · {fmtDate(v.created_at)} · {v.depth} · {v.score === null ? "not scored" : `${v.score}/100`}
-            {i === 0 ? " (latest)" : ""}
-          </option>
-        ))}
-      </select>
-    </label>
+        onValueChange={(v) => onChange(Number(v))}
+        className="min-w-0 flex-1 sm:max-w-xs"
+        options={versions.map((v, i) => ({
+          value: String(v.id),
+          label: `#${v.id} · ${fmtDate(v.created_at)} · ${v.depth} · ${v.score === null ? "not scored" : `${v.score}/100`}${i === 0 ? " (latest)" : ""}`,
+        }))}
+      />
+    </div>
   );
 }
 

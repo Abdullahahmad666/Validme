@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarList } from "@/components/charts/BarList";
+import { Select } from "@/components/ui/select";
 import { useEvidence, useEvidenceFacets, useSaveEvidence, useThemes } from "@/hooks/useEvidence";
 import { useProjects } from "@/hooks/useProjects";
 import { cn } from "@/lib/utils";
@@ -167,18 +168,14 @@ export function EvidenceExplorer() {
         </div>
         <div className="flex w-full min-w-0 max-w-full flex-col gap-1.5 sm:w-auto">
           <Label htmlFor="project-select">Project</Label>
-          <select
+          <Select
             id="project-select"
             value={filters.project ?? ""}
-            onChange={(e) => setFilters({ project: e.target.value, cluster: undefined })}
-            className="h-11 w-full min-w-0 max-w-full truncate rounded-control border border-input bg-card px-3 text-sm sm:w-auto sm:min-w-56 sm:max-w-sm"
-          >
-            {researched.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => setFilters({ project: v, cluster: undefined })}
+            placeholder="Choose a project"
+            className="w-full sm:w-auto sm:min-w-56 sm:max-w-sm"
+            options={researched.map((p) => ({ value: String(p.id), label: p.name }))}
+          />
         </div>
       </header>
 
@@ -227,19 +224,16 @@ export function EvidenceExplorer() {
               })}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <select
+              <Select
                 aria-label="Filter by source"
+                size="sm"
                 value={filters.provider ?? ""}
-                onChange={(e) => setFilters({ provider: e.target.value || undefined })}
-                className="h-10 rounded-control border border-input bg-card px-3 text-sm"
-              >
-                <option value="">All sources</option>
-                {Object.entries(f?.providers ?? {}).map(([k, n]) => (
-                  <option key={k} value={k}>
-                    {PROVIDER_LABELS[k] ?? k} ({n})
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setFilters({ provider: v || undefined })}
+                options={[
+                  { value: "", label: "All sources" },
+                  ...Object.entries(f?.providers ?? {}).map(([k, n]) => ({ value: k, label: `${PROVIDER_LABELS[k] ?? k} (${n})` })),
+                ]}
+              />
               <button
                 type="button"
                 aria-pressed={!!filters.saved}

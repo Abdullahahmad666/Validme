@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { labKeys } from "@/hooks/useLab";
 import { cn, safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
@@ -83,18 +84,12 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
           <Label htmlFor={`${ids}-status`} className="sr-only">
             Status of “{a.text}”
           </Label>
-          <select
+          <Select
             id={`${ids}-status`}
             value={a.status}
-            onChange={(e) => update.mutate({ status: e.target.value as AssumptionStatus })}
-            className="h-11 rounded-control border border-input bg-card px-2 text-sm"
-          >
-            {Object.entries(STATUS).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={(v) => update.mutate({ status: v as AssumptionStatus })}
+            options={Object.entries(STATUS).map(([k, v]) => ({ value: k, label: v.label }))}
+          />
         </div>
       </div>
 
@@ -172,19 +167,14 @@ function Row({ a, r, projectId }: { a: Assumption; r: Report; projectId: string 
             <Label htmlFor={`${ids}-pick`} className="sr-only">
               Evidence to link
             </Label>
-            <select
+            <Select
               id={`${ids}-pick`}
               value={choice}
-              onChange={(e) => setChoice(e.target.value)}
-              className="h-11 min-w-0 max-w-full flex-1 rounded-control border border-input bg-card px-2 text-sm sm:max-w-md"
-            >
-              <option value="">Choose a cited record…</option>
-              {options.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {(e.title || e.source_url).slice(0, 80)}
-                </option>
-              ))}
-            </select>
+              onValueChange={setChoice}
+              placeholder="Choose a cited record…"
+              className="min-w-0 flex-1 sm:max-w-md"
+              options={options.map((e) => ({ value: String(e.id), label: (e.title || e.source_url).slice(0, 80) }))}
+            />
             <Button
               disabled={!choice || update.isPending}
               onClick={() => {

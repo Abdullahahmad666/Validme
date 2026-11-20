@@ -4,6 +4,7 @@ import { Calculator, Info, Save } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { fmtDate } from "@/components/evidence/EvidenceCard";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { DEFAULT_INPUTS, money, simulate, type ScenarioKey, type UnitInputs } from "@/lib/unitEconomics";
 
@@ -133,16 +134,13 @@ export function UnitEconomicsSimulator({
             <label htmlFor={`${uid}-currency`} className="text-sm font-medium">
               Currency
             </label>
-            <select
+            <Select
               id={`${uid}-currency`}
               value={inputs.currency}
-              onChange={(e) => (setInputs((s) => ({ ...s, currency: e.target.value })), setEdited(true))}
-              className="h-11 rounded-control border border-input bg-card px-2 text-sm"
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+              onValueChange={(v) => (setInputs((s) => ({ ...s, currency: v })), setEdited(true))}
+              className="min-w-24"
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+            />
           </div>
           <div className="mt-3 flex flex-col gap-3">
             {FIELDS.map((f) => {
