@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DailyChart, type DailySeries } from "@/components/charts/DailyChart";
 import { fillWindow } from "@/components/charts/daily";
 import { SampleWarning } from "@/components/lab/SampleWarning";
+import { Select } from "@/components/ui/select";
 import { BLOCK_LABELS, comparisonText, emptyBlock, moveItem, pct, RETENTION_OPTIONS, slugify } from "@/lib/lab";
 import { safeHref } from "@/lib/utils";
 import { API_URL, api, ApiError } from "@/services/api";
@@ -331,18 +332,12 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={ids.retention}>Keep sign-ups for</Label>
-              <select
+              <Select
                 id={ids.retention}
-                className="h-11 rounded-control border border-input bg-background px-3 text-sm"
                 value={draft.retention_days}
-                onChange={(e) => edit({ retention_days: Number(e.target.value) })}
-              >
-                {RETENTION_OPTIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {d} days
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => edit({ retention_days: Number(v) })}
+                options={RETENTION_OPTIONS.map((d) => ({ value: String(d), label: `${d} days` }))}
+              />
               <p className="text-xs text-muted-foreground">Shown to people when they join; each sign-up is deleted after it.</p>
             </div>
           </div>
@@ -414,13 +409,12 @@ function Editor({ projectId, page }: { projectId: string; page: LabPage }) {
                 <Label htmlFor={ids.add} className="text-xs">
                   Add a block
                 </Label>
-                <select id={ids.add} className="h-11 rounded-control border border-input bg-background px-3 text-sm" value={addType} onChange={(e) => setAddType(e.target.value as BlockType)}>
-                  {(Object.keys(BLOCK_LABELS) as BlockType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {BLOCK_LABELS[t]}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  id={ids.add}
+                  value={addType}
+                  onValueChange={(v) => setAddType(v as BlockType)}
+                  options={(Object.keys(BLOCK_LABELS) as BlockType[]).map((t) => ({ value: t, label: BLOCK_LABELS[t] }))}
+                />
               </div>
               <Button variant="outline" className="min-h-11" onClick={() => edit({ blocks: [...draft.blocks, emptyBlock(addType)] })}>
                 Add

@@ -39,6 +39,8 @@ Report sections live **inside** a project report (tabs), not as sidebar items.
 ## Components (`frontend/src/components/`)
 `AppSidebar`, `AppHeader`, `PageHeader`, `MetricCard`, `ProjectCard`, `ResearchStatus`, `SourceBadge`, `EvidenceCard`, `EvidenceFilters`, `PainPointCard`, `CompetitorTable`, `OpportunityScore`, `ConfidenceIndicator`, `AudienceCard`, `ChannelCard`, `ReportTabs`, `UsageMeter`, `UpgradePrompt`, `EmptyState`, `ErrorState`, `SourceCitation`, `AISuggestedBadge`.
 
+Single-choice pickers use `Select` (`components/ui/select.tsx`, Radix): never a native `<select>`, whose open list is drawn by the OS and can't match the glass UI. It keeps keyboard use (arrows, Home/End, type-ahead, Esc), works with `<label htmlFor>` via `id`, takes `aria-label` when there's no visible label, supports an "All…"/"None" option with value `""`, and renders the chosen label on the server so nothing flickers in.
+
 ## Libraries
 Next.js App Router · TypeScript · Tailwind · shadcn/ui · Lucide · Recharts · React Hook Form + Zod · TanStack Query · TanStack Table · Sonner · Playwright + Vitest.
 

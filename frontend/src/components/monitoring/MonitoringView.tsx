@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select } from "@/components/ui/select";
 import { useProject } from "@/hooks/useResearch";
 import { useMe, meKey } from "@/hooks/useSession";
 import { cn, safeHref } from "@/lib/utils";
@@ -102,18 +103,16 @@ function AddWatch({ projectId, canDaily, full }: { projectId: string; canDaily: 
       </div>
       <div className="flex flex-col gap-1">
         <Label htmlFor={`${uid}-cadence`}>Check</Label>
-        <select
+        <Select
           id={`${uid}-cadence`}
           value={cadence}
-          onChange={(e) => setCadence(e.target.value as Cadence)}
-          className="h-11 rounded-control border border-input bg-card px-2 text-sm"
+          onValueChange={(v) => setCadence(v as Cadence)}
           disabled={full}
-        >
-          <option value="weekly">Weekly</option>
-          <option value="daily" disabled={!canDaily}>
-            Daily{canDaily ? "" : " (paid plans)"}
-          </option>
-        </select>
+          options={[
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: `Daily${canDaily ? "" : " (paid plans)"}`, disabled: !canDaily },
+          ]}
+        />
       </div>
       <Button type="submit" className="h-11" disabled={add.isPending || !url.trim() || full}>
         <Plus aria-hidden /> {add.isPending ? "Adding…" : "Watch"}
@@ -230,18 +229,17 @@ function WatchRow({ w, projectId, canDaily }: { w: Watch; projectId: string; can
         <Label htmlFor={`${uid}-cad`} className="sr-only">
           How often to check {name}
         </Label>
-        <select
+        <Select
           id={`${uid}-cad`}
           value={cadence}
           disabled={update.isPending}
-          onChange={(e) => update.mutate({ cadence: e.target.value as Cadence })}
-          className="h-11 rounded-control border border-input bg-card px-2 text-sm"
-        >
-          <option value="weekly">Weekly</option>
-          <option value="daily" disabled={!canDaily && w.cadence !== "daily"}>
-            Daily
-          </option>
-        </select>
+          onValueChange={(v) => update.mutate({ cadence: v as Cadence })}
+          className="min-w-28"
+          options={[
+            { value: "weekly", label: "Weekly" },
+            { value: "daily", label: "Daily", disabled: !canDaily && w.cadence !== "daily" },
+          ]}
+        />
         <Button variant="outline" onClick={() => check.mutate()} disabled={!w.active || check.isPending} aria-label={`Check ${name} now`}>
           <RefreshCw aria-hidden className={cn(check.isPending && "animate-spin")} /> {check.isPending ? "Checking…" : "Check now"}
         </Button>
@@ -340,34 +338,37 @@ function Timeline({ projectId, watches }: { projectId: string; watches: Watch[] 
   return (
     <Panel title="Change timeline" aside={<span className="text-xs text-muted-foreground">Newest first</span>}>
       <div id="timeline-top" className="mb-4 flex flex-wrap gap-2">
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-muted-foreground">Page</span>
-          <select
+        <div className="flex flex-col gap-1 text-xs">
+          <span className="text-muted-foreground" aria-hidden>
+            Page
+          </span>
+          <Select
+            aria-label="Filter by page"
             value={watch ?? ""}
-            onChange={(e) => (setWatch(e.target.value ? Number(e.target.value) : undefined), setPage(1))}
-            className="h-11 max-w-[16rem] rounded-control border border-input bg-card px-2 text-sm"
-          >
-            <option value="">All pages</option>
-            {watches.map((w) => (
-              <option key={w.id} value={w.id}>
-                {(w.label || w.url).slice(0, 60)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-muted-foreground">Significance</span>
-          <select
+            onValueChange={(v) => (setWatch(v ? Number(v) : undefined), setPage(1))}
+            className="max-w-[16rem]"
+            options={[
+              { value: "", label: "All pages" },
+              ...watches.map((w) => ({ value: String(w.id), label: (w.label || w.url).slice(0, 60) })),
+            ]}
+          />
+        </div>
+        <div className="flex flex-col gap-1 text-xs">
+          <span className="text-muted-foreground" aria-hidden>
+            Significance
+          </span>
+          <Select
+            aria-label="Filter by significance"
             value={significance ?? ""}
-            onChange={(e) => (setSignificance((e.target.value || undefined) as Significance | undefined), setPage(1))}
-            className="h-11 rounded-control border border-input bg-card px-2 text-sm"
-          >
-            <option value="">Any</option>
-            <option value="high">High (prices)</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </label>
+            onValueChange={(v) => (setSignificance((v || undefined) as Significance | undefined), setPage(1))}
+            options={[
+              { value: "", label: "Any" },
+              { value: "high", label: "High (prices)" },
+              { value: "medium", label: "Medium" },
+              { value: "low", label: "Low" },
+            ]}
+          />
+        </div>
       </div>
       {changes.isPending ? (
         <div aria-busy="true">

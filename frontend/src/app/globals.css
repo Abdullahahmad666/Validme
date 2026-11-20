@@ -137,6 +137,11 @@
   outline-offset: 2px;
 }
 
+/* Options in a select menu show focus with their highlight background (and the check on the chosen one). */
+[data-slot="select-item"]:focus-visible {
+  outline: none;
+}
+
 /* ---------------------------------------------------------------------------
    Marketing motion system. Only opacity/transform are animated. Content is
    visible without JS; reduced-motion users get static content.
