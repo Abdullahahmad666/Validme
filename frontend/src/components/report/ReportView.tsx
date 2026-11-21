@@ -184,7 +184,11 @@ export function ReportView({ projectId }: { projectId: string }) {
             onChange={(id) => go({ report: id === history.data?.results[0]?.id ? null : id })}
           />
         </div>
-        <nav aria-label="Project tools" className="flex flex-wrap gap-2 print:hidden">
+        {/* One swipeable row on phones (so the report starts within the first screen); wraps from sm up. */}
+        <nav
+          aria-label="Project tools"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 print:hidden"
+        >
           {[
             { href: `/projects/${projectId}/radar`, label: "Opportunity Radar" },
             { href: `/projects/${projectId}/customers`, label: "Where to find customers" },
@@ -194,7 +198,7 @@ export function ReportView({ projectId }: { projectId: string }) {
             <Link
               key={t.href}
               href={t.href}
-              className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border bg-card px-3.5 text-sm hover:border-primary hover:text-primary"
+              className="inline-flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card px-3.5 text-sm hover:border-primary hover:text-primary"
             >
               {t.label}
               <ChevronRight className="size-3.5" aria-hidden />

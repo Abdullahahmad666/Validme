@@ -179,7 +179,7 @@ export function ResearchWizard() {
                         aria-current={current ? "step" : undefined}
                         className={cn(
                           "flex min-h-11 items-center gap-3 rounded-control px-3 text-sm",
-                          current ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground/70",
+                          current ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",
                         )}
                       >
                         {inner}

@@ -203,7 +203,7 @@ export function PainPoints({ r }: { r: Report }) {
               <EvidenceQuote key={e.id} e={e} />
             ))}
           </ul>
-          <Link href={`/evidence?project=${r.project.id}&cluster=${t.id}`} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+          <Link href={`/evidence?project=${r.project.id}&cluster=${t.id}`} className="mt-3 inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary hover:underline">
             All {t.records} records <ArrowRight className="size-3.5" aria-hidden />
           </Link>
         </li>

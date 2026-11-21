@@ -5,7 +5,7 @@ import type { ProjectStatus } from "@/types/api";
 const STATUS: Record<ProjectStatus, { label: string; icon: LucideIcon; className: string }> = {
   DRAFT: { label: "Draft", icon: FileEdit, className: "bg-muted text-muted-foreground" },
   RESEARCHING: { label: "Researching", icon: Loader2, className: "bg-primary/10 text-primary" },
-  COMPLETED: { label: "Completed", icon: CheckCircle2, className: "bg-success/10 text-success" },
+  COMPLETED: { label: "Completed", icon: CheckCircle2, className: "bg-success/10 text-success-text" },
   ARCHIVED: { label: "Archived", icon: Archive, className: "bg-muted text-muted-foreground" },
 };
 
