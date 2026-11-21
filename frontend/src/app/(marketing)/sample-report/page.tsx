@@ -1,10 +1,11 @@
 import { Gauge, AlertTriangle, ArrowRight, CheckCircle2, ExternalLink, Info, Link2, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
-import { Bar, Pill } from "@/components/marketing/DashboardMockup";
+import { Pill } from "@/components/marketing/DashboardMockup";
 import { FinalCTASection } from "@/components/marketing/FinalCTASection";
 import { AudienceFeatureMockup, CompetitorFeatureMockup, PlanStepMockup } from "@/components/marketing/mockups";
 import { Container, Reveal, SampleDataBadge } from "@/components/marketing/primitives";
 import { TrackView } from "@/components/marketing/TrackView";
+import { SectionHook, StickyReportCta, TryYourIdea } from "@/components/marketing/SampleReportHooks";
 import { pageMetadata } from "@/lib/seo";
 import { PageJsonLd } from "@/components/marketing/PageJsonLd";
 
@@ -59,11 +60,66 @@ const CLUSTERS = [
 const DIMENSIONS = [
   { d: "Demand evidence", w: 25, s: 78, why: "Recurring threads across two sources over 6 months." },
   { d: "Pain intensity", w: 20, s: 84, why: "Waste and time cost described concretely and repeatedly." },
-  { d: "Willingness to pay", w: 20, s: 61, why: "6 buying-intent records; few mention a price." },
+  { d: "Willingness to pay", w: 20, s: 57, why: "6 buying-intent records; few mention a price." },
   { d: "Competitive gap", w: 15, s: 70, why: "Competitors target chains; setup is a frequent complaint." },
   { d: "Audience accessibility", w: 10, s: 66, why: "Owners gather in local groups; less in public forums." },
   { d: "Product feasibility", w: 10, s: 75, why: "No hard integrations needed for a counts-first MVP." },
 ];
+
+// Score = the weighted dimensions, so the headline number and the breakdown always agree.
+const SCORE = Math.round(DIMENSIONS.reduce((a, d) => a + (d.w * d.s) / 100, 0));
+
+// Evidence by month published (sums to the 31 records above).
+const MONTHLY = [
+  { m: "Jun", n: 1 },
+  { m: "Jul", n: 2 },
+  { m: "Aug", n: 2 },
+  { m: "Sep", n: 3 },
+  { m: "Oct", n: 2 },
+  { m: "Nov", n: 4 },
+  { m: "Dec", n: 3 },
+  { m: "Jan", n: 5 },
+  { m: "Feb", n: 4 },
+  { m: "Mar", n: 5 },
+];
+
+/** A bar that fills in as it scrolls into view (CSS scroll timeline; static where unsupported). */
+function SrBar({ pct, i = 0, tone = "bg-primary", className = "h-2" }: { pct: number; i?: number; tone?: string; className?: string }) {
+  return (
+    <div className={`overflow-hidden rounded-full bg-muted ${className}`} aria-hidden>
+      <div className={`vm-sr-bar h-full rounded-full ${tone}`} style={{ width: `${pct}%`, "--i": i } as React.CSSProperties} />
+    </div>
+  );
+}
+
+function ScoreRing({ score }: { score: number }) {
+  const r = 48;
+  const len = 2 * Math.PI * r;
+  return (
+    <div className="relative size-36" role="img" aria-label={`Opportunity score ${score} out of 100`}>
+      <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden>
+        <circle cx="60" cy="60" r={r} fill="none" stroke="var(--chart-track, #e5eaf5)" strokeWidth="12" />
+        <circle
+          className="vm-sr-ring"
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          stroke="var(--primary)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeDasharray={len}
+          strokeDashoffset={len * (1 - score / 100)}
+          style={{ "--vm-ring-len": len } as React.CSSProperties}
+        />
+      </svg>
+      <span className="absolute inset-0 flex flex-col items-center justify-center" aria-hidden>
+        <span className="text-4xl font-semibold tabular-nums">{score}</span>
+        <span className="text-xs text-muted-foreground">out of 100</span>
+      </span>
+    </div>
+  );
+}
 
 function ReportSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -141,10 +197,10 @@ export default function SampleReportPage() {
           <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
             <Card>
               <p className="text-sm text-muted-foreground">Opportunity score</p>
-              <p className="mt-1 text-5xl font-semibold tabular-nums">
-                72<span className="text-xl font-normal text-muted-foreground">/100</span>
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mt-3 flex justify-center">
+                <ScoreRing score={SCORE} />
+              </div>
+              <div className="mt-3 flex flex-wrap justify-center gap-1.5">
                 <Pill tone="warning">
                   <Gauge className="size-3" aria-hidden /> Medium confidence
                 </Pill>
@@ -189,27 +245,55 @@ export default function SampleReportPage() {
               </p>
             </Card>
           </div>
+          <Card className="mt-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-semibold">What makes up the score</h3>
+              <p className="text-xs text-muted-foreground">Each bar is as long as the dimension&apos;s weight; the fill is what it earned.</p>
+            </div>
+            <ul className="mt-4 space-y-3">
+              {DIMENSIONS.map((d, i) => {
+                const pts = (d.w * d.s) / 100;
+                return (
+                  <li key={d.d} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] items-center gap-3 text-sm sm:grid-cols-[12rem_1fr_6rem]">
+                    <span className="truncate">{d.d}</span>
+                    <div className="h-2.5" style={{ width: `${(d.w / 25) * 100}%` }}>
+                      <SrBar pct={d.s} i={i} className="h-2.5" />
+                    </div>
+                    <span className="text-right tabular-nums text-muted-foreground">
+                      {pts.toFixed(1)} of {d.w}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Total: <span className="font-semibold tabular-nums text-foreground">{SCORE}/100</span>, from {DIMENSIONS.length} weighted
+              dimensions. Every point traces back to evidence records.
+            </p>
+          </Card>
         </ReportSection>
+
+        <TryYourIdea />
 
         <ReportSection id="demand" title="Demand">
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <h3 className="font-semibold">Demand signals by category</h3>
               <ul className="mt-4 space-y-3">
-                {SIGNALS.map((s) => (
+                {SIGNALS.map((s, i) => (
                   <li key={s.label}>
                     <div className="mb-1 flex justify-between text-sm">
                       <span>{s.label}</span>
                       <span className="tabular-nums text-muted-foreground">{s.n}</span>
                     </div>
-                    <Bar value={(s.n / 14) * 100} />
+                    <SrBar pct={(s.n / 14) * 100} i={i} />
                   </li>
                 ))}
               </ul>
             </Card>
             <Card>
               <h3 className="font-semibold">Evidence by source</h3>
-              <div className="mt-4 flex h-3 overflow-hidden rounded-full" role="img" aria-label={BY_SOURCE.map((s) => `${s.label} ${s.n}`).join(", ")}>
+              <div className="vm-sr-bar mt-4 flex h-3 overflow-hidden rounded-full" role="img" aria-label={BY_SOURCE.map((s) => `${s.label} ${s.n}`).join(", ")}>
                 {BY_SOURCE.map((s) => (
                   <span key={s.label} className={s.tone} style={{ width: `${(s.n / total) * 100}%` }} />
                 ))}
@@ -227,6 +311,40 @@ export default function SampleReportPage() {
               </p>
             </Card>
           </div>
+          <Card className="mt-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 className="font-semibold">Published over time</h3>
+              <p className="text-xs text-muted-foreground">Records per month, Jun 2025 – Mar 2026</p>
+            </div>
+            <div
+              className="mt-5 flex h-40 items-end gap-2 border-b border-border sm:gap-3"
+              role="img"
+              aria-label={`Evidence records per month: ${MONTHLY.map((m) => `${m.m} ${m.n}`).join(", ")}. Discussion grows over the period.`}
+            >
+              {MONTHLY.map((m, i) => (
+                <div key={m.m} className="flex h-full flex-1 flex-col items-center justify-end gap-1" aria-hidden>
+                  <span className="vm-sr-label text-[11px] tabular-nums text-muted-foreground" style={{ "--i": i } as React.CSSProperties}>
+                    {m.n}
+                  </span>
+                  <div
+                    className="vm-sr-col w-full max-w-10 rounded-t-md bg-primary"
+                    style={{ height: `${(m.n / 5) * 80}%`, "--i": i } as React.CSSProperties}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-1.5 flex gap-2 text-center text-[11px] text-muted-foreground sm:gap-3" aria-hidden>
+              {MONTHLY.map((m) => (
+                <span key={m.m} className="flex-1">
+                  {m.m}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              More people are talking about it lately: the last three months hold {MONTHLY.slice(-3).reduce((a, m) => a + m.n, 0)} of{" "}
+              {MONTHLY.reduce((a, m) => a + m.n, 0)} records.
+            </p>
+          </Card>
         </ReportSection>
 
         <ReportSection id="evidence" title="Evidence">
@@ -250,9 +368,33 @@ export default function SampleReportPage() {
               </Reveal>
             ))}
           </ul>
+          <div className="mt-6">
+            <SectionHook
+              text="Every quote in your report links to the page it came from, with the date we read it."
+              cta="Find the evidence for my idea"
+              event="sample_report_hook_evidence"
+            />
+          </div>
         </ReportSection>
 
         <ReportSection id="pain-points" title="Pain points">
+          <Card className="mb-4">
+            <h3 className="font-semibold">Themes by distinct authors</h3>
+            <p className="mt-1 text-xs text-muted-foreground">How many different people raised each problem (not how many posts).</p>
+            <ul className="mt-4 space-y-3">
+              {CLUSTERS.map((c, i) => (
+                <li key={c.t} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[14rem_1fr_auto]">
+                  <span className="truncate">{c.t}</span>
+                  <span className="order-last col-span-2 sm:order-none sm:col-span-1">
+                    <SrBar pct={(c.authors / 11) * 100} i={i} tone={c.sev === "High" ? "bg-destructive/80" : "bg-primary"} className="h-2.5" />
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {c.authors} people · {c.sev.toLowerCase()} severity
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
           <div className="grid gap-4 md:grid-cols-3">
             {CLUSTERS.map((c) => (
               <Card key={c.t}>
@@ -283,6 +425,38 @@ export default function SampleReportPage() {
 
         <ReportSection id="competitors" title="Competitors">
           <CompetitorFeatureMockup />
+          <Card className="mt-4">
+            <h3 className="font-semibold">Monthly price comparison</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Only prices read from a page are charted; your price is your own assumption.</p>
+            <ul className="mt-4 space-y-3 text-sm">
+              <li className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 sm:grid-cols-[11rem_1fr_7rem]">
+                <span>Competitor A</span>
+                <SrBar pct={100} tone="bg-navy" className="h-2.5" />
+                <span className="text-right tabular-nums">$129/mo</span>
+              </li>
+              <li className="grid grid-cols-[minmax(0,8rem)_1fr_auto] items-center gap-3 sm:grid-cols-[11rem_1fr_7rem]">
+                <span>Your price idea</span>
+                <div className="relative h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+                  <div
+                    className="vm-sr-bar absolute inset-y-0 rounded-full bg-warning/80"
+                    style={{ left: `${(29 / 129) * 100}%`, width: `${((49 - 29) / 129) * 100}%`, "--i": 1 } as React.CSSProperties}
+                  />
+                </div>
+                <span className="text-right tabular-nums">$29–49/mo</span>
+              </li>
+            </ul>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Your range is about a third of Competitor A&apos;s price. Competitor B&apos;s price wasn&apos;t on its page
+              (unavailable); Competitor C is a $19 one-off, not a monthly price, so it isn&apos;t charted.
+            </p>
+          </Card>
+          <div className="mt-6">
+            <SectionHook
+              text="Know who you're up against, what they charge and what their users complain about, before you build."
+              cta="Map my competitors"
+              event="sample_report_hook_competitors"
+            />
+          </div>
         </ReportSection>
 
         <ReportSection id="opportunity" title="Market gaps & opportunity">
@@ -302,7 +476,14 @@ export default function SampleReportPage() {
                   <tr key={d.d}>
                     <th scope="row" className="px-5 py-3 font-medium">{d.d}</th>
                     <td className="px-5 py-3 tabular-nums text-muted-foreground">{d.w}%</td>
-                    <td className="px-5 py-3 tabular-nums">{d.s}</td>
+                    <td className="px-5 py-3">
+                      <span className="flex items-center gap-2">
+                        <span className="w-7 tabular-nums">{d.s}</span>
+                        <span className="w-24">
+                          <SrBar pct={d.s} i={DIMENSIONS.indexOf(d)} />
+                        </span>
+                      </span>
+                    </td>
                     <td className="px-5 py-3 text-muted-foreground">{d.why}</td>
                   </tr>
                 ))}
@@ -350,6 +531,13 @@ export default function SampleReportPage() {
             <strong className="text-warning-text">Hypothesis</strong> when they&apos;re reasonable but untested.
           </p>
           <PlanStepMockup />
+          <div className="mt-6">
+            <SectionHook
+              text="Get a first-10-customers plan for your own idea: where your buyers already talk, and what to say."
+              cta="Plan my first customers"
+              event="sample_report_hook_distribution"
+            />
+          </div>
         </ReportSection>
 
         <section aria-labelledby="limits-title" className="rounded-2xl border border-border bg-card p-6">
@@ -361,8 +549,12 @@ export default function SampleReportPage() {
             those sources: conversations in private groups or closed communities aren&apos;t represented.
           </p>
         </section>
+        <TryYourIdea id="try-your-idea-end" />
       </Container>
-      <FinalCTASection />
+      <div id="final-cta">
+        <FinalCTASection />
+      </div>
+      <StickyReportCta startId="overview" endId="try-your-idea-end" />
     </>
   );
 }

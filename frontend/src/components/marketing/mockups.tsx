@@ -118,7 +118,7 @@ export function DiscoverStepMockup() {
 const DIMENSIONS = [
   { label: "Demand evidence", w: 25, score: 78 },
   { label: "Pain intensity", w: 20, score: 84 },
-  { label: "Willingness to pay", w: 20, score: 61 },
+  { label: "Willingness to pay", w: 20, score: 57 },
   { label: "Competitive gap", w: 15, score: 70 },
   { label: "Audience accessibility", w: 10, score: 66 },
 ];
