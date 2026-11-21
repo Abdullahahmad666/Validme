@@ -42,7 +42,18 @@ export const SOURCES: { name: string; detail: string; status: SourceStatus }[] =
   { name: "Links you add", detail: "Threads, reviews or articles you found yourself.", status: "supported" },
   { name: "Stack Exchange", detail: "Public Q&A, with attribution links kept.", status: "supported" },
   { name: "GitHub issues", detail: "Public issues where developers report problems with the tools they use.", status: "supported" },
+  {
+    name: "YouTube channels",
+    detail: "Public channel and video statistics, to show where your audience already watches.",
+    status: "limited",
+  },
+  {
+    name: "Search demand",
+    detail: "Monthly search volume and keyword difficulty from a licensed keyword-data provider.",
+    status: "limited",
+  },
 ];
+
 
 // ---------------------------------------------------------------------------
 // Problem

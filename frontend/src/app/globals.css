@@ -172,13 +172,49 @@
 @keyframes vm-ring {
   from { stroke-dashoffset: var(--vm-ring-from, 226); }
 }
+@keyframes vm-feature-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--vm-dir, 1) * var(--vm-feature-shift, 72px))) scale(0.92) rotate(calc(var(--vm-dir, 1) * 1.5deg));
+  }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vm-feature-drift {
+  from { transform: translateY(28px); }
+  to { transform: translateY(-28px); }
+}
+@keyframes vm-feature-line {
+  from { opacity: 0; transform: translateY(18px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
 @keyframes vm-pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
+/* Source cards: a dot carries each source across the connector (top→bottom on phones, left→right from md). */
+@keyframes vm-packet-y {
+  0% { top: 0; opacity: 0; }
+  15%, 80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+@keyframes vm-packet-x {
+  0% { left: 0; opacity: 0; }
+  15%, 80% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+@keyframes vm-arrive {
+  0%, 55% { transform: none; }
+  75% { transform: scale(1.015); }
+  100% { transform: none; }
+}
+.vm-packet { animation: vm-packet-y 620ms cubic-bezier(0.45, 0, 0.25, 1) both; }
+.vm-arrive { animation: vm-arrive 680ms ease-out both; }
+@media (min-width: 768px) {
+  .vm-packet { animation-name: vm-packet-x; }
+}
 
 @media (max-width: 639px) {
-  :root { --vm-shift: 8px; }
+  :root { --vm-shift: 8px; --vm-feature-shift: 28px; }
 }
 
 html { scroll-padding-top: 5.5rem; }
@@ -211,6 +247,30 @@ html { scroll-padding-top: 5.5rem; }
       animation-range: entry calc(var(--i, 0) * 6%) entry calc(45% + var(--i, 0) * 6%);
     }
     .vm-reveal-left { animation-name: vm-fade-left; }
+  }
+
+  /* Product feature rows: scroll-driven, per row. --vm-dir is 1 when the visual sits on the right, -1 on the left. */
+  @supports (animation-timeline: view()) {
+    .vm-feature-visual {
+      animation: vm-feature-in linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 42%;
+    }
+    .vm-feature-drift {
+      animation: vm-feature-drift linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    .vm-feature-line {
+      animation: vm-feature-line linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i, 0) * 7%) entry calc(55% + var(--i, 0) * 7%);
+    }
+    .vm-feature-bar {
+      animation: vm-grow-x linear both;
+      animation-timeline: view();
+      animation-range: entry 30% cover 45%;
+    }
   }
 }
 

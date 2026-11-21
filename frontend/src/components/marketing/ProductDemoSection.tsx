@@ -1,3 +1,4 @@
+import { DemoVideoPlayer } from "@/components/marketing/DemoVideoPlayer";
 import { Container, Reveal, Section, SectionHeading } from "@/components/marketing/primitives";
 import { Walkthrough } from "@/components/marketing/Walkthrough";
 import { DEMO_VIDEO, type DemoVideo } from "@/content/marketing";
@@ -5,8 +6,9 @@ import { BRAND_NAME } from "@/lib/brand";
 
 /**
  * The product walkthrough: the real video player when DEMO_VIDEO.src is set, otherwise a code-drawn walkthrough
- * (sample data, labelled; pausable; still for reduced motion). The video never autoplays; under it sit the
- * example-data note, the music credit and a text alternative of everything shown on screen.
+ * (sample data, labelled; pausable; still for reduced motion). The video plays muted once it scrolls into view
+ * (not with reduced motion); under it sit the example-data note, the music credit and a text alternative of
+ * everything shown on screen.
  */
 export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }) {
   return (
@@ -20,18 +22,13 @@ export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }
         <Reveal className="mx-auto mt-12 max-w-5xl">
           <div className="relative aspect-video overflow-hidden rounded-2xl border border-navy/10 bg-navy shadow-[0_32px_64px_-32px_rgba(23,45,77,0.55)]">
             {video.src ? (
-              <video
-                className="size-full object-cover"
-                controls
-                playsInline
-                preload="none"
-                poster={video.poster ?? undefined}
-                aria-label={video.title}
-                aria-describedby="demo-note"
-              >
-                <source src={video.src} type="video/mp4" />
-                {video.captions && <track kind="captions" src={video.captions} srcLang="en" label="English" default />}
-              </video>
+              <DemoVideoPlayer
+                src={video.src}
+                poster={video.poster}
+                captions={video.captions}
+                title={video.title}
+                describedBy="demo-note"
+              />
             ) : (
               <Walkthrough />
             )}

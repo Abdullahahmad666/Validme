@@ -89,17 +89,6 @@ export function HowItWorksSteps({ steps, visuals }: { steps: readonly Step[]; vi
               </div>
             ))}
           </div>
-          <div className="mt-5 flex justify-center gap-1.5" aria-hidden>
-            {visuals.map((_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "h-1.5 rounded-full transition-all duration-300 motion-reduce:transition-none",
-                  active === i ? "w-6 bg-primary" : "w-1.5 bg-border",
-                )}
-              />
-            ))}
-          </div>
         </div>
       </div>
     </div>
