@@ -45,7 +45,13 @@ export function toSession(r: AuthResponse): Session {
 }
 
 export const auth = {
-  config: async () => (await call("/config")) as unknown as AuthConfig,
+  /** The auth service's config (e.g. which social providers are on). Throws unless it's a real 200 with data, so an
+   *  unreachable or failing backend shows as a query error instead of crashing whoever reads it. */
+  config: async () => {
+    const r = await call("/config");
+    if (r.status !== 200 || !r.data) throw new AuthError(r.status, r.errors ?? []);
+    return r as unknown as AuthConfig;
+  },
   session: async () => toSession(await call("/auth/session")),
 
   login: async (email: string, password: string) =>

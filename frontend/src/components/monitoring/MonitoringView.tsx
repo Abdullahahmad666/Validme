@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { useProject } from "@/hooks/useResearch";
 import { useMe, meKey } from "@/hooks/useSession";
+import { useHydrated } from "@/hooks/useHydrated";
 import { cn, safeHref } from "@/lib/utils";
 import { api, ApiError } from "@/services/api";
 import type { Cadence, Significance, Watch, WatchStatus } from "@/types/monitoring";
@@ -490,8 +491,11 @@ export function Candidates({ projectId, full }: { projectId: string; full: boole
 export function MonitoringView({ projectId }: { projectId: string }) {
   const project = useProject(projectId);
   const me = useMe();
+  const hydrated = useHydrated();
   const watches = useQuery({ queryKey: ["watches", projectId], queryFn: () => api.listWatches(projectId) });
-  const lim = me.data?.monitoring;
+  // This page hydrates inside Suspense, after the shell has already fetched `me`: wait until hydrated so the first
+  // client render matches the server's (no plan limits yet).
+  const lim = hydrated ? me.data?.monitoring : undefined;
   const canDaily = !!lim?.cadences.includes("daily");
   const list = watches.data ?? [];
   const slots = lim ? Math.max(0, lim.max_watches - lim.used) : 0;

@@ -8,7 +8,7 @@ import { auth } from "@/services/auth";
 /** Rendered only when the backend has Google OAuth configured (GOOGLE_CLIENT_ID/SECRET). */
 export function GoogleButton({ next, mode }: { next: string; mode: "login" | "signup" }) {
   const { data } = useAuthConfig();
-  const google = data?.data.socialaccount?.providers.find((p) => p.id === "google");
+  const google = data?.data?.socialaccount?.providers?.find((p) => p.id === "google");
   if (!google) return null;
 
   return (
