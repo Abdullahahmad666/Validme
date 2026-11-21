@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils";
 type Variant = "primary" | "secondary" | "inverted" | "ghost-inverted";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20",
+  primary: "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground shadow-sm shadow-primary/20",
   secondary: "border-border bg-card text-foreground hover:border-primary/40 hover:bg-card",
-  inverted: "bg-white text-navy hover:bg-white/90 focus-visible:outline-white",
-  "ghost-inverted": "border-white/25 bg-transparent text-white hover:bg-white/10 focus-visible:outline-white",
+  inverted: "bg-white text-navy hover:bg-white/90 hover:text-navy focus-visible:outline-white",
+  // On dark sections: the text must stay white on hover (the base outline button turns it dark).
+  "ghost-inverted": "border-white/25 bg-transparent text-white hover:border-white/50 hover:bg-white/10 hover:text-white focus-visible:outline-white",
 };
 
 /** Link styled as a button, optionally firing an analytics event on click. */
