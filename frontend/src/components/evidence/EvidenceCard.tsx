@@ -45,7 +45,7 @@ export function SourceLink({ evidence, className }: { evidence: Evidence; classN
       href={safeHref(evidence.source_url)}
       target="_blank"
       rel="noopener noreferrer nofollow"
-      className={cn("inline-flex items-start gap-1 font-medium hover:text-primary hover:underline", className)}
+      className={cn("-my-1 inline-flex items-start gap-1 py-1 font-medium hover:text-primary hover:underline", className)}
     >
       <span>{evidence.title || evidence.source_url}</span>
       <ExternalLink className="mt-0.5 size-3.5 shrink-0" aria-hidden />

@@ -177,7 +177,7 @@ export function CompareView() {
                     {rows.map((r) => (
                       <th key={r.id} scope="col" className="px-4 py-3 text-right font-medium">
                         {r.report_id ? (
-                          <Link href={`/projects/${r.id}/report`} className="text-foreground hover:text-primary hover:underline">
+                          <Link href={`/projects/${r.id}/report`} className="-my-1 inline-block py-1 text-foreground hover:text-primary hover:underline">
                             {r.name}
                           </Link>
                         ) : (

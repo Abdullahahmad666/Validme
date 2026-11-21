@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/shared/ComingSoon";
+import { OpportunitiesView } from "@/components/projects/OpportunitiesView";
 
 export const metadata: Metadata = { title: "Opportunities" };
 
 export default function OpportunitiesPage() {
-  return <ComingSoon title="Opportunities" body="Opportunity scores and the evidence behind them, once your first research report is ready." />;
+  return <OpportunitiesView />;
 }

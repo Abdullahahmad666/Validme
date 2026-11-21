@@ -38,7 +38,7 @@ function YouTubeCard({ c, searches }: { c: YouTubeChannelRow; searches: number }
     <li className="flex flex-col gap-2 rounded-card border border-border bg-card p-4">
       <h3 className="break-words font-semibold">
         {href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="hover:underline">
+          <a href={href} target="_blank" rel="noopener noreferrer nofollow" className="-my-1 inline-block py-1 hover:underline">
             {c.title}
             <span className="sr-only"> (YouTube channel, opens in a new tab)</span>
           </a>
@@ -322,7 +322,7 @@ export function CustomersView({ projectId }: { projectId: string }) {
             aside={
               <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
                 Data from YouTube ·{" "}
-                <a href={YOUTUBE_TERMS} target="_blank" rel="noopener noreferrer" className="underline">
+                <a href={YOUTUBE_TERMS} target="_blank" rel="noopener noreferrer" className="-my-1 inline-block py-1 underline">
                   YouTube Terms of Service<span className="sr-only"> (opens in a new tab)</span>
                 </a>
               </span>

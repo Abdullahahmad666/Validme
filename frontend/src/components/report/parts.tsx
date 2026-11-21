@@ -36,7 +36,7 @@ export function EvidenceQuote({ e }: { e: ReportEvidence }) {
         href={safeHref(e.source_url)}
         target="_blank"
         rel="noopener noreferrer nofollow"
-        className="inline-flex items-start gap-1 text-sm font-medium hover:text-primary hover:underline"
+        className="-my-1 inline-flex items-start gap-1 py-1 text-sm font-medium hover:text-primary hover:underline"
       >
         {e.title || e.source_url}
         <ExternalLink className="mt-0.5 size-3.5 shrink-0" aria-hidden />

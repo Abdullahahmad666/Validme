@@ -41,6 +41,13 @@ function errorList(err: unknown): string[] {
   return fromDetails.length ? fromDetails.slice(0, 6) : [err.message];
 }
 
+/** Open assumptions, plus the one this question is already linked to even if it's since been contradicted. */
+export function withLinked(open: Assumption[], all: Assumption[], linked: number | null | undefined): Assumption[] {
+  if (linked == null || open.some((a) => a.id === linked)) return open;
+  const a = all.find((x) => x.id === linked);
+  return a ? [...open, a] : open;
+}
+
 function Results({ projectId, surveyId, assumptions }: { projectId: string; surveyId: number; assumptions: Assumption[] }) {
   const results = useSurveyResults(projectId, surveyId);
   const byId = new Map(assumptions.map((a) => [a.id, a.text]));
@@ -140,11 +147,15 @@ function SurveyDaily({ projectId, surveyId }: { projectId: string; surveyId: num
   );
 }
 
+const ANSWERS_PAGE = 20;
+
 function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
   const qc = useQueryClient();
   const list = useSurveyResponses(projectId, survey.id);
   const [confirmAll, setConfirmAll] = useState(false);
   const [confirmOne, setConfirmOne] = useState<number | null>(null);
+  // Answers show 20 at a time: hundreds of full answers in one go made the page tens of thousands of pixels tall.
+  const [shown, setShown] = useState(ANSWERS_PAGE);
   const del = useMutation({
     mutationFn: (body: { ids?: number[]; all?: boolean }) => api.deleteLabSurveyResponses(projectId, survey.id, body),
     onSuccess: () => {
@@ -188,7 +199,7 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
             </p>
           )}
           <ul className="divide-y divide-border">
-            {rows.map((r) => (
+            {rows.slice(0, shown).map((r) => (
               <li key={r.id} className="flex items-start justify-between gap-2 py-3 text-sm">
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">
@@ -226,6 +237,11 @@ function Answers({ projectId, survey }: { projectId: string; survey: Survey }) {
               </li>
             ))}
           </ul>
+          {rows.length > shown && (
+            <Button variant="outline" className="mt-2 min-h-11 w-full sm:w-auto" onClick={() => setShown((n) => n + ANSWERS_PAGE)}>
+              Show {Math.min(ANSWERS_PAGE, rows.length - shown)} more ({rows.length - shown} not shown)
+            </Button>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {confirmAll ? (
               <>
@@ -559,7 +575,12 @@ function Editor({ projectId, survey }: { projectId: string; survey: Survey }) {
                     </span>
                   )}
                 </div>
-                <QuestionFields question={q} onChange={(nq) => setQuestion(i, nq)} assumptions={openAssumptions} locked={locked} />
+                <QuestionFields
+                  question={q}
+                  onChange={(nq) => setQuestion(i, nq)}
+                  assumptions={withLinked(openAssumptions, assumptions.data ?? [], q.assumption_id)}
+                  locked={locked}
+                />
               </li>
             ))}
           </ol>

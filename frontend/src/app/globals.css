@@ -137,6 +137,13 @@
   outline-offset: 2px;
 }
 
+/* Breadcrumb links: at least 28px tall to tap (WCAG 2.5.8) without shifting the layout. */
+nav[aria-label="Breadcrumb"] a {
+  display: inline-block;
+  padding-block: 0.25rem;
+  margin-block: -0.25rem;
+}
+
 /* Options in a select menu show focus with their highlight background (and the check on the chosen one). */
 [data-slot="select-item"]:focus-visible {
   outline: none;

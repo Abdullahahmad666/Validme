@@ -158,7 +158,14 @@ export function QuestionFields({
             onValueChange={(v) => onChange({ ...q, assumption_id: v ? Number(v) : null })}
             options={[
               { value: "", label: "None" },
-              ...assumptions.map((a) => ({ value: String(a.id), label: a.text.length > 70 ? `${a.text.slice(0, 70)}…` : a.text })),
+              ...assumptions.map((a) => {
+                const text = a.text.length > 70 ? `${a.text.slice(0, 70)}…` : a.text;
+                return { value: String(a.id), label: a.status === "contradicted" ? `${text} (contradicted)` : text };
+              }),
+              // A link to an assumption that no longer exists still shows as something, never a blank box.
+              ...(q.assumption_id != null && !assumptions.some((a) => a.id === q.assumption_id)
+                ? [{ value: String(q.assumption_id), label: "An assumption that was deleted" }]
+                : []),
             ]}
           />
         </div>
