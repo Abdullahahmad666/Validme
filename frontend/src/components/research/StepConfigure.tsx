@@ -12,6 +12,7 @@ import { useWizard } from "@/components/research/wizard-context";
 import { ChipsInput } from "@/components/shared/ChipsInput";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { OptionalTag, RequiredLegend, RequiredMark } from "@/components/shared/FieldTag";
 import { useAutosave } from "@/hooks/useAutosave";
 import { useMe } from "@/hooks/useSession";
 import { useSources } from "@/hooks/useResearch";
@@ -22,7 +23,19 @@ type ConfigForm = z.infer<(typeof stepSchemas)[3]>;
 const httpUrl = z.url({ protocol: /^https?$/ });
 const checkUrl = (v: string) => (httpUrl.safeParse(v).success ? null : "Use a full http:// or https:// URL.");
 
-function Section({ letter, title, body, children }: { letter: string; title: string; body: string; children: React.ReactNode }) {
+function Section({
+  letter,
+  title,
+  body,
+  required,
+  children,
+}: {
+  letter: string;
+  title: string;
+  body: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <section aria-labelledby={`section-${letter}`} className="flex flex-col gap-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
       <div>
@@ -31,6 +44,7 @@ function Section({ letter, title, body, children }: { letter: string; title: str
             {letter}
           </span>
           {title}
+          {required ? <RequiredMark /> : <OptionalTag />}
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">{body}</p>
       </div>
@@ -77,9 +91,10 @@ export function StepConfigure() {
     <div>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">Configure your research.</h1>
       <p className="mt-2 text-muted-foreground">Choose where to look, what to search for, and how deep to go.</p>
+      <RequiredLegend />
 
       <form onSubmit={(e) => e.preventDefault()} noValidate className="mt-8 flex flex-col gap-8">
-        <Section letter="A" title="Sources" body="Every report lists exactly which sources ran and which didn't.">
+        <Section letter="A" title="Sources" required body="Pick at least one. Every report lists exactly which sources ran and which didn't.">
           <Controller
             control={form.control}
             name="sources"
@@ -91,7 +106,9 @@ export function StepConfigure() {
         <Section letter="B" title="Search queries" body="Grouped by what each query is trying to find.">
           <QueryEditor projectId={project.id} />
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="exclude_terms">Exclude results mentioning (optional)</Label>
+            <Label htmlFor="exclude_terms">
+              Exclude results mentioning
+            </Label>
             <Controller
               control={form.control}
               name="exclude_terms"
@@ -124,7 +141,9 @@ export function StepConfigure() {
             )}
           />
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="competitor_urls">Competitor websites (up to 10)</Label>
+            <Label htmlFor="competitor_urls">
+              Competitor websites, up to 10
+            </Label>
             <Controller
               control={form.control}
               name="competitor_urls"
@@ -163,7 +182,9 @@ export function StepConfigure() {
             />
           </fieldset>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="evidence_urls">Threads, reviews or articles you found (up to 10)</Label>
+            <Label htmlFor="evidence_urls">
+              Threads, reviews or articles you found, up to 10
+            </Label>
             <Controller
               control={form.control}
               name="evidence_urls"
@@ -174,7 +195,7 @@ export function StepConfigure() {
           </div>
         </Section>
 
-        <Section letter="D" title="Depth" body="Depth sets a hard budget of queries and results. Credits are charged once, at launch.">
+        <Section letter="D" title="Depth" required body="Depth sets a hard budget of queries and results. Credits are charged once, at launch.">
           <Controller
             control={form.control}
             name="depth"

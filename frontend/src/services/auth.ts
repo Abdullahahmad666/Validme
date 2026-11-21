@@ -66,6 +66,14 @@ export const auth = {
     if (r.status !== 401 && r.status !== 200) throw new AuthError(r.status, r.errors ?? []);
   },
 
+  /** Change (or, for Google-only accounts, set) the password. `current` is omitted when there's none yet. */
+  changePassword: async (newPassword: string, current?: string) => {
+    const body: Record<string, string> = { new_password: newPassword };
+    if (current) body.current_password = current;
+    const r = await call("/account/password/change", { method: "POST", body: JSON.stringify(body) });
+    if (r.status !== 200) throw new AuthError(r.status, r.errors ?? []);
+  },
+
   verifyEmail: async (key: string) =>
     toSession(await call("/auth/email/verify", { method: "POST", body: JSON.stringify({ key }) })),
 

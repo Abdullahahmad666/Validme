@@ -83,6 +83,7 @@ export function evidenceQuery(f: EvidenceFilters): string {
 
 export const api = {
   me: () => request<Me>("/me"),
+  updateMe: (patch: Pick<Me, "first_name" | "last_name">) => request<Me>("/me", { method: "PATCH", body: json(patch) }),
   billingPacks: () => request<BillingPacks>("/billing/packs"),
   startCheckout: (pack: string) => request<{ url: string }>("/billing/checkout", { method: "POST", body: json({ pack }) }),
   subscribe: (plan: "founder" | "pro", interval: BillingInterval) =>

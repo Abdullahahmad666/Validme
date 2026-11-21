@@ -9,7 +9,7 @@ const ITEMS = [
   { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/research/new", label: "Research", icon: Plus },
   { href: "/evidence", label: "Evidence", icon: FileSearch },
-  { href: "/settings", label: "Account", icon: User },
+  { href: "/profile", label: "Account", icon: User },
 ];
 
 export function MobileNav() {

@@ -1,7 +1,9 @@
 "use client";
 
-import { BarChart3, ChevronRight, FileText, FlaskConical, Loader2, Radar, ScanEye, Users } from "lucide-react";
+import { BarChart3, ChevronRight, FileText, FlaskConical, Loader2, Radar, ScanEye, Trash2, Users } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { StagesCovered } from "@/components/shared/ProjectCard";
@@ -59,6 +61,19 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
   );
 }
 
+function DeleteProjectButton({ project }: { project: Project }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" className="min-h-11 text-destructive-text hover:bg-destructive/5" onClick={() => setOpen(true)}>
+        <Trash2 aria-hidden />
+        Delete
+      </Button>
+      {open && <DeleteProjectDialog project={project} open onOpenChange={setOpen} redirectTo="/projects" />}
+    </>
+  );
+}
+
 function Overview({ p }: { p: Project }) {
   const prog = p.progress;
   return (
@@ -70,15 +85,18 @@ function Overview({ p }: { p: Project }) {
           </h1>
           <p className="mt-2 text-muted-foreground">{p.description}</p>
         </div>
-        {p.status === "DRAFT" ? (
-          <Button asChild className="min-h-11">
-            <Link href={`/research/new?project=${p.id}`}>Continue setup</Link>
-          </Button>
-        ) : p.status === "COMPLETED" ? (
-          <Button asChild className="min-h-11">
-            <Link href={`/projects/${p.id}/report`}>Open report</Link>
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {p.status === "DRAFT" ? (
+            <Button asChild className="min-h-11">
+              <Link href={`/research/new?project=${p.id}`}>Continue setup</Link>
+            </Button>
+          ) : p.status === "COMPLETED" ? (
+            <Button asChild className="min-h-11">
+              <Link href={`/projects/${p.id}/report`}>Open report</Link>
+            </Button>
+          ) : null}
+          <DeleteProjectButton project={p} />
+        </div>
       </header>
 
       {p.status === "COMPLETED" && prog && (

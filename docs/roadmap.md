@@ -56,6 +56,8 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] SEO: metadata, OG image, sitemap, robots, JSON-LD; analytics abstraction (no vendor)
 - [x] Product walkthrough animation for the demo slot (code-drawn, sample data labelled, pausable; a real video still plugs in via `DEMO_VIDEO` in `frontend/src/content/marketing.ts`)
 - [x] Real 45 s demo video in the demo slot (`frontend/public/demo/`, real app screens on an example project with illustrative data, labelled; music credited; no autoplay; text alternative under the player; `VideoObject` structured data). The code-drawn walkthrough stays as the fallback when `DEMO_VIDEO.src` is unset.
+- [x] App polish: Account links pinned to the sidebar bottom; billing toggle centred, leaner plan cards, yearly price with the twelve-month price struck through; wizard marks required vs optional fields with hints; geography picker with every country plus regions and a styled, keyboard-friendly suggestion list; delete project (card menu + overview, confirmation, refused while research runs); profile page (name, password change/set, plan summary, log out); account data held until hydration (fixes hydration mismatches)
+- [ ] Change sign-in email from the profile (allauth email change + verification) and delete account
 - [ ] Narrated, audio-described cut of the demo video (WCAG 2.2 AA 1.2.5; the current cut is music only with a text alternative, which meets 1.2.3 but not 1.2.5), plus a WebVTT captions track for the narration
 - [x] Final plan prices + allowances: both — Founder $19/mo, Pro $39/mo subscriptions plus $19/$49 credit packs (Week 10)
 - [ ] Real support inbox (`NEXT_PUBLIC_CONTACT_EMAIL`), social links (`SOCIAL_LINKS`), legal review of policies

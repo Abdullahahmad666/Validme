@@ -32,4 +32,10 @@ describe("ProjectCard", () => {
     expect(out).toContain("low confidence");
     expect(out).toContain("Research more");
   });
+
+  it("offers a labelled actions menu (with Delete) that sits above the card's stretched link", () => {
+    const out = renderToStaticMarkup(createElement(ProjectCard, { project: { ...base, status: "DRAFT" } as Project }));
+    expect(out).toContain('aria-label="Actions for Stock app"');
+    expect(out).toMatch(/<button[^>]*class="relative z-10/);
+  });
 });

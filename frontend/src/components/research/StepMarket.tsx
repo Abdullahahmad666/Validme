@@ -16,9 +16,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { OptionalTag, RequiredLegend, RequiredMark } from "@/components/shared/FieldTag";
 import { useAutosave } from "@/hooks/useAutosave";
 import { autosavePatch, BUSINESS_STAGES, COMMON_GEOGRAPHIES, stepSchemas, withoutAiFlags } from "@/lib/wizard";
 import { cn } from "@/lib/utils";
+import { ALL_GEOGRAPHIES } from "@/lib/geographies";
 import { hasInterpretation, type AISuggestedField, type CustomerType, type Project } from "@/types/api";
 
 type MarketForm = z.infer<(typeof stepSchemas)[2]>;
@@ -91,12 +93,25 @@ export function StepMarket() {
 
   const next = form.handleSubmit(() => goTo(3));
   const interpretation = hasInterpretation(project) ? project.ai_interpretation : null;
-  const label = (field: AISuggestedField, text: string, htmlFor?: string) => (
-    <span className="flex items-center gap-2">
-      {htmlFor ? <Label htmlFor={htmlFor}>{text}</Label> : <span className="text-sm font-medium">{text}</span>}
-      {aiFlags.includes(field) && <AISuggestedBadge />}
-    </span>
-  );
+  const label = (field: AISuggestedField, text: string, htmlFor?: string, tag: "required" | "optional" = "optional") => {
+    const mark = tag === "required" ? <RequiredMark /> : <OptionalTag />;
+    return (
+      <span className="flex items-center gap-2">
+        {htmlFor ? (
+          <Label htmlFor={htmlFor}>
+            {text}
+            {mark}
+          </Label>
+        ) : (
+          <span className="flex items-center gap-2 text-sm font-medium">
+            {text}
+            {mark}
+          </span>
+        )}
+        {aiFlags.includes(field) && <AISuggestedBadge />}
+      </span>
+    );
+  };
   const reg = (name: FieldPath<MarketForm>, flag?: AISuggestedField) =>
     form.register(name, { onChange: flag ? () => own(flag) : undefined });
 
@@ -104,6 +119,7 @@ export function StepMarket() {
     <div>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">Define your market.</h1>
       <p className="mt-2 text-muted-foreground">Who would buy this, and where? The sharper this is, the sharper the evidence.</p>
+      <RequiredLegend />
 
       {interpretation && (
         <div className="mt-6">
@@ -157,9 +173,9 @@ export function StepMarket() {
         </fieldset>
 
         <div className="flex flex-col gap-1.5">
-          {label("audiences", "Audience segments", "audiences")}
+          {label("audiences", "Audience segments", "audiences", "required")}
           <p id="audiences-hint" className="text-xs text-muted-foreground">
-            Concrete groups, e.g. “single-location restaurant owners”. At least one.
+            Concrete groups, e.g. “single-location restaurant owners”. Add at least one; press Enter after each.
           </p>
           <Controller
             control={form.control}
@@ -185,6 +201,9 @@ export function StepMarket() {
 
         <div className="flex flex-col gap-1.5">
           {label("geographies", "Geography", "geographies")}
+          <p id="geographies-hint" className="text-xs text-muted-foreground">
+            Countries or regions to focus on. Start typing to search, or add your own.
+          </p>
           <Controller
             control={form.control}
             name="geographies"
@@ -199,13 +218,15 @@ export function StepMarket() {
                 max={20}
                 maxLength={80}
                 placeholder="Type or pick a country or region"
-                suggestions={COMMON_GEOGRAPHIES}
+                describedBy="geographies-hint"
+                suggestions={ALL_GEOGRAPHIES}
+                popular={COMMON_GEOGRAPHIES}
               />
             )}
           />
         </div>
 
-        <FormField id="business_stage" label="Business stage">
+        <FormField id="business_stage" label="Business stage" optional>
           <Controller
             control={form.control}
             name="business_stage"
@@ -226,21 +247,24 @@ export function StepMarket() {
 
         <FormField
           id="current_alternatives"
-          label="What do customers use today? (optional)"
+          label="What do customers use today?"
+          optional
           error={errors.current_alternatives?.message}
+          hint="Tools, workarounds or competitors people rely on now."
         >
           <Textarea
             rows={3}
             maxLength={1000}
             placeholder="Spreadsheets, a POS add-on, nothing at all…"
-            {...fieldA11y("current_alternatives", errors.current_alternatives?.message)}
+            {...fieldA11y("current_alternatives", errors.current_alternatives?.message, true)}
             {...form.register("current_alternatives")}
           />
         </FormField>
 
         <FormField
           id="price_hypothesis"
-          label="Price you have in mind (optional)"
+          label="Price you have in mind"
+          optional
           error={errors.price_hypothesis?.message}
           hint="Your assumption. Research will look for evidence for or against it."
         >
