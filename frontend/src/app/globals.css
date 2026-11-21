@@ -172,17 +172,6 @@
 @keyframes vm-ring {
   from { stroke-dashoffset: var(--vm-ring-from, 226); }
 }
-@keyframes vm-grow-y {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
-@keyframes vm-sr-label {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes vm-ring-draw {
-  from { stroke-dashoffset: var(--vm-ring-len, 302); }
-}
 @keyframes vm-feature-in {
   from {
     opacity: 0;
@@ -260,32 +249,6 @@ html { scroll-padding-top: 5.5rem; }
     .vm-reveal-left { animation-name: vm-fade-left; }
   }
 
-  /* Sample report charts: bars, columns and rings fill in as they scroll into view (stagger with --i). */
-  @supports (animation-timeline: view()) {
-    .vm-sr-bar {
-      transform-origin: left center;
-      animation: vm-grow-x linear both;
-      animation-timeline: view();
-      animation-range: entry calc(5% + var(--i, 0) * 3%) cover calc(22% + var(--i, 0) * 3%);
-    }
-    .vm-sr-col {
-      transform-origin: bottom center;
-      animation: vm-grow-y linear both;
-      animation-timeline: view();
-      animation-range: entry calc(5% + var(--i, 0) * 2%) cover calc(20% + var(--i, 0) * 2%);
-    }
-    .vm-sr-label {
-      animation: vm-sr-label linear both;
-      animation-timeline: view();
-      animation-range: cover calc(18% + var(--i, 0) * 2%) cover calc(26% + var(--i, 0) * 2%);
-    }
-    .vm-sr-ring {
-      animation: vm-ring-draw linear both;
-      animation-timeline: view();
-      animation-range: entry 10% cover 35%;
-    }
-  }
-
   /* Product feature rows: scroll-driven, per row. --vm-dir is 1 when the visual sits on the right, -1 on the left. */
   @supports (animation-timeline: view()) {
     .vm-feature-visual {
@@ -310,6 +273,30 @@ html { scroll-padding-top: 5.5rem; }
     }
   }
 }
+
+/* Sample report entrances (InViewGroup): one-shot, time-based, staggered with --i.
+   No [data-reveal] attribute (server render, no JS, already on screen) = shown as is. */
+[data-reveal] .rv-card {
+  transition: opacity 650ms cubic-bezier(0.2, 0.7, 0.2, 1), transform 650ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(var(--i, 0) * 120ms);
+}
+[data-reveal="wait"] .rv-card { opacity: 0; transform: translateY(28px) scale(0.98); }
+[data-reveal] .rv-bar {
+  transform-origin: left center;
+  transition: transform 1100ms cubic-bezier(0.22, 0.8, 0.25, 1);
+  transition-delay: calc(350ms + var(--i, 0) * 110ms);
+}
+[data-reveal="wait"] .rv-bar { transform: scaleX(0); }
+[data-reveal] .rv-col {
+  transform-origin: bottom center;
+  transition: transform 900ms cubic-bezier(0.22, 0.8, 0.25, 1);
+  transition-delay: calc(350ms + var(--i, 0) * 90ms);
+}
+[data-reveal="wait"] .rv-col { transform: scaleY(0); }
+[data-reveal] .rv-fade { transition: opacity 400ms ease-out; transition-delay: calc(900ms + var(--i, 0) * 90ms); }
+[data-reveal="wait"] .rv-fade { opacity: 0; }
+[data-reveal] .rv-ring { transition: stroke-dashoffset 1500ms cubic-bezier(0.22, 0.8, 0.25, 1) 300ms; }
+[data-reveal="wait"] .rv-ring { stroke-dashoffset: var(--vm-ring-len); }
 
 /* Global safety net for reduced motion (covers shadcn/Radix accordion + sheet animations too). */
 @media (prefers-reduced-motion: reduce) {

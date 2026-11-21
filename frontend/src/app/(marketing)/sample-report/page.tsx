@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { Pill } from "@/components/marketing/DashboardMockup";
 import { FinalCTASection } from "@/components/marketing/FinalCTASection";
 import { AudienceFeatureMockup, CompetitorFeatureMockup, PlanStepMockup } from "@/components/marketing/mockups";
-import { Container, Reveal, SampleDataBadge } from "@/components/marketing/primitives";
+import { InViewGroup } from "@/components/marketing/InViewGroup";
+import { Container, SampleDataBadge } from "@/components/marketing/primitives";
+import { ReportTabs } from "@/components/marketing/ReportTabs";
 import { TrackView } from "@/components/marketing/TrackView";
 import { SectionHook, StickyReportCta, TryYourIdea } from "@/components/marketing/SampleReportHooks";
 import { pageMetadata } from "@/lib/seo";
@@ -87,7 +89,7 @@ const MONTHLY = [
 function SrBar({ pct, i = 0, tone = "bg-primary", className = "h-2" }: { pct: number; i?: number; tone?: string; className?: string }) {
   return (
     <div className={`overflow-hidden rounded-full bg-muted ${className}`} aria-hidden>
-      <div className={`vm-sr-bar h-full rounded-full ${tone}`} style={{ width: `${pct}%`, "--i": i } as React.CSSProperties} />
+      <div className={`rv-bar h-full rounded-full ${tone}`} style={{ width: `${pct}%`, "--i": i } as React.CSSProperties} />
     </div>
   );
 }
@@ -100,7 +102,7 @@ function ScoreRing({ score }: { score: number }) {
       <svg viewBox="0 0 120 120" className="size-full -rotate-90" aria-hidden>
         <circle cx="60" cy="60" r={r} fill="none" stroke="var(--chart-track, #e5eaf5)" strokeWidth="12" />
         <circle
-          className="vm-sr-ring"
+          className="rv-ring"
           cx="60"
           cy="60"
           r={r}
@@ -127,13 +129,18 @@ function ReportSection({ id, title, children }: { id: string; title: string; chi
       <h2 id={`${id}-title`} className="text-xl font-semibold tracking-tight sm:text-2xl">
         {title}
       </h2>
-      <div className="mt-5">{children}</div>
+      <InViewGroup className="mt-5">{children}</InViewGroup>
     </section>
   );
 }
 
-function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-card p-5 ${className}`}>{children}</div>;
+/** A report card; it rises in with its section (stagger with `i`). */
+function Card({ children, className = "", i = 0 }: { children: React.ReactNode; className?: string; i?: number }) {
+  return (
+    <div className={`rv-card rounded-2xl border border-border bg-card p-5 ${className}`} style={{ "--i": i } as React.CSSProperties}>
+      {children}
+    </div>
+  );
 }
 
 export default function SampleReportPage() {
@@ -171,27 +178,9 @@ export default function SampleReportPage() {
           </div>
         </Container>
       </header>
-      {/* Tabs (anchor navigation, horizontal scroll on mobile) */}
-      <nav aria-label="Report sections" className="sticky top-[72px] z-30 border-b border-border bg-card/95 backdrop-blur">
-        <Container>
-          <div className="flex items-center gap-3">
-          <ul className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto py-2 [scrollbar-width:none]">
-            {TABS.map((t) => (
-              <li key={t.id}>
-                <a
-                  href={`#${t.id}`}
-                  className="inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  {t.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-          <SampleDataBadge className="hidden sm:inline-flex" />
-          </div>
-        </Container>
-      </nav>
-
+      {/* Tabs and report share one wrapper, so the tabs stick only while the report is on screen. */}
+      <div>
+        <ReportTabs tabs={TABS} />
       <Container className="space-y-16 py-12 sm:py-16">
         <ReportSection id="overview" title="Overview">
           <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
@@ -216,7 +205,7 @@ export default function SampleReportPage() {
                 </div>
               </dl>
             </Card>
-            <Card>
+            <Card i={1}>
               <h3 className="flex items-center gap-2 font-semibold">
                 Executive summary
                 <Pill className="bg-ai/10 text-ai">
@@ -245,7 +234,7 @@ export default function SampleReportPage() {
               </p>
             </Card>
           </div>
-          <Card className="mt-4">
+          <Card className="mt-4" i={2}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="font-semibold">What makes up the score</h3>
               <p className="text-xs text-muted-foreground">Each bar is as long as the dimension&apos;s weight; the fill is what it earned.</p>
@@ -273,7 +262,11 @@ export default function SampleReportPage() {
           </Card>
         </ReportSection>
 
-        <TryYourIdea />
+        <InViewGroup>
+          <div className="rv-card">
+            <TryYourIdea />
+          </div>
+        </InViewGroup>
 
         <ReportSection id="demand" title="Demand">
           <div className="grid gap-4 lg:grid-cols-2">
@@ -291,9 +284,9 @@ export default function SampleReportPage() {
                 ))}
               </ul>
             </Card>
-            <Card>
+            <Card i={1}>
               <h3 className="font-semibold">Evidence by source</h3>
-              <div className="vm-sr-bar mt-4 flex h-3 overflow-hidden rounded-full" role="img" aria-label={BY_SOURCE.map((s) => `${s.label} ${s.n}`).join(", ")}>
+              <div className="rv-bar mt-4 flex h-3 overflow-hidden rounded-full" role="img" aria-label={BY_SOURCE.map((s) => `${s.label} ${s.n}`).join(", ")}>
                 {BY_SOURCE.map((s) => (
                   <span key={s.label} className={s.tone} style={{ width: `${(s.n / total) * 100}%` }} />
                 ))}
@@ -311,7 +304,7 @@ export default function SampleReportPage() {
               </p>
             </Card>
           </div>
-          <Card className="mt-4">
+          <Card className="mt-4" i={2}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="font-semibold">Published over time</h3>
               <p className="text-xs text-muted-foreground">Records per month, Jun 2025 – Mar 2026</p>
@@ -323,11 +316,11 @@ export default function SampleReportPage() {
             >
               {MONTHLY.map((m, i) => (
                 <div key={m.m} className="flex h-full flex-1 flex-col items-center justify-end gap-1" aria-hidden>
-                  <span className="vm-sr-label text-[11px] tabular-nums text-muted-foreground" style={{ "--i": i } as React.CSSProperties}>
+                  <span className="rv-fade text-[11px] tabular-nums text-muted-foreground" style={{ "--i": i } as React.CSSProperties}>
                     {m.n}
                   </span>
                   <div
-                    className="vm-sr-col w-full max-w-10 rounded-t-md bg-primary"
+                    className="rv-col w-full max-w-10 rounded-t-md bg-primary"
                     style={{ height: `${(m.n / 5) * 80}%`, "--i": i } as React.CSSProperties}
                   />
                 </div>
@@ -350,8 +343,8 @@ export default function SampleReportPage() {
         <ReportSection id="evidence" title="Evidence">
           <ul className="grid gap-3 md:grid-cols-2">
             {EVIDENCE.map((e, i) => (
-              <Reveal as="li" key={e.q} index={i % 2}>
-                <Card className="h-full">
+              <li key={e.q}>
+                <Card className="h-full" i={i}>
                   <div className="flex items-center justify-between gap-2">
                     <Pill tone={e.tone}>{e.cat}</Pill>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -365,10 +358,10 @@ export default function SampleReportPage() {
                     {e.dup > 0 && <span>· {e.dup} duplicate{e.dup > 1 ? "s" : ""} merged</span>}
                   </p>
                 </Card>
-              </Reveal>
+              </li>
             ))}
           </ul>
-          <div className="mt-6">
+          <div className="rv-card mt-6" style={{ "--i": 3 } as React.CSSProperties}>
             <SectionHook
               text="Every quote in your report links to the page it came from, with the date we read it."
               cta="Find the evidence for my idea"
@@ -396,8 +389,8 @@ export default function SampleReportPage() {
             </ul>
           </Card>
           <div className="grid gap-4 md:grid-cols-3">
-            {CLUSTERS.map((c) => (
-              <Card key={c.t}>
+            {CLUSTERS.map((c, i) => (
+              <Card key={c.t} i={i + 1}>
                 <h3 className="font-semibold">{c.t}</h3>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <div>
@@ -424,7 +417,9 @@ export default function SampleReportPage() {
         </ReportSection>
 
         <ReportSection id="competitors" title="Competitors">
-          <CompetitorFeatureMockup />
+          <div className="rv-card">
+            <CompetitorFeatureMockup />
+          </div>
           <Card className="mt-4">
             <h3 className="font-semibold">Monthly price comparison</h3>
             <p className="mt-1 text-xs text-muted-foreground">Only prices read from a page are charted; your price is your own assumption.</p>
@@ -438,7 +433,7 @@ export default function SampleReportPage() {
                 <span>Your price idea</span>
                 <div className="relative h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden>
                   <div
-                    className="vm-sr-bar absolute inset-y-0 rounded-full bg-warning/80"
+                    className="rv-bar absolute inset-y-0 rounded-full bg-warning/80"
                     style={{ left: `${(29 / 129) * 100}%`, width: `${((49 - 29) / 129) * 100}%`, "--i": 1 } as React.CSSProperties}
                   />
                 </div>
@@ -450,7 +445,7 @@ export default function SampleReportPage() {
               (unavailable); Competitor C is a $19 one-off, not a monthly price, so it isn&apos;t charted.
             </p>
           </Card>
-          <div className="mt-6">
+          <div className="rv-card mt-6" style={{ "--i": 3 } as React.CSSProperties}>
             <SectionHook
               text="Know who you're up against, what they charge and what their users complain about, before you build."
               cta="Map my competitors"
@@ -491,7 +486,7 @@ export default function SampleReportPage() {
             </table>
           </Card>
           <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <Card>
+            <Card i={1}>
               <h3 className="font-semibold">Market size (estimate)</h3>
               <dl className="mt-3 space-y-2 text-sm">
                 <div className="flex justify-between gap-3"><dt className="font-medium text-primary">TAM</dt><dd className="text-right text-muted-foreground">Independent restaurants, US & UK</dd></div>
@@ -502,7 +497,7 @@ export default function SampleReportPage() {
                 SAM = restaurants × single-location share × software adoption × price hypothesis
               </p>
             </Card>
-            <Card>
+            <Card i={2}>
               <h3 className="flex items-center gap-1.5 font-semibold"><AlertTriangle className="size-4 text-warning" aria-hidden /> Assumptions & risks</h3>
               <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                 <li>Price hypothesis ($29–49/mo) is yours, not evidenced.</li>
@@ -510,7 +505,7 @@ export default function SampleReportPage() {
                 <li>POS vendors could bundle a simple counts feature.</li>
               </ul>
             </Card>
-            <Card>
+            <Card i={3}>
               <h3 className="font-semibold">What would change the score</h3>
               <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
                 <li>Pricing evidence from 5+ owners → willingness to pay.</li>
@@ -522,7 +517,9 @@ export default function SampleReportPage() {
         </ReportSection>
 
         <ReportSection id="audience" title="Audience">
-          <AudienceFeatureMockup />
+          <div className="rv-card">
+            <AudienceFeatureMockup />
+          </div>
         </ReportSection>
 
         <ReportSection id="distribution" title="Distribution & first 10 customers">
@@ -530,8 +527,10 @@ export default function SampleReportPage() {
             Channels are labelled <strong className="text-success-text">Researched</strong> when evidence supports them and{" "}
             <strong className="text-warning-text">Hypothesis</strong> when they&apos;re reasonable but untested.
           </p>
-          <PlanStepMockup />
-          <div className="mt-6">
+          <div className="rv-card">
+            <PlanStepMockup />
+          </div>
+          <div className="rv-card mt-6" style={{ "--i": 3 } as React.CSSProperties}>
             <SectionHook
               text="Get a first-10-customers plan for your own idea: where your buyers already talk, and what to say."
               cta="Plan my first customers"
@@ -549,8 +548,13 @@ export default function SampleReportPage() {
             those sources: conversations in private groups or closed communities aren&apos;t represented.
           </p>
         </section>
-        <TryYourIdea id="try-your-idea-end" />
+        <InViewGroup>
+          <div className="rv-card">
+            <TryYourIdea id="try-your-idea-end" />
+          </div>
+        </InViewGroup>
       </Container>
+      </div>
       <div id="final-cta">
         <FinalCTASection />
       </div>
