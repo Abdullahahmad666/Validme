@@ -5,12 +5,14 @@ import { demoVideoEntity, ProductDemoSection } from "@/components/marketing/Prod
 import { DEMO_VIDEO } from "@/content/marketing";
 
 describe("ProductDemoSection", () => {
-  it("shows the demo video without autoplay, with poster, example-data note, music credit and a text alternative", () => {
+  it("shows the demo video, muted with controls, with poster, example-data note, music credit and a text alternative", () => {
     const out = renderToStaticMarkup(createElement(ProductDemoSection));
     expect(out).toContain('<source src="/demo/validme-demo.mp4" type="video/mp4"/>');
     expect(out).toContain('poster="/demo/validme-demo-poster.jpg"');
-    expect(out).toContain('preload="none"');
+    // No autoplay attribute: playback starts from script only when in view (and never with reduced motion), muted.
     expect(out).not.toContain("autoplay");
+    expect(out).toMatch(/<video[^>]*muted=""/);
+    expect(out).toMatch(/<video[^>]*controls=""/);
     expect(out).toContain("Example project with illustrative data");
     expect(out).toContain("Music only, no narration");
     expect(out).toContain("Sascha Ende");
