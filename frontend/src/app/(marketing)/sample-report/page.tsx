@@ -125,7 +125,7 @@ function ScoreRing({ score }: { score: number }) {
 
 function ReportSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-36">
+    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-16">
       <h2 id={`${id}-title`} className="text-xl font-semibold tracking-tight sm:text-2xl">
         {title}
       </h2>

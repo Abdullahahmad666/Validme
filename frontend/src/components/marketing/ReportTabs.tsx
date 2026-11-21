@@ -37,17 +37,18 @@ export function ReportTabs({ tabs }: { tabs: readonly { id: string; label: strin
   }, [active]);
 
   return (
-    <nav aria-label="Report sections" className="sticky top-[72px] z-30 border-b border-border bg-card/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1200px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <ul ref={listRef} className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto py-2 [scrollbar-width:none]">
+    // A floating glass pill like the site header above it (same width and rounding), not a full-width strip.
+    <nav aria-label="Report sections" className="pointer-events-none sticky top-[76px] z-30 mt-4 px-3 sm:px-6">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-[1100px] items-center gap-2 rounded-full border border-border/70 bg-white/75 py-1.5 pr-2 pl-1.5 shadow-[0_14px_34px_-20px_rgba(23,45,77,0.4)] backdrop-blur-md">
+        <ul ref={listRef} className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-full [scrollbar-width:none]">
           {tabs.map((t) => (
             <li key={t.id}>
               <a
                 href={`#${t.id}`}
                 aria-current={active === t.id ? "location" : undefined}
                 className={cn(
-                  "inline-flex min-h-11 items-center whitespace-nowrap rounded-lg px-3 text-sm transition-colors",
-                  active === t.id ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "inline-flex min-h-10 items-center whitespace-nowrap rounded-full px-3.5 text-sm transition-colors",
+                  active === t.id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
                 {t.label}
@@ -55,7 +56,7 @@ export function ReportTabs({ tabs }: { tabs: readonly { id: string; label: strin
             </li>
           ))}
         </ul>
-        <SampleDataBadge className="hidden sm:inline-flex" />
+        <SampleDataBadge className="hidden shrink-0 sm:inline-flex" />
       </div>
     </nav>
   );
