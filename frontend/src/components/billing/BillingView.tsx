@@ -11,7 +11,7 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PACK_PLAN, PLAN_PRICES, usd, watchesLabel, yearlySavingMonths, type Interval } from "@/content/pricing";
+import { PACK_PLAN, PLAN_PRICES, usd, WATCHES_PER_PROJECT, yearlySavingMonths, type Interval } from "@/content/pricing";
 import { useMe, meKey } from "@/hooks/useSession";
 import { track } from "@/lib/analytics";
 import { cn, safeHref } from "@/lib/utils";
@@ -55,6 +55,30 @@ export function subscriptionLine(sub: SubscriptionInfo): string {
   return sub.renews_at ? `Billed ${every}. Renews on ${fmtDate(sub.renews_at)}.` : `Billed ${every}.`;
 }
 
+/**
+ * Price parts for a plan card. With the provider's live label, that label is shown as is (no strike-through: the
+ * catalog's comparison price might not match it). From the catalog, yearly shows twelve months at the monthly price
+ * struck through next to the yearly price, and the per-month equivalent.
+ */
+export function priceParts(
+  id: "founder" | "pro",
+  interval: Interval,
+  live?: SubscriptionPlan,
+): { now: string; per: string | null; was: string | null; note: string | null } {
+  const label = live?.[interval];
+  if (label) return { now: label, per: interval, was: null, note: null };
+  const p = PLAN_PRICES[id];
+  if (p.month == null) return { now: "Price shown at checkout", per: null, was: null, note: null };
+  if (interval === "month" || p.year == null) return { now: usd(p.month), per: "month", was: null, note: null };
+  const full = p.month * 12;
+  return {
+    now: usd(p.year),
+    per: "year",
+    was: full > p.year ? usd(full) : null,
+    note: "$" + (p.year / 12).toFixed(2) + " a month, billed yearly",
+  };
+}
+
 /** The provider's own price label wins; the catalog price is shown only until payments are live. */
 export function planPrice(id: "founder" | "pro", interval: Interval, live?: SubscriptionPlan): string {
   const label = live?.[interval];
@@ -96,17 +120,17 @@ function Plans() {
 
   return (
     <section aria-labelledby="plans-h" className="rounded-card border border-border bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col items-center gap-4 text-center">
         <div>
-          <h2 id="plans-h" className="flex items-center gap-2 font-semibold">
+          <h2 id="plans-h" className="flex items-center justify-center gap-2 text-lg font-semibold">
             <Sparkles className="size-4 text-primary" aria-hidden /> Plans
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Monthly research credits plus daily competitor monitoring. Cancel any time; you keep the plan until the end
-            of the period you&apos;ve paid for.
+          <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
+            Monthly research credits plus daily competitor checks. Cancel any time; the plan runs to the end of the paid
+            period.
           </p>
         </div>
-        <div role="group" aria-label="Billing period" className="inline-flex rounded-control border border-border p-0.5 text-sm">
+        <div role="group" aria-label="Billing period" className="inline-flex rounded-full border border-border bg-muted/50 p-1 text-sm">
           {(["month", "year"] as const).map((i) => (
             <button
               key={i}
@@ -114,11 +138,16 @@ function Plans() {
               aria-pressed={interval === i}
               onClick={() => setBillingInterval(i)}
               className={cn(
-                "rounded-[calc(var(--radius-control)_-_2px)] px-3 py-1.5 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
-                interval === i ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                "inline-flex min-h-9 items-center gap-2 rounded-full px-4 font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                interval === i ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {i === "month" ? "Monthly" : `Yearly · ${yearlySavingMonths(PLAN_PRICES.founder)} months free`}
+              {i === "month" ? "Monthly" : "Yearly"}
+              {i === "year" && (
+                <span className="rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success-text">
+                  {yearlySavingMonths(PLAN_PRICES.founder)} months free
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -148,29 +177,55 @@ function Plans() {
         </p>
       )}
 
-      <ul className="mt-4 grid gap-3 md:grid-cols-3">
+      <ul className="mt-6 grid gap-4 md:grid-cols-3">
         {(["free", "founder", "pro"] as const).map((id) => {
           const p = PLAN_PRICES[id];
           const current = limits.plan === id;
           const credits = id === "free" ? 0 : (live[id]?.monthly_credits ?? p.monthlyCredits);
+          const price = id === "free" ? null : priceParts(id, interval, live[id]);
           return (
             <li
               key={id}
-              className={cn("flex flex-col gap-3 rounded-control border p-4", current ? "border-primary" : "border-border")}
+              className={cn(
+                "flex flex-col gap-4 rounded-card border bg-background/60 p-5",
+                current ? "border-primary shadow-[0_0_0_1px_var(--primary)]" : "border-border",
+              )}
             >
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-semibold">{p.name}</h3>
                 {current && <Badge variant="secondary">Current plan</Badge>}
               </div>
-              <p className="text-xl font-semibold tabular-nums">{id === "free" ? "$0" : planPrice(id, interval, live[id])}</p>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                <li>{id === "free" ? "Quick research only" : `${credits} research credits a month, all depths`}</li>
-                <li>
-                  {watchesLabel(p.watches)}, checked {p.dailyChecks ? "daily" : "weekly"}
-                </li>
-                <li>Up to {p.aiSummariesPerDay} AI summaries a day</li>
-                <li>Opportunity Radar</li>
-                <li>Weekly digest email</li>
+              <div className="min-h-16">
+                {price === null ? (
+                  <p className="text-3xl font-semibold tabular-nums">
+                    $0<span className="text-sm font-normal text-muted-foreground"> forever</span>
+                  </p>
+                ) : (
+                  <>
+                    <p className="flex flex-wrap items-baseline gap-x-2">
+                      {price.was && (
+                        <s className="text-base text-muted-foreground tabular-nums" aria-label={`was ${price.was}`}>
+                          {price.was}
+                        </s>
+                      )}
+                      <span className="text-3xl font-semibold tabular-nums">{price.now}</span>
+                      {price.per && <span className="text-sm text-muted-foreground">/{price.per}</span>}
+                    </p>
+                    {price.note && <p className="mt-1 text-xs text-success-text">{price.note}</p>}
+                  </>
+                )}
+              </div>
+              <ul className="space-y-2 text-sm">
+                {[
+                  id === "free" ? "Quick research only" : `${credits} research credits a month`,
+                  `${p.watches} competitor pages, ${p.dailyChecks ? "daily" : "weekly"} checks`,
+                  `${p.aiSummariesPerDay} AI summaries a day`,
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                    {line}
+                  </li>
+                ))}
               </ul>
               {id !== "free" && (
                 <div className="mt-auto">
@@ -191,6 +246,10 @@ function Plans() {
           );
         })}
       </ul>
+      <p className="mt-4 text-center text-sm text-muted-foreground">
+        Every plan includes Opportunity Radar and the weekly digest email. Paid plans unlock every research depth;
+        competitor pages are capped at {WATCHES_PER_PROJECT} per project.
+      </p>
       {error && (
         <p role="alert" className="mt-3 text-sm text-destructive-text">
           {error instanceof ApiError ? error.message : "Couldn't reach the payment provider. Please try again."}

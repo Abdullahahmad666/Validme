@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { RequiredLegend, RequiredMark } from "@/components/shared/FieldTag";
 import { useAutosave } from "@/hooks/useAutosave";
 import { projectsKey, summaryKey } from "@/hooks/useProjects";
 import { projectKey, useInterpret } from "@/hooks/useResearch";
@@ -144,13 +145,14 @@ export function StepIdea({ onCreated }: { onCreated: (projectId: string, nextSte
       <p className="mt-2 text-muted-foreground">
         Tell us what you&apos;re thinking of building. It doesn&apos;t need to be perfectly defined.
       </p>
+      <RequiredLegend />
 
       <form onSubmit={(e) => e.preventDefault()} noValidate className="mt-6 flex flex-col gap-5">
-        <FormField id="name" label="Project name" error={errors.name?.message}>
+        <FormField id="name" label="Project name" required error={errors.name?.message} hint="A short name you'll recognise, 3 to 80 characters.">
           <Input
             className="h-11"
             placeholder="e.g. Restaurant inventory tracker"
-            {...fieldA11y("name", errors.name?.message)}
+            {...fieldA11y("name", errors.name?.message, true)}
             {...form.register("name")}
           />
         </FormField>
@@ -158,8 +160,14 @@ export function StepIdea({ onCreated }: { onCreated: (projectId: string, nextSte
         <FormField
           id="description"
           label="Idea description"
+          required
           error={errors.description?.message}
-          hint={<span className="tabular-nums">{values.description?.length ?? 0} / 2,000</span>}
+          hint={
+            <span className="flex justify-between gap-3">
+              <span>Who has the problem, what you&apos;d build, and why now. At least 30 characters.</span>
+              <span className="shrink-0 tabular-nums">{values.description?.length ?? 0} / 2,000</span>
+            </span>
+          }
         >
           <Textarea
             rows={6}
@@ -173,9 +181,15 @@ export function StepIdea({ onCreated }: { onCreated: (projectId: string, nextSte
         <fieldset
           className="flex flex-col gap-2"
           aria-invalid={errors.objectives ? true : undefined}
-          aria-describedby={errors.objectives ? "objectives-error" : undefined}
+          aria-describedby={errors.objectives ? "objectives-error objectives-hint" : "objectives-hint"}
         >
-          <legend className="mb-1.5 text-sm font-medium">Research objectives</legend>
+          <legend className="mb-1 flex items-center gap-2 text-sm font-medium">
+            Research objectives
+            <RequiredMark />
+          </legend>
+          <p id="objectives-hint" className="-mt-1 mb-1 text-xs text-muted-foreground">
+            Pick one or more: what should the research find out?
+          </p>
           <Controller
             control={form.control}
             name="objectives"
@@ -212,22 +226,34 @@ export function StepIdea({ onCreated }: { onCreated: (projectId: string, nextSte
           )}
         </fieldset>
 
-        <FormField id="existing_product_url" label="Existing product URL (optional)" error={errors.existing_product_url?.message}>
+        <FormField
+          id="existing_product_url"
+          label="Existing product URL"
+          optional
+          error={errors.existing_product_url?.message}
+          hint="Only if it already exists: a full address starting with https://."
+        >
           <Input
             type="url"
             inputMode="url"
             className="h-11"
             placeholder="https://"
-            {...fieldA11y("existing_product_url", errors.existing_product_url?.message)}
+            {...fieldA11y("existing_product_url", errors.existing_product_url?.message, true)}
             {...form.register("existing_product_url")}
           />
         </FormField>
 
         <FormField
           id="additional_context"
-          label="Additional context (optional)"
+          label="Additional context"
+          optional
           error={errors.additional_context?.message}
-          hint={<span className="tabular-nums">{values.additional_context?.length ?? 0} / 1,000</span>}
+          hint={
+            <span className="flex justify-between gap-3">
+              <span>Anything the research should know, e.g. what you&apos;ve already tried.</span>
+              <span className="shrink-0 tabular-nums">{values.additional_context?.length ?? 0} / 1,000</span>
+            </span>
+          }
         >
           <Textarea
             rows={3}

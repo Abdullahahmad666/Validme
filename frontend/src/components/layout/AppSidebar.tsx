@@ -11,6 +11,7 @@ import {
   Megaphone,
   Plus,
   Settings,
+  UserRound,
   Swords,
   type LucideIcon,
 } from "lucide-react";
@@ -40,6 +41,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
   {
     section: "Account",
     items: [
+      { href: "/profile", label: "Profile", icon: UserRound },
       { href: "/billing", label: "Plan & credits", icon: CreditCard },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
@@ -58,9 +60,10 @@ export function AppSidebar() {
         className="mb-6 justify-center lg:justify-start lg:px-3"
         nameClassName="hidden lg:inline"
       />
-      <nav aria-label="Main" className="flex flex-col gap-6">
-        {NAV.map((group) => (
-          <div key={group.section}>
+      <nav aria-label="Main" className="flex flex-1 flex-col gap-6">
+        {NAV.map((group, gi) => (
+          // The last group (Account) is pinned to the bottom of the sidebar.
+          <div key={group.section} className={gi === NAV.length - 1 ? "mt-auto border-t border-border pt-4" : undefined}>
             <p className="mb-2 hidden px-3 text-xs font-medium uppercase tracking-wide text-muted-foreground lg:block">
               {group.section}
             </p>

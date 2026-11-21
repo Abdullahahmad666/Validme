@@ -1,6 +1,17 @@
-import { Check, CircleDashed, Loader2, X } from "lucide-react";
+"use client";
+
+import { Check, CircleDashed, Loader2, MoreHorizontal, Trash2, X } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { DeleteProjectDialog } from "@/components/projects/DeleteProjectDialog";
 import { StatusPill } from "@/components/shared/StatusPill";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STAGE_LABELS } from "@/lib/wizard";
 import { cn } from "@/lib/utils";
@@ -38,6 +49,42 @@ export function StagesCovered({ stages }: { stages: ProjectProgress["stages"] })
   );
 }
 
+/** "⋯" menu on a card, above the stretched link so it stays clickable. */
+function ProjectMenu({ project }: { project: Project }) {
+  const [confirm, setConfirm] = useState(false);
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Actions for ${project.name}`}
+            className="relative z-10 flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem asChild>
+            <Link href={`/projects/${project.id}`}>Open</Link>
+          </DropdownMenuItem>
+          {project.status === "COMPLETED" && (
+            <DropdownMenuItem asChild>
+              <Link href={`/projects/${project.id}/report`}>Open report</Link>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={() => setConfirm(true)}>
+            <Trash2 aria-hidden />
+            Delete project
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {confirm && <DeleteProjectDialog project={project} open onOpenChange={setConfirm} />}
+    </>
+  );
+}
+
 export function ProjectCard({ project }: { project: Project }) {
   const p = project.progress;
   return (
@@ -49,7 +96,10 @@ export function ProjectCard({ project }: { project: Project }) {
             {project.name}
           </Link>
         </h3>
-        <StatusPill status={project.status} />
+        <div className="flex items-center gap-1">
+          <StatusPill status={project.status} />
+          <ProjectMenu project={project} />
+        </div>
       </div>
       <p className="line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
       {p && <StagesCovered stages={p.stages} />}

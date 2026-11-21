@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { planLabel, planPrice, subscriptionLine } from "@/components/billing/BillingView";
+import { planLabel, planPrice, priceParts, subscriptionLine } from "@/components/billing/BillingView";
 import { Candidates } from "@/components/monitoring/MonitoringView";
 import { PACK_PRICES, PLAN_PRICES, yearlySavingMonths } from "@/content/pricing";
 import type { SubscriptionInfo } from "@/types/api";
@@ -99,5 +99,21 @@ describe("unsubscribe confirmation", () => {
       expect(out).toContain("That link didn&#x27;t work");
       expect(out).not.toContain(">Unsubscribe</button>");
     }
+  });
+});
+
+describe("priceParts", () => {
+  it("shows yearly as the yearly price, twelve monthly payments struck through, and the monthly equivalent", () => {
+    expect(priceParts("founder", "year")).toEqual({ now: "$190", per: "year", was: "$228", note: "$15.83 a month, billed yearly" });
+    expect(priceParts("pro", "year")).toMatchObject({ now: "$390", was: "$468", note: "$32.50 a month, billed yearly" });
+  });
+  it("has no strike-through monthly, or when the provider's own label is shown", () => {
+    expect(priceParts("founder", "month")).toEqual({ now: "$19", per: "month", was: null, note: null });
+    expect(priceParts("founder", "year", { id: "founder", monthly_credits: 4, month: null, year: "190.00 USD" })).toEqual({
+      now: "190.00 USD",
+      per: "year",
+      was: null,
+      note: null,
+    });
   });
 });

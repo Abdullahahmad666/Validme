@@ -67,6 +67,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return [*super().get_throttles(), ScopedRateThrottle()]
         return super().get_throttles()
 
+    def destroy(self, request, *args, **kwargs):
+        project = self.get_object()
+        # A running job would keep writing into a project that's gone; the founder stops or waits for it first.
+        if (
+            project.status == Project.Status.RESEARCHING
+            or project.jobs.filter(status__in=[ResearchJob.Status.PENDING, ResearchJob.Status.RUNNING]).exists()
+        ):
+            return Response(
+                {"error": {"code": "research_running", "message": "Research is still running. Delete the project once it finishes."}},
+                status=status.HTTP_409_CONFLICT,
+            )
+        project.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def _draft(self) -> Project:
         project = self.get_object()
         if project.status != Project.Status.DRAFT:

@@ -78,6 +78,23 @@ def test_delete(api):
     assert not Project.objects.filter(pk=data["id"]).exists()
 
 
+def test_delete_is_refused_while_research_runs(api):
+    from research.models import ResearchJob
+
+    data = create(api)
+    project = Project.objects.get(pk=data["id"])
+    job = ResearchJob.objects.create(
+        project=project, idempotency_key="del-running", status=ResearchJob.Status.RUNNING, config_snapshot={}
+    )
+    r = api.delete(f"/api/projects/{data['id']}")
+    assert r.status_code == 409
+    assert r.json()["error"]["code"] == "research_running"
+    assert Project.objects.filter(pk=data["id"]).exists()
+    job.status = ResearchJob.Status.COMPLETED
+    job.save(update_fields=["status"])
+    assert api.delete(f"/api/projects/{data['id']}").status_code == 204
+
+
 def test_owner_isolation(api, other_api):
     data = create(api)
     url = f"/api/projects/{data['id']}"
