@@ -6,8 +6,6 @@ import {
   Link2,
   MessagesSquare,
   Newspaper,
-  Pause,
-  Play,
   Search,
   SquarePlay,
   TrendingUp,
@@ -46,13 +44,12 @@ const HUB = [500, 260] as const;
 
 /**
  * The research sources around the ValidMe mark, with evidence continuously flowing in along each line. Searched
- * sources have solid lines; rolling-out ones are dashed and amber. Runs only while on screen, has a pause button
- * (WCAG 2.2.2), and is static with reduced motion. On phones the sources sit in a grid under the mark.
+ * sources have solid lines; rolling-out ones are dashed and amber. Runs only while on screen and is static with
+ * reduced motion (no pause button, by product decision). On phones the sources sit in a grid under the mark.
  */
 export function SourceHub({ sources }: { sources: readonly Source[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [onScreen, setOnScreen] = useState(false);
-  const [paused, setPaused] = useState(false);
   const items = sources.slice(0, SLOTS.length);
 
   useEffect(() => {
@@ -63,7 +60,7 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
     return () => io.disconnect();
   }, []);
 
-  const running = onScreen && !paused;
+  const running = onScreen;
 
   return (
     <div
@@ -162,7 +159,7 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
         </ul>
       </div>
 
-      <div className="relative flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-3 text-xs text-white/70">
+      <div className="relative flex flex-wrap items-center gap-3 border-t border-white/10 px-5 py-3 text-xs text-white/70">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="flex items-center gap-1.5">
             <span aria-hidden className="h-0.5 w-5 rounded bg-[#9fc0f0]" /> Searched in every report
@@ -171,15 +168,6 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
             <span aria-hidden className="h-0.5 w-5 rounded border-t-2 border-dashed border-[#f2b446]" /> Rolling out
           </span>
         </span>
-        <button
-          type="button"
-          onClick={() => setPaused((p) => !p)}
-          aria-pressed={paused}
-          className="vm-hub-toggle inline-flex min-h-9 items-center gap-1.5 rounded-full border border-white/20 px-3 text-white/80 hover:bg-white/10 hover:text-white"
-        >
-          {paused ? <Play className="size-3.5" aria-hidden /> : <Pause className="size-3.5" aria-hidden />}
-          {paused ? "Play" : "Pause"} animation
-        </button>
       </div>
     </div>
   );

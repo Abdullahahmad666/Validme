@@ -313,7 +313,7 @@ html { scroll-padding-top: 5.5rem; }
 .vm-marquee { animation: vm-marquee var(--vm-marquee-duration, 60s) linear infinite; }
 .vm-marquee-reverse { animation-direction: reverse; }
 .vm-marquee-group:has(.vm-marquee-mask:hover) .vm-marquee,
-.vm-marquee-group[data-paused] .vm-marquee { animation-play-state: paused; }
+.vm-marquee-group:has(.vm-marquee-mask:active) .vm-marquee { animation-play-state: paused; }
 .vm-marquee-mask {
   -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
   mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
@@ -321,11 +321,11 @@ html { scroll-padding-top: 5.5rem; }
 @media (prefers-reduced-motion: reduce) {
   .vm-marquee { animation: none; }
   .vm-marquee-mask { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
-  .vm-marquee-copy, .vm-marquee-toggle { display: none; }
+  .vm-marquee-copy { display: none; }
 }
 
-/* Source hub: evidence packets travel from each source to the hub; the hub pulses. Runs only while on screen and
-   not paused ([data-running] from SourceHub). pathLength=100, dash "6 94". */
+/* Source hub: evidence packets travel from each source to the hub; the hub pulses. Runs only while on screen
+   ([data-running] from SourceHub). pathLength=100, dash "6 94". */
 @keyframes vm-hub-packet {
   0% { stroke-dashoffset: 6; opacity: 0; }
   12% { opacity: 1; }
@@ -350,7 +350,6 @@ html { scroll-padding-top: 5.5rem; }
 @media (prefers-reduced-motion: reduce) {
   .vm-hub-packet, .vm-hub-ring { display: none; }
   .vm-hub-dot { animation: none; }
-  .vm-hub-toggle { display: none; }
 }
 
 /* Global safety net for reduced motion (covers shadcn/Radix accordion + sheet animations too). */

@@ -1,7 +1,6 @@
 "use client";
 
-import { Pause, Play, Quote } from "lucide-react";
-import { useState } from "react";
+import { Quote } from "lucide-react";
 import type { Testimonial } from "@/content/testimonials";
 import { cn } from "@/lib/utils";
 
@@ -62,32 +61,18 @@ function Row({ items, reverse, label }: { items: Testimonial[]; reverse?: boolea
 }
 
 /**
- * Two rows drifting in opposite directions (top right-to-left, bottom left-to-right). Slow, pauses on hover and on
- * keyboard focus, and has a pause button (WCAG 2.2.2: motion longer than 5 s must be stoppable). With reduced motion
- * the rows stand still and scroll sideways instead.
+ * Two rows drifting in opposite directions (top right-to-left, bottom left-to-right). Slow; pauses while hovered or
+ * pressed. With reduced motion the rows stand still and scroll sideways instead. (No pause button, by product
+ * decision: this leaves WCAG 2.2.2 only partly met.)
  */
 export function TestimonialMarquee({ items }: { items: Testimonial[] }) {
-  const [paused, setPaused] = useState(false);
   const half = Math.ceil(items.length / 2);
   const rows = [items.slice(0, half), items.slice(half)].filter((r) => r.length > 0);
   return (
-    <div data-paused={paused || undefined} className="vm-marquee-group relative">
-      <div className="flex flex-col gap-3">
-        {rows.map((r, i) => (
-          <Row key={i} items={r} reverse={i === 1} label={i === 0 ? "What founders say" : "More from founders"} />
-        ))}
-      </div>
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          onClick={() => setPaused((p) => !p)}
-          aria-pressed={paused}
-          className="vm-marquee-toggle inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm text-muted-foreground hover:text-foreground"
-        >
-          {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
-          {paused ? "Play" : "Pause"} testimonials
-        </button>
-      </div>
+    <div className="vm-marquee-group relative flex flex-col gap-3">
+      {rows.map((r, i) => (
+        <Row key={i} items={r} reverse={i === 1} label={i === 0 ? "What founders say" : "More from founders"} />
+      ))}
     </div>
   );
 }
