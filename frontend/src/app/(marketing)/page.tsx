@@ -9,6 +9,7 @@ import { PricingSection } from "@/components/marketing/PricingSection";
 import { ProblemSection } from "@/components/marketing/ProblemSection";
 import { demoVideoEntity, ProductDemoSection } from "@/components/marketing/ProductDemoSection";
 import { ProductFeatureSection } from "@/components/marketing/ProductFeatureSection";
+import { TestimonialsSection } from "@/components/marketing/TestimonialsSection";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { UseCasesSection } from "@/components/marketing/UseCasesSection";
 import { BRAND_NAME, SITE_URL } from "@/lib/brand";
@@ -32,6 +33,7 @@ export default function HomePage() {
       <EvidenceShowcase />
       <MarketSizingSection />
       <UseCasesSection />
+      <TestimonialsSection />
       <PricingSection />
       <FAQSection />
       <FinalCTASection />
