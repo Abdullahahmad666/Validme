@@ -1,4 +1,5 @@
 import { SourceFlow } from "@/components/marketing/SourceFlow";
+import { SourceHub } from "@/components/marketing/SourceHub";
 import { Container, Section, SectionHeading } from "@/components/marketing/primitives";
 import { SOURCES } from "@/content/marketing";
 
@@ -12,6 +13,7 @@ export function TrustSection() {
           title="Turn market conversations into actionable intelligence."
           body="We only search sources we're allowed to use, and every report tells you exactly which ones it covered."
         />
+        <SourceHub sources={SOURCES} />
         <SourceFlow
           supported={SOURCES.filter((s) => s.status === "supported")}
           limited={SOURCES.filter((s) => s.status === "limited")}
