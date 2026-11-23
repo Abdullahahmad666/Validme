@@ -81,8 +81,8 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
       <div className="relative hidden aspect-[1000/520] sm:block" role="img" aria-label={`${BRAND_NAME} gathers evidence from: ${items.map((s) => s.name + (s.status === "limited" ? " (rolling out)" : "")).join(", ")}.`}>
         <svg viewBox="0 0 1000 520" className="absolute inset-0 size-full" aria-hidden>
           {items.map((s, i) => {
-            const [x, y] = SLOTS[i];
-            const d = `M ${x} ${y} L ${HUB[0]} ${HUB[1]}`;
+            const [px, py] = SLOTS[i];
+            const d = `M ${px} ${py} L ${HUB[0]} ${HUB[1]}`;
             const live = s.status === "supported";
             return (
               <g key={s.name}>
@@ -116,7 +116,7 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
 
         {/* Source pills */}
         {items.map((s, i) => {
-          const [x, y] = SLOTS[i];
+          const [px, py] = SLOTS[i];
           const Icon = ICONS[s.name] ?? Globe;
           return (
             <span
@@ -125,7 +125,7 @@ export function SourceHub({ sources }: { sources: readonly Source[] }) {
                 "absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 whitespace-nowrap rounded-full bg-white px-3.5 py-2 text-sm font-medium text-navy shadow-[0_10px_24px_-12px_rgba(0,0,0,0.6)] lg:text-[0.95rem]",
                 s.status === "limited" && "ring-2 ring-[#f2b446]/60",
               )}
-              style={{ left: `${x / 10}%`, top: `${(y / 520) * 100}%` }}
+              style={{ left: `${px / 10}%`, top: `${(py / 520) * 100}%` }}
             >
               <Icon className={cn("size-4", s.status === "limited" ? "text-warning" : "text-primary")} aria-hidden />
               {s.name}
