@@ -58,10 +58,10 @@ export function SourceFlow({ supported, limited }: { supported: readonly Source[
       className="mx-auto mt-14 grid max-w-5xl grid-cols-[minmax(0,1fr)] md:grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)]"
     >
       <section aria-labelledby="sources-supported" className="rounded-2xl border border-border bg-background/70 p-5 shadow-sm sm:p-6">
-        <h3 id="sources-supported" className="flex items-center gap-2 text-sm font-semibold text-success-text">
+        <h4 id="sources-supported" className="flex items-center gap-2 text-sm font-semibold text-success-text">
           <CheckCircle2 className="size-4" aria-hidden />
           Supported
-        </h3>
+        </h4>
         <p className="mt-1 text-sm text-muted-foreground">Searched for evidence in every report.</p>
         <ul className="mt-4 space-y-1">
           {supported.map((s, i) => {
@@ -114,10 +114,10 @@ export function SourceFlow({ supported, limited }: { supported: readonly Source[
       </div>
 
       <section aria-labelledby="sources-limited" className="flex flex-col rounded-2xl border border-border bg-background/70 p-5 shadow-sm sm:p-6">
-        <h3 id="sources-limited" className="flex items-center gap-2 text-sm font-semibold text-warning-text">
+        <h4 id="sources-limited" className="flex items-center gap-2 text-sm font-semibold text-warning-text">
           <CircleDashed className="size-4" aria-hidden />
           Limited / rolling out
-        </h3>
+        </h4>
         <p className="mt-1 text-sm text-muted-foreground">Customer-channel data for “Where to find your customers”, once connected.</p>
         <ul className="mt-4 space-y-2">
           {limited.map((s, j) => {

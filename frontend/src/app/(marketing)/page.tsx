@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DifferenceSection } from "@/components/marketing/DifferenceSection";
 import { EvidenceShowcase } from "@/components/marketing/EvidenceShowcase";
 import { FAQSection } from "@/components/marketing/FAQSection";
 import { FinalCTASection } from "@/components/marketing/FinalCTASection";
@@ -27,6 +28,7 @@ export default function HomePage() {
       <HeroSection />
       <TrustSection />
       <ProblemSection />
+      <DifferenceSection />
       <HowItWorksSection />
       <ProductDemoSection />
       <ProductFeatureSection />

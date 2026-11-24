@@ -1,6 +1,8 @@
 import { Bot, CheckCircle2, Copy, Database, Gauge, Info, Link2, Sparkles, X } from "lucide-react";
 import { Pill } from "@/components/marketing/DashboardMockup";
 import { Container, LogoMark, Reveal, SampleDataBadge, Section, SectionHeading } from "@/components/marketing/primitives";
+import { SourceFlow } from "@/components/marketing/SourceFlow";
+import { SOURCES } from "@/content/marketing";
 import { BRAND_NAME } from "@/lib/brand";
 
 const PRINCIPLES = [
@@ -115,6 +117,16 @@ export function EvidenceShowcase() {
             </Reveal>
           ))}
         </ul>
+        <div className="mt-20">
+          <h3 className="text-center text-xl font-semibold tracking-tight sm:text-2xl">Where every record comes from</h3>
+          <p className="mx-auto mt-2 max-w-2xl text-center text-muted-foreground">
+            Sources we&apos;re allowed to use, and how the evidence they give feeds the rest of your report.
+          </p>
+          <SourceFlow
+            supported={SOURCES.filter((s) => s.status === "supported")}
+            limited={SOURCES.filter((s) => s.status === "limited")}
+          />
+        </div>
         <p className="mt-10 flex items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
           <CheckCircle2 className="size-4 text-success" aria-hidden />
           Missing data is shown as &ldquo;unavailable&rdquo;, never filled in.
