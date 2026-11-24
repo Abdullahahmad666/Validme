@@ -7,8 +7,8 @@ import { BRAND_NAME } from "@/lib/brand";
 /**
  * The product walkthrough: the real video player when DEMO_VIDEO.src is set, otherwise a code-drawn walkthrough
  * (sample data, labelled; pausable; still for reduced motion). The video plays muted once it scrolls into view
- * (not with reduced motion); under it sit the example-data note, the music credit and a text alternative of
- * everything shown on screen.
+ * (not with reduced motion). Nothing visible sits under it (the video shows its own example-data label and
+ * music credit); screen readers get the note and a text alternative of everything on screen.
  */
 export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }) {
   return (
@@ -34,27 +34,14 @@ export function ProductDemoSection({ video = DEMO_VIDEO }: { video?: DemoVideo }
             )}
           </div>
           {video.src && (
-            <div className="mt-4 text-sm text-muted-foreground">
+            // Screen-reader text alternative only; the video itself carries the example-data label and music credit.
+            <div className="sr-only">
               <p id="demo-note">{video.note}</p>
-              <p className="mt-1">
-                Music: “{video.credit.track}” by {video.credit.author} (
-                <a href={video.credit.sourceUrl} className="underline underline-offset-2 hover:text-foreground" rel="noopener noreferrer" target="_blank">
-                  ende.app
-                </a>
-                ), licensed under{" "}
-                <a href={video.credit.licenseUrl} className="underline underline-offset-2 hover:text-foreground" rel="noopener noreferrer license" target="_blank">
-                  {video.credit.license}
-                </a>
-                .
-              </p>
-              <details className="mt-2">
-                <summary className="cursor-pointer py-3 font-medium text-foreground">What the video shows</summary>
-                <ol id="demo-shows" className="mt-2 list-decimal space-y-1 pl-5">
-                  {video.shows.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ol>
-              </details>
+              <ol>
+                {video.shows.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ol>
             </div>
           )}
         </Reveal>

@@ -5,7 +5,7 @@ import { demoVideoEntity, ProductDemoSection } from "@/components/marketing/Prod
 import { DEMO_VIDEO } from "@/content/marketing";
 
 describe("ProductDemoSection", () => {
-  it("shows the demo video, muted with controls, with poster, example-data note, music credit and a text alternative", () => {
+  it("shows the demo video, muted with controls, with poster, a screen-reader note and text alternative, no visible credit", () => {
     const out = renderToStaticMarkup(createElement(ProductDemoSection));
     expect(out).toContain('<source src="/demo/validme-demo.mp4" type="video/mp4"/>');
     expect(out).toContain('poster="/demo/validme-demo-poster.jpg"');
@@ -15,10 +15,10 @@ describe("ProductDemoSection", () => {
     expect(out).toMatch(/<video[^>]*controls=""/);
     expect(out).toContain("Example project with illustrative data");
     expect(out).toContain("Music only, no narration");
-    expect(out).toContain("Sascha Ende");
-    expect(out).toContain('href="https://creativecommons.org/licenses/by/4.0/"');
+    // The credit lives at the end of the video, not under it.
+    expect(out).not.toContain("Music: “");
+    expect(out).toContain('class="sr-only"');
     expect(out).toContain("A score, and how sure it is"); // on-screen captions are quoted in the text alternative
-    expect(out).toContain("What the video shows");
     expect(out).toContain('aria-describedby="demo-note"');
     expect(out.match(/<li>/g)?.length).toBe(DEMO_VIDEO.shows.length);
   });
@@ -27,7 +27,7 @@ describe("ProductDemoSection", () => {
     const out = renderToStaticMarkup(createElement(ProductDemoSection, { video: { ...DEMO_VIDEO, src: null } }));
     expect(out).not.toContain("<video");
     expect(out).toContain("Sample data · illustration");
-    expect(out).not.toContain("What the video shows");
+    expect(out).not.toContain('id="demo-note"');
   });
 
   it("describes the video in structured data with facts from the same config", () => {
