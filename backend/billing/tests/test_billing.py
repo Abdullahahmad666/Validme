@@ -301,3 +301,12 @@ def test_monthly_usage_is_zero_filled_and_own(api, other_api, user, other):
     assert len(rows) == 12 and rows[-1]["used"] == 2 and rows[-1]["added"] == 6
     assert sum(r["used"] for r in rows) == 2  # the other user's spend isn't here
     assert other_api.get("/api/billing/usage/monthly").json()["results"][-1]["used"] == 9
+
+
+def test_free_pack_orders_and_odd_payloads_grant_nothing(client, purchase, user):
+    before = user.credits
+    assert post_hook(client, order(purchase, total=0)).status_code == 200  # e.g. a 100%-off code
+    assert post_hook(client, ["not", "an", "object"]).status_code == 200
+    assert post_hook(client, {"type": "order.paid", "data": "x"}).status_code == 200
+    user.refresh_from_db()
+    assert user.credits == before and Purchase.objects.get(pk=purchase.pk).status == "pending"

@@ -161,7 +161,7 @@ def _subscription_state(data: dict) -> tuple[str, object, object]:
     period_end = _dt(data.get("current_period_end"))
     if data.get("ended_at") or status == "incomplete_expired":
         return "expired", None, _dt(data.get("ended_at"))
-    if status == "canceled" or (status in ("active", "trialing") and data.get("cancel_at_period_end")):
+    if status == "canceled" or (status in ("active", "trialing", "past_due") and data.get("cancel_at_period_end")):
         return "cancelled", None, _dt(data.get("ends_at")) or period_end
     mapped = {"active": "active", "trialing": "on_trial", "past_due": "past_due", "unpaid": "unpaid"}.get(status, status or "unknown")
     return mapped, (period_end if mapped in ("active", "on_trial") else None), None
@@ -171,13 +171,12 @@ def _subscription_event(sub_id: str, data: dict) -> str:
     from billing.models import Subscription
 
     mapped = plan_for_product(data.get("product_id"))
-    if mapped is None:
-        logger.warning("subscription %s has a product that isn't one of our plans", sub_id)
-        return "ignored unknown product"
-    plan, interval = mapped
-    meta = data.get("metadata") or {}
+    meta = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
     with transaction.atomic():
         sub = Subscription.objects.select_for_update().filter(provider_subscription_id=sub_id).first()
+        if mapped is None and sub is None:
+            logger.warning("subscription %s has a product that isn't one of our plans", sub_id)
+            return "ignored unknown product"
         if sub is None:
             # First sight: the user comes from our own checkout's signed metadata and must exist.
             expected = checkout_sig(meta.get("user_id", ""), meta.get("plan", ""))
@@ -193,7 +192,13 @@ def _subscription_event(sub_id: str, data: dict) -> str:
         event_at = _dt(data.get("modified_at")) or _dt(data.get("created_at"))
         if event_at and sub.provider_updated_at and event_at < sub.provider_updated_at:
             return "ignored stale event"  # a retried or out-of-order delivery must not undo a newer state
-        sub.plan, sub.interval, sub.variant_id = plan["id"], interval, str(data.get("product_id"))[:40]
+        if mapped is not None:
+            sub.plan, sub.interval = mapped[0]["id"], mapped[1]
+            sub.variant_id = str(data.get("product_id"))[:40]
+        else:
+            # Moved to a product we don't sell (any more): keep the last known plan, but still follow its status so
+            # a cancellation or revocation always ends access.
+            logger.warning("subscription %s moved to a product that isn't one of our plans", sub_id)
         status, sub.renews_at, sub.ends_at = _subscription_state(data)
         sub.status = status[:20]
         sub.provider_updated_at = event_at or sub.provider_updated_at
@@ -219,11 +224,24 @@ def _invoice_paid(invoice_id: str, attrs: dict) -> str:
     sub = Subscription.objects.filter(provider_subscription_id=str(attrs.get("subscription_id", ""))).first()
     if sub is None:
         raise WebhookRetry(f"invoice {invoice_id} for a subscription we haven't seen yet")
-    plan = next((p for p in subscription_plans() if p["id"] == sub.plan), None)
-    credits = int((plan or {}).get("monthly_credits", 0)) * (12 if sub.interval == "year" else 1)
+    # The order's own product says what was paid for (a renewal can arrive before the plan-change event).
+    plan, interval = plan_for_product(attrs.get("product_id")) or (
+        next((p for p in subscription_plans() if p["id"] == sub.plan), None),
+        sub.interval,
+    )
+    credits = int((plan or {}).get("monthly_credits", 0)) * (12 if interval == "year" else 1)
+    # A refund delivered before this paid event: grant only the part that wasn't refunded.
+    early = UsageTransaction.objects.filter(idempotency_key__startswith=f"{EARLY_REFUND}{invoice_id}:").values_list(
+        "idempotency_key", flat=True
+    )
+    early_share = max((int(k.rsplit(":", 1)[1]) for k in early), default=0) / 10000
+    credits -= int(credits * early_share)
     if credits > 0:
         grant_credits(sub.user, credits, "subscription_credits", idempotency_key=f"sub_credits:{invoice_id}")
     return f"granted {credits}"
+
+
+EARLY_REFUND = "sub_refund_early:"
 
 
 GRANTING_REASONS = ("subscription_create", "subscription_cycle")
@@ -237,7 +255,7 @@ def _invoice_refunded(invoice_id: str, attrs: dict) -> str:
     with transaction.atomic():
         grant = UsageTransaction.objects.filter(idempotency_key=f"sub_credits:{invoice_id}").first()
         if grant is None:
-            return "nothing granted for this invoice"
+            return _record_early_refund(invoice_id, attrs, share)
         user = User.objects.select_for_update().get(pk=grant.user_id)
         target = int(grant.credits * share)
         prefix = f"sub_refund:{invoice_id}:"
@@ -251,6 +269,20 @@ def _invoice_refunded(invoice_id: str, attrs: dict) -> str:
     return f"took back {take}"
 
 
+def _record_early_refund(invoice_id: str, attrs: dict, share: float) -> str:
+    """A refund for a subscription order whose paid event hasn't been applied yet (it may be waiting on a retry):
+    remember the refunded share (zero-credit ledger row, hidden from usage) so the paid event grants only the rest."""
+    from billing.models import Subscription
+
+    sub = Subscription.objects.filter(provider_subscription_id=str(attrs.get("subscription_id", ""))).first()
+    if sub is None:
+        raise WebhookRetry(f"refund for order {invoice_id} of a subscription we haven't seen yet")
+    key = f"{EARLY_REFUND}{invoice_id}:{int(share * 10000)}"
+    if not UsageTransaction.objects.filter(idempotency_key=key).exists():
+        UsageTransaction.objects.create(user=sub.user, operation="subscription_refund", credits=0, idempotency_key=key)
+    return "refund recorded before payment"
+
+
 class WebhookRetry(Exception):
     """Return non-2xx so the provider redelivers (e.g. a refund for an order we haven't linked yet)."""
 
@@ -258,16 +290,18 @@ class WebhookRetry(Exception):
 def handle_webhook(payload: dict) -> str:
     """Apply one verified Polar webhook ({"type": "order.paid", "data": {...}}). Returns what happened (for logs).
     Idempotent: providers retry, and deliveries can arrive out of order."""
+    if not isinstance(payload, dict):
+        return "ignored non-object payload"
     event = str(payload.get("type") or "")
-    data = payload.get("data") or {}
-    obj_id = str(data.get("id") or "")
-    if not obj_id or not isinstance(data, dict):
+    data = payload.get("data")
+    if not isinstance(data, dict) or not data.get("id"):
         return f"ignored {event}"
+    obj_id = str(data["id"])
     if event.startswith("subscription."):
         return _subscription_event(obj_id, data)
     if event not in ("order.paid", "order.refunded"):
         return f"ignored {event}"
-    meta = data.get("metadata") or {}
+    meta = data.get("metadata") if isinstance(data.get("metadata"), dict) else {}
     if data.get("subscription_id"):
         # Subscription orders: the first payment, renewals and plan-change prorations.
         if event == "order.paid":
@@ -292,6 +326,13 @@ def handle_webhook(payload: dict) -> str:
 
 
 def _order_paid(order_id: str, custom: dict, attrs: dict) -> str:
+    try:
+        if int(attrs.get("total_amount") or 0) <= 0:
+            # e.g. a 100%-off discount code: packs are only granted for money actually paid.
+            logger.warning("paid order %s for a pack has no amount", order_id)
+            return "ignored zero order"
+    except (TypeError, ValueError):
+        return "ignored order without total"
     try:
         purchase_id = uuid.UUID(str(custom.get("purchase_id", "")))
     except ValueError:

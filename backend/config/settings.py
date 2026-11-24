@@ -352,6 +352,13 @@ POLAR_WEBHOOK_SECRET = env("POLAR_WEBHOOK_SECRET", default="")
 # "sandbox" or "production": separate Polar environments with their own token, products and webhook secret.
 # Defaults to DEBUG: production (DEBUG off) talks to live Polar unless sandbox is set explicitly.
 POLAR_SERVER = env("POLAR_SERVER", default="sandbox" if DEBUG else "production")
+if POLAR_SERVER not in ("sandbox", "production"):
+    raise ImproperlyConfigured('POLAR_SERVER must be "sandbox" or "production".')
+# Sandbox orders are paid with test cards: refuse to honour them in production unless explicitly allowed (staging).
+if not DEBUG and POLAR_SERVER == "sandbox" and not env.bool("POLAR_ALLOW_SANDBOX", default=False):
+    raise ImproperlyConfigured(
+        "POLAR_SERVER=sandbox with DEBUG off: set POLAR_SERVER=production (or POLAR_ALLOW_SANDBOX=True on staging)."
+    )
 # JSON list of packs: [{"id": "starter", "credits": 6, "product_id": "<polar product id>"}]. Prices live in Polar.
 CREDIT_PACKS = env.json("CREDIT_PACKS", default=[])
 # Subscription plans: one Polar product per plan and interval + credits granted on each paid order.

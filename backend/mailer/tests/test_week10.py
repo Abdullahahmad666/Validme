@@ -333,7 +333,8 @@ def test_invoice_refund_takes_back_credits_once(client, user, plans):
     assert user.credits == before - 1  # the 4 granted come back out; the one spent stays spent
 
 
-def test_refund_of_an_ungranted_subscription_order_isnt_retried_forever(client, user, plans):
+def test_refund_of_an_ungranted_subscription_order_is_recorded_not_retried(client, user, plans):
+    post_hook(client, _sub_event(user))
     event = _invoice(order_id="ord_x", event="order.refunded", status="refunded", refunded_amount=1900)
     assert post_hook(client, event).status_code == 200
 
@@ -351,7 +352,7 @@ def test_invoices_grant_monthly_credits_once(client, user, plans):
 def test_yearly_invoice_grants_a_year(client, user, plans):
     post_hook(client, _sub_event(user, product="prod-founder-y", sub_id="sub_y"))
     before = user.credits
-    post_hook(client, _invoice(order_id="ord_y", sub_id="sub_y"))
+    post_hook(client, _invoice(order_id="ord_y", sub_id="sub_y", product_id="prod-founder-y"))
     user.refresh_from_db()
     assert user.credits == before + 48
 
@@ -384,3 +385,51 @@ def test_subscribe_and_portal_endpoints(api, user, plans, monkeypatch):
     assert api.post("/api/billing/portal").json()["url"].startswith("https://")
     body = api.get("/api/billing/packs").json()
     assert body["subscription"]["plan"] == "founder" and body["limits"]["plan"] == "founder"
+
+
+def test_refund_before_the_paid_order_grants_only_the_rest(client, user, plans):
+    post_hook(client, _sub_event(user))
+    before = user.credits
+    refund = _invoice(order_id="ord_e", event="order.refunded", status="refunded", refunded_amount=1900)
+    assert post_hook(client, refund).status_code == 200
+    assert post_hook(client, _invoice(order_id="ord_e")).status_code == 200  # the paid event, retried late
+    user.refresh_from_db()
+    assert user.credits == before  # fully refunded: nothing granted
+    half = _invoice(order_id="ord_h", event="order.refunded", status="partially_refunded", refunded_amount=950)
+    post_hook(client, half)
+    post_hook(client, _invoice(order_id="ord_h", reason="subscription_cycle"))
+    user.refresh_from_db()
+    assert user.credits == before + 2
+    # Usage history doesn't show the bookkeeping rows.
+    assert all(t.credits != 0 for t in UsageTransaction.objects.filter(user=user).exclude(credits=0))
+
+
+def test_early_refund_for_an_unknown_subscription_is_retried(client, user, plans):
+    refund = _invoice(order_id="ord_z", sub_id="sub_later", event="order.refunded", status="refunded", refunded_amount=1900)
+    assert post_hook(client, refund).status_code == 409
+
+
+def test_product_we_dont_sell_still_follows_status(client, user, plans):
+    post_hook(client, _sub_event(user))
+    post_hook(client, _sub_event(user, event="subscription.updated", product="prod-retired", at=1))
+    sub = Subscription.objects.get()
+    assert sub.plan == "founder" and sub.status == "active"  # last known plan kept
+    ended = timezone.now().isoformat()
+    post_hook(client, _sub_event(user, event="subscription.revoked", product="prod-retired", status="canceled", ended_at=ended, at=2))
+    assert plan_for(user) == "free"  # a revocation always ends access
+
+
+def test_cancelled_while_past_due_ends_at_period_end(client, user, plans):
+    post_hook(client, _sub_event(user))
+    post_hook(client, _sub_event(user, event="subscription.updated", status="past_due", cancel_at_period_end=True, at=1))
+    sub = Subscription.objects.get()
+    assert sub.status == "cancelled" and sub.ends_at is not None
+
+
+def test_renewal_after_a_plan_change_grants_the_new_plans_credits(client, user, plans, settings):
+    settings.SUBSCRIPTION_PLANS = [*PLANS, {"id": "pro", "monthly_product_id": "prod-pro-m", "monthly_credits": 10}]
+    post_hook(client, _sub_event(user))
+    before = user.credits
+    post_hook(client, _invoice(order_id="ord_p", reason="subscription_cycle", product_id="prod-pro-m"))
+    user.refresh_from_db()
+    assert user.credits == before + 10
