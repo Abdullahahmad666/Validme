@@ -304,6 +304,20 @@ html { scroll-padding-top: 5.5rem; }
 [data-reveal="wait"] .rv-fade { opacity: 0; }
 [data-reveal] .rv-ring { transition: stroke-dashoffset 1500ms cubic-bezier(0.22, 0.8, 0.25, 1) 300ms; }
 [data-reveal="wait"] .rv-ring { stroke-dashoffset: var(--vm-ring-len); }
+/* Problem cards: the problem is struck through, then the fix rises in (after the card itself). */
+.rv-strike { transform-origin: left center; }
+[data-reveal] .rv-strike { transition: transform 600ms cubic-bezier(0.22, 0.8, 0.25, 1); transition-delay: calc(700ms + var(--i, 0) * 180ms); }
+[data-reveal="wait"] .rv-strike { transform: scaleX(0); }
+[data-reveal] .rv-fix { transition: opacity 600ms ease-out, transform 600ms cubic-bezier(0.22, 0.8, 0.25, 1); transition-delay: calc(1100ms + var(--i, 0) * 180ms); }
+[data-reveal="wait"] .rv-fix { opacity: 0; transform: translateY(16px); }
+/* "Keeps working" timeline: the line grows down as the month's events arrive; the newest one pulses briefly. */
+[data-reveal] .rv-line { transform-origin: top center; transition: transform 1600ms cubic-bezier(0.22, 0.8, 0.25, 1) 400ms; }
+[data-reveal="wait"] .rv-line { transform: scaleY(0); }
+@keyframes vm-latest {
+  0% { box-shadow: 0 0 0 0 rgba(127, 166, 230, 0.55); }
+  100% { box-shadow: 0 0 0 12px rgba(127, 166, 230, 0); }
+}
+.vm-latest { animation: vm-latest 1.6s ease-out 2.4s 3; }
 
 /* Testimonial marquee: each row slides by exactly one copy of its cards (half the list plus half a gap). */
 @keyframes vm-marquee {

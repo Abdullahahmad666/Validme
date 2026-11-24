@@ -62,15 +62,74 @@ export const PROBLEMS = [
   {
     title: "Building without validation",
     body: "Months of nights and weekends go into a product before anyone has confirmed that people want it, or will pay for it.",
+    fix: "Check demand first: a score built from real conversations, with how sure it is, before you write code. Then test it with a landing page or survey.",
   },
   {
     title: "Research scattered everywhere",
     body: "Forum threads, search results, reviews and competitor pages live in twenty tabs. Connecting them into a clear picture takes days.",
+    fix: "One report: every quote kept with its link and dates, grouped into themes and ranked by how many different people raised them.",
   },
   {
     title: "No clear distribution strategy",
     body: "Even a good product stalls when you don't know who your first customers are or where they actually spend their time.",
+    fix: "A first-10-customers plan: the places your audience already talks, taken from the evidence itself.",
   },
+  {
+    title: "The market moves after you research",
+    body: "Competitors change prices and features, new ones launch, and a one-off look goes stale within weeks.",
+    fix: "It keeps watching: competitor pages re-read on a schedule, your score re-checked weekly, and a digest email when something matters.",
+  },
+] as const;
+
+// ---------------------------------------------------------------------------
+// Why not just ask an AI chat? (facts about ValidMe's own features; fair about chat assistants)
+// ---------------------------------------------------------------------------
+export const DIFFERENTIATORS = [
+  {
+    id: "evidence",
+    title: "Evidence you can check",
+    chat: "An answer you trust, or verify yourself",
+    us: "Every finding links to the quotes behind it, with dates and how sure it is.",
+  },
+  {
+    id: "competitors",
+    title: "Keeps watching competitors",
+    chat: "Only when you think to ask again",
+    us: "Re-reads competitor pages on a schedule (daily on paid plans) and flags price and feature changes.",
+  },
+  {
+    id: "recheck",
+    title: "Re-checks your idea",
+    chat: "A snapshot of the moment you asked",
+    us: "Re-checks your score every week as evidence ages and new signals arrive.",
+  },
+  {
+    id: "digest",
+    title: "Tells you what changed",
+    chat: "Nothing until you open it",
+    us: "A Monday digest email with the changes that matter, each linked to its evidence.",
+  },
+  {
+    id: "lab",
+    title: "Tests with real people",
+    chat: "Can draft a survey; you run it elsewhere",
+    us: "Landing pages, price tests and surveys, and real sign-ups count for more than research.",
+  },
+  {
+    id: "customers",
+    title: "Finds your first customers",
+    chat: "General ideas for channels",
+    us: "The places your audience already talks, taken from the evidence itself.",
+  },
+] as const;
+
+/** Illustrative month with ValidMe (labelled "Sample data" on the page). */
+export const KEEPS_WORKING = [
+  { id: "report", when: "Day 1", title: "Report ready", detail: "72/100 · medium confidence · 31 sourced records" },
+  { id: "price", when: "Week 1", title: "Competitor A changed its pricing", detail: "$129 → $149 a month, read from its pricing page" },
+  { id: "signal", when: "Week 2", title: "New signal on your Radar", detail: "4 new threads about manual stock counts" },
+  { id: "survey", when: "Week 3", title: "Your survey answered", detail: "24 answers support “owners would pay $29 a month”" },
+  { id: "digest", when: "Monday", title: "Weekly digest in your inbox", detail: "The 3 changes that matter, each linked to its source" },
 ] as const;
 
 // ---------------------------------------------------------------------------
