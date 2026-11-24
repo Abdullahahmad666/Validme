@@ -1,9 +1,9 @@
 /**
- * Price catalog (decided Week 10). Display only: the amount actually charged is whatever the Lemon Squeezy product
- * variant says, and the backend's /billing/packs returns the provider's own price label (and monthly credits) when
- * payments are live, which always win over these numbers. Keep this file, SUBSCRIPTION_PLANS in .env and the Lemon
- * Squeezy variants in step. Entitlements are enforced server-side from PLAN_LIMITS / MONITORING_AI_DAILY in
- * backend/config/settings.py; the numbers below mirror them for display.
+ * Price catalog (decided Week 10). Display only: the amount actually charged is whatever the Polar product says,
+ * and the backend's /billing/packs returns the provider's own price label (and monthly credits) when payments are
+ * live, which always win over these numbers. Keep this file, SUBSCRIPTION_PLANS in .env and the Polar products in
+ * step. Entitlements are enforced server-side from PLAN_LIMITS / MONITORING_AI_DAILY in backend/config/settings.py;
+ * the numbers below mirror them for display.
  */
 
 export type PlanId = "free" | "founder" | "pro";

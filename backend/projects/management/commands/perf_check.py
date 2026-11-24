@@ -49,7 +49,7 @@ class Command(BaseCommand):
             "ALLOWED_HOSTS": [*settings.ALLOWED_HOSTS, "testserver"],
             "ANTHROPIC_API_KEY": "",
             "OPENAI_API_KEY": "",
-            "LEMONSQUEEZY_API_KEY": "",
+            "POLAR_ACCESS_TOKEN": "",
         }
         # Throttles are switched off by patching APIView: DRF copies the default throttle classes onto each view
         # at import time, so overriding the setting wouldn't reach them (and every endpoint would hit 429).

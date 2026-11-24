@@ -15,7 +15,7 @@ from accounts.models import ApiKey
 from billing import services
 from billing.models import UsageTransaction
 from billing.plans import active_subscription, limits_for
-from billing.providers import lemonsqueezy as provider
+from billing.providers import polar as provider
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class PacksView(APIView):
                     else None
                 ),
                 "packs": [
-                    {"id": p["id"], "credits": int(p["credits"]), "price": provider.price_label(str(p["variant_id"]))}
+                    {"id": p["id"], "credits": int(p["credits"]), "price": provider.price_label(str(p["product_id"]))}
                     for p in services.packs()
                 ]
                 if available
@@ -65,8 +65,8 @@ class PacksView(APIView):
                     {
                         "id": p["id"],
                         "monthly_credits": int(p.get("monthly_credits", 0)),
-                        "month": provider.price_label(str(p["monthly_variant_id"])) if p.get("monthly_variant_id") else None,
-                        "year": provider.price_label(str(p["yearly_variant_id"])) if p.get("yearly_variant_id") else None,
+                        "month": provider.price_label(str(p["monthly_product_id"])) if p.get("monthly_product_id") else None,
+                        "year": provider.price_label(str(p["yearly_product_id"])) if p.get("yearly_product_id") else None,
                     }
                     for p in services.subscription_plans()
                 ]
@@ -242,8 +242,8 @@ class UsageView(APIView):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class LemonSqueezyWebhookView(APIView):
-    """POST /billing/webhooks/lemonsqueezy — signature-verified; the only path that grants purchased credits."""
+class PolarWebhookView(APIView):
+    """POST /billing/webhooks/polar — Standard Webhooks signature-verified; the only path that grants paid credits."""
 
     authentication_classes: list = []
     permission_classes = [permissions.AllowAny]
@@ -251,7 +251,7 @@ class LemonSqueezyWebhookView(APIView):
 
     def post(self, request):
         raw = request.body  # read before parsing: the signature covers the exact bytes
-        if not provider.verify_signature(raw, request.headers.get("X-Signature", "")):
+        if not provider.verify_signature(raw, request.headers):
             logger.warning("rejected webhook with a bad signature")
             return Response({"error": {"code": "bad_signature", "message": "Invalid signature."}}, status=401)
         try:
@@ -261,7 +261,7 @@ class LemonSqueezyWebhookView(APIView):
         try:
             result = services.handle_webhook(payload)
         except services.WebhookRetry as exc:
-            logger.warning("lemonsqueezy webhook deferred: %s", exc)
+            logger.warning("polar webhook deferred: %s", exc)
             return Response({"error": {"code": "retry", "message": "Not ready; retry later."}}, status=409)
-        logger.info("lemonsqueezy webhook: %s", result)
+        logger.info("polar webhook: %s", result)
         return Response({"ok": True})

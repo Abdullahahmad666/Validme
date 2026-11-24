@@ -1,8 +1,10 @@
 """Week 6: purchases via signed webhooks, plan limits, refunds, job recovery, analytics, JSON errors."""
 
+import base64
 import hashlib
 import hmac
 import json
+import time
 from datetime import timedelta
 
 import pytest
@@ -12,66 +14,101 @@ from rest_framework.test import APIClient
 from accounts.services import issue_api_key
 from analytics.models import AnalyticsEvent
 from billing.models import Purchase, UsageTransaction
-from billing.providers import lemonsqueezy
+from billing.providers import polar
 from projects.models import Project
 from research.models import JobStage, ResearchJob
 from research.recovery import recover_stuck_jobs
 from research.services import create_stages
 
-SECRET = "whsec-test"
-PACK = {"id": "starter", "credits": 6, "variant_id": "111"}
+SECRET = "whsec_" + base64.b64encode(b"validme-test-signing-key-32bytes").decode()
+PACK = {"id": "starter", "credits": 6, "product_id": "prod-starter"}
 REAL_LIMITS = {
     "free": {"depths": ["quick"], "max_running": 1, "daily_launches": 3},
     "paid": {"depths": ["quick", "standard", "deep"], "max_running": 3, "daily_launches": 20},
 }
 IDEA = "A stock counting app for small independent restaurants that replaces clipboards and spreadsheets."
+HOOK_URL = "/api/billing/webhooks/polar"
 
 
 @pytest.fixture
 def payments(settings):
-    settings.LEMONSQUEEZY_API_KEY = "test-api-key"
-    settings.LEMONSQUEEZY_STORE_ID = "1"
-    settings.LEMONSQUEEZY_WEBHOOK_SECRET = SECRET
-    settings.LEMONSQUEEZY_TEST_MODE = True
+    settings.POLAR_ACCESS_TOKEN = "test-token"
+    settings.POLAR_WEBHOOK_SECRET = SECRET
+    settings.POLAR_SERVER = "sandbox"
     settings.CREDIT_PACKS = [PACK]
 
 
-def post_hook(client, payload, secret=SECRET):
+def sign(raw: bytes, *, secret=SECRET, msg_id="msg_1", ts=None, legacy=False) -> dict:
+    """Standard Webhooks headers, as Polar sends them."""
+    ts = str(int(time.time()) if ts is None else ts)
+    key = secret.encode() if legacy else base64.b64decode(secret.removeprefix("whsec_"))
+    sig = base64.b64encode(hmac.new(key, f"{msg_id}.{ts}.".encode() + raw, hashlib.sha256).digest()).decode()
+    return {"HTTP_WEBHOOK_ID": msg_id, "HTTP_WEBHOOK_TIMESTAMP": ts, "HTTP_WEBHOOK_SIGNATURE": f"v1,{sig}"}
+
+
+def post_hook(client, payload, secret=SECRET, **sign_kw):
     raw = json.dumps(payload).encode()
-    sig = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
-    return client.post("/api/billing/webhooks/lemonsqueezy", raw, content_type="application/json", HTTP_X_SIGNATURE=sig)
+    return client.post(HOOK_URL, raw, content_type="application/json", **sign(raw, secret=secret, **sign_kw))
 
 
-def order(purchase, *, order_id="9001", event="order_created", status="paid", variant="111", user_id=None, test_mode=True):
+def order(
+    purchase,
+    *,
+    order_id="9001",
+    event="order.paid",
+    status="paid",
+    product="prod-starter",
+    user_id=None,
+    reason="purchase",
+    total=1900,
+    refunded=0,
+):
     return {
-        "meta": {
-            "event_name": event,
-            "test_mode": test_mode,
-            "custom_data": {"purchase_id": str(purchase.id), "user_id": str(user_id or purchase.user_id)},
-        },
+        "type": event,
         "data": {
-            "type": "orders",
             "id": order_id,
-            "attributes": {"status": status, "first_order_item": {"variant_id": int(variant)}},
+            "status": status,
+            "billing_reason": reason,
+            "product_id": product,
+            "subscription_id": None,
+            "total_amount": total,
+            "refunded_amount": refunded,
+            "metadata": {"purchase_id": str(purchase.id), "user_id": str(user_id or purchase.user_id), "kind": "pack"},
         },
     }
 
 
 @pytest.fixture
 def purchase(user, payments):
-    return Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="starter", credits=6)
+    return Purchase.objects.create(user=user, provider="polar", pack_id="starter", credits=6)
 
 
 def test_webhook_rejects_bad_signature(client, purchase):
-    assert post_hook(client, order(purchase), secret="wrong").status_code == 401
+    wrong = "whsec_" + base64.b64encode(b"someone-elses-signing-key-32byte").decode()
+    assert post_hook(client, order(purchase), secret=wrong).status_code == 401
     purchase.refresh_from_db()
     assert purchase.status == "pending"
+
+
+def test_webhook_rejects_stale_or_unsigned_deliveries(client, purchase):
+    assert post_hook(client, order(purchase), ts=int(time.time()) - 3600).status_code == 401  # replayed capture
+    assert client.post(HOOK_URL, b"{}", content_type="application/json").status_code == 401  # no headers
+    purchase.refresh_from_db()
+    assert purchase.status == "pending"
+
+
+def test_webhook_accepts_legacy_polar_secrets(client, purchase, user):
+    """Secrets created before Polar's Standard Webhooks switch sign with the whole secret string as the key."""
+    before = user.credits
+    assert post_hook(client, order(purchase), legacy=True).status_code == 200
+    user.refresh_from_db()
+    assert user.credits == before + 6
 
 
 def test_paid_order_credits_once_even_when_replayed(client, purchase, user):
     before = user.credits
     assert post_hook(client, order(purchase)).status_code == 200
-    assert post_hook(client, order(purchase)).status_code == 200  # provider retry
+    assert post_hook(client, order(purchase), msg_id="msg_2").status_code == 200  # provider retry
     user.refresh_from_db()
     purchase.refresh_from_db()
     assert user.credits == before + 6 and purchase.status == "paid" and purchase.provider_order_id == "9001"
@@ -81,7 +118,7 @@ def test_paid_order_credits_once_even_when_replayed(client, purchase, user):
 
 @pytest.mark.parametrize(
     "overrides",
-    [{"variant": "222"}, {"user_id": "999999"}, {"test_mode": False}, {"status": "pending"}],
+    [{"product": "prod-other"}, {"user_id": "999999"}, {"reason": "subscription_cycle"}, {"status": "pending"}],
 )
 def test_suspicious_orders_grant_nothing(client, purchase, user, overrides):
     before = user.credits
@@ -96,7 +133,7 @@ def test_refund_takes_back_unspent_credits_once(client, purchase, user):
     user.credits = 4  # spent some of the pack
     user.save()
     for _ in range(2):
-        post_hook(client, order(purchase, event="order_refunded", status="refunded"))
+        post_hook(client, order(purchase, event="order.refunded", status="refunded", refunded=1900))
     user.refresh_from_db()
     assert user.credits == 0 and Purchase.objects.get(pk=purchase.pk).status == "refunded"
     assert UsageTransaction.objects.get(operation="purchase_refund").credits == -4
@@ -112,17 +149,18 @@ def test_checkout_creates_pending_purchase(api, user, payments, monkeypatch):
 
     def fake_checkout(**kw):
         seen.update(kw)
-        return "chk_1", "https://store.lemonsqueezy.com/checkout/custom/abc"
+        return "chk_1", "https://sandbox.polar.sh/checkout/polar_c_abc"
 
-    monkeypatch.setattr(lemonsqueezy, "create_checkout", fake_checkout)
+    monkeypatch.setattr(polar, "create_checkout", fake_checkout)
     r = api.post("/api/billing/checkout", {"pack": "starter"}, format="json")
     assert r.status_code == 200 and r.json()["url"].startswith("https://")
     p = Purchase.objects.get(user=user)
     assert (
         p.status == "pending"
-        and seen["custom"]["purchase_id"] == p.id
-        and seen["custom"]["kind"] == "pack"
-        and seen["variant_id"] == "111"
+        and seen["metadata"]["purchase_id"] == p.id
+        and seen["metadata"]["kind"] == "pack"
+        and seen["product_id"] == "prod-starter"
+        and seen["customer_ref"] == str(user.pk)
     )
     assert api.post("/api/billing/checkout", {"pack": "nope"}, format="json").status_code == 400
 
@@ -135,7 +173,7 @@ def test_api_keys_cannot_buy(user, payments):
 
 
 def test_packs_hide_provider_ids(api, payments, monkeypatch):
-    monkeypatch.setattr(lemonsqueezy, "price_label", lambda v: "19.00 USD")
+    monkeypatch.setattr(polar, "price_label", lambda v: "19.00 USD")
     body = api.get("/api/billing/packs").json()
     assert body["payments_available"] and body["packs"] == [{"id": "starter", "credits": 6, "price": "19.00 USD"}]
     assert "111" not in json.dumps(body) and body["limits"]["plan"] == "free"
@@ -178,7 +216,7 @@ def test_free_plan_is_quick_only_and_capped(api, user, settings):
 
 def test_paid_plan_unlocks_depths(api, user, settings):
     settings.PLAN_LIMITS = REAL_LIMITS
-    Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="starter", credits=6, status="paid")
+    Purchase.objects.create(user=user, provider="polar", pack_id="starter", credits=6, status="paid")
     assert launch(api, make_project(api), "standard", "p").status_code == 201
     assert api.get("/api/me").json()["plan"] == "paid"
 

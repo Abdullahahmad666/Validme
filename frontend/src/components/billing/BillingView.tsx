@@ -256,7 +256,7 @@ function Plans() {
         </p>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
-        Prices in US dollars; any sales tax or VAT is calculated at checkout by Lemon Squeezy, our merchant of record.
+        Prices in US dollars; any sales tax or VAT is calculated at checkout by Polar, our merchant of record.
       </p>
     </section>
   );
