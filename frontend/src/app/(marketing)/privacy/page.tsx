@@ -83,7 +83,7 @@ export default function PrivacyPage() {
               .
             </p>
             <p>
-              Payments are handled by Lemon Squeezy, our merchant of record. You enter card details on their checkout, never
+              Payments are handled by Polar, our merchant of record. You enter card details on their checkout, never
               on our pages; we receive your order and subscription status, not your card number.
             </p>
             <p>

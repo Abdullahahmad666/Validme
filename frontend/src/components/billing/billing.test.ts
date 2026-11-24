@@ -12,7 +12,7 @@ const nav = vi.hoisted(() => ({ query: "" }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(nav.query) }));
 
 describe("pricing catalog", () => {
-  it("matches the decided prices (keep in step with the Lemon Squeezy variants)", () => {
+  it("matches the decided prices (keep in step with the Polar products)", () => {
     expect([PLAN_PRICES.founder.month, PLAN_PRICES.founder.year, PLAN_PRICES.pro.month, PLAN_PRICES.pro.year]).toEqual([19, 190, 39, 390]);
     expect(PACK_PRICES.map((p) => [p.id, p.credits, p.price])).toEqual([
       ["starter", 6, 19],

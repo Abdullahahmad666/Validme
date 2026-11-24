@@ -44,7 +44,7 @@ Tick boxes as you go — Claude Code reads this file to know what's next.
 - [x] MCP server against live API; install instructions in Settings and `mcp-server/README.md` (a public install page waits for a published package)
 
 ## Week 6 — Billing, hardening, deploy
-- [x] Credits, packs, server-side limits, payment provider (merchant of record: Lemon Squeezy; packs + prices configured there), free-plan evidence preview, partial refunds
+- [x] Credits, packs, server-side limits, payment provider (merchant of record: Polar, replacing Lemon Squeezy, which closed to new sign-ups; packs + prices configured there), free-plan evidence preview, partial refunds
 - [x] Error handling, job recovery, security review, analytics (first-party)
 - [x] Pre-deploy gate: dependency scans (pip-audit, npm audit) and `perf_check` (p95 + query budgets) in every ship-check; vitest 5
 - [x] Pre-deploy: hashed Python lockfile (`backend/requirements.lock`, installed with `--require-hashes`)
@@ -96,7 +96,7 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D1 Email provider (console / Gmail SMTP / Resend) + digest builder (every item linked to evidence)
 - [x] D2 Preferences, signed unsubscribe (one-click), idempotent sends, bounces
 - [x] D3 New-competitor detection (saved queries vs recent Show HN; user confirms)
-- [x] D4 Lemon Squeezy subscriptions → entitlements; payments UI; prices decided (Founder $19, Pro $39, packs $19/$49)
+- [x] D4 Subscriptions → entitlements (now on Polar); payments UI; prices decided (Founder $19, Pro $39, packs $19/$49)
 - [x] D5 Gate (billing focus)
 
 ### Week 11 — Opportunity Radar
@@ -133,6 +133,11 @@ Every week ends with a **gate day**: security-reviewer, research-quality/ui revi
 - [x] D3 Assumptions auto-marked supported/contradicted (founder can override)
 - [x] D4 MCP tools for watches, Radar, Lab (scoped keys)
 - [x] D5 Gate + full regression/performance pass (PostgreSQL perf run still to do before deploy)
+
+### Payments: move to Polar (Lemon Squeezy closed to new sign-ups)
+- [x] Polar provider: checkout, Standard Webhooks verification, order/subscription events, customer portal, sandbox/production switch
+- [ ] Sandbox run: create the packs and plan products in sandbox.polar.sh, point the webhook at the backend, buy/renew/refund/cancel with test cards
+- [ ] Production: payout account approved (Pakistani bank account in PKR), production products + token + webhook, `POLAR_SERVER=production`
 
 ### Later (Phase D, on demand)
 - [ ] Agency workspaces · licensed Reddit/G2/Crunchbase/Similarweb (business decisions) · evidence-first GTM generator if asked

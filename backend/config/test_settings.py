@@ -23,7 +23,7 @@ PLAN_LIMITS = {
         "cadences": ["daily", "weekly"],
     },
 }
-LEMONSQUEEZY_TEST_MODE = True
+POLAR_SERVER = "sandbox"
 CREDIT_PACKS = []
 EVIDENCE_PREVIEW_LIMIT = 100000  # off by default in tests; billing tests set it explicitly
 PLAN_LIMITS.update(

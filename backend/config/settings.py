@@ -311,7 +311,7 @@ CREDITS_PER_DEPTH = {"quick": 1, "standard": 2, "deep": 4}
 FREE_SIGNUP_CREDITS = 1
 
 # Plan limits, enforced at launch (billing/plans.py). "paid" = has bought a credit pack.
-# Plans (prices live in Lemon Squeezy and frontend/src/content/pricing.ts; these are the entitlements).
+# Plans (prices live in Polar and frontend/src/content/pricing.ts; these are the entitlements).
 #   free  : $0             paid (any credit pack): research depths unlocked
 #   founder: $19/mo, $190/yr   pro: $39/mo, $390/yr  (monitoring capacity + monthly credits)
 # max_watches = pages monitored per account; cadences = allowed check frequencies (last = fallback).
@@ -346,17 +346,24 @@ EVIDENCE_PREVIEW_LIMIT = env.int("EVIDENCE_PREVIEW_LIMIT", default=10)
 # Global cap on anonymous analytics events per day (storage guard on top of the per-IP throttle).
 ANALYTICS_ANON_DAILY_CAP = env.int("ANALYTICS_ANON_DAILY_CAP", default=20000)
 
-# Payments: Lemon Squeezy is the merchant of record (handles tax/VAT). Without these, buying is closed.
-LEMONSQUEEZY_API_KEY = env("LEMONSQUEEZY_API_KEY", default="")
-LEMONSQUEEZY_STORE_ID = env("LEMONSQUEEZY_STORE_ID", default="")
-LEMONSQUEEZY_WEBHOOK_SECRET = env("LEMONSQUEEZY_WEBHOOK_SECRET", default="")
-# Defaults to DEBUG: production (DEBUG off) honours live orders unless test mode is set explicitly.
-LEMONSQUEEZY_TEST_MODE = env.bool("LEMONSQUEEZY_TEST_MODE", default=DEBUG)
-# JSON list of packs: [{"id": "starter", "credits": 6, "variant_id": "123456"}]. Prices live in Lemon Squeezy.
+# Payments: Polar is the merchant of record (handles tax/VAT). Without these, buying is closed.
+POLAR_ACCESS_TOKEN = env("POLAR_ACCESS_TOKEN", default="")
+POLAR_WEBHOOK_SECRET = env("POLAR_WEBHOOK_SECRET", default="")
+# "sandbox" or "production": separate Polar environments with their own token, products and webhook secret.
+# Defaults to DEBUG: production (DEBUG off) talks to live Polar unless sandbox is set explicitly.
+POLAR_SERVER = env("POLAR_SERVER", default="sandbox" if DEBUG else "production")
+if POLAR_SERVER not in ("sandbox", "production"):
+    raise ImproperlyConfigured('POLAR_SERVER must be "sandbox" or "production".')
+# Sandbox orders are paid with test cards: refuse to honour them in production unless explicitly allowed (staging).
+if not DEBUG and POLAR_SERVER == "sandbox" and not env.bool("POLAR_ALLOW_SANDBOX", default=False):
+    raise ImproperlyConfigured(
+        "POLAR_SERVER=sandbox with DEBUG off: set POLAR_SERVER=production (or POLAR_ALLOW_SANDBOX=True on staging)."
+    )
+# JSON list of packs: [{"id": "starter", "credits": 6, "product_id": "<polar product id>"}]. Prices live in Polar.
 CREDIT_PACKS = env.json("CREDIT_PACKS", default=[])
-# Subscription plans: variant ids from Lemon Squeezy + credits granted on each paid invoice.
-# [{"id":"founder","monthly_variant_id":"1","yearly_variant_id":"2","monthly_credits":4},
-#  {"id":"pro","monthly_variant_id":"3","yearly_variant_id":"4","monthly_credits":10}]
+# Subscription plans: one Polar product per plan and interval + credits granted on each paid order.
+# [{"id":"founder","monthly_product_id":"…","yearly_product_id":"…","monthly_credits":4},
+#  {"id":"pro","monthly_product_id":"…","yearly_product_id":"…","monthly_credits":10}]
 SUBSCRIPTION_PLANS = env.json("SUBSCRIPTION_PLANS", default=[])
 
 # Logs go to stdout (the platform collects them). Never log request bodies, headers or keys.

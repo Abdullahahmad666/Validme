@@ -52,7 +52,7 @@ def test_free_plan_sees_top_records_only(api, evidence_set):
 
 def test_paid_plan_sees_everything(api, user, evidence_set):
     project, _, _ = evidence_set
-    Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="starter", credits=6, status="paid")
+    Purchase.objects.create(user=user, provider="polar", pack_id="starter", credits=6, status="paid")
     body = api.get(f"/api/evidence?project={project.id}").json()
     assert body["count"] == 8 and "preview" not in body
 
@@ -66,15 +66,13 @@ def test_report_keeps_all_cited_evidence_on_free_plan(api, evidence_set):
 
 
 def test_partial_refunds_take_back_a_matching_share(client, user, payments):  # noqa: F811
-    p = Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="starter", credits=6)
+    p = Purchase.objects.create(user=user, provider="polar", pack_id="starter", credits=6)
     post_hook(client, order(p, order_id="77"))
     user.refresh_from_db()
     start = user.credits
 
-    def refund(refunded, status="partial_refund"):
-        payload = order(p, order_id="77", event="order_refunded", status=status)
-        payload["data"]["attributes"].update({"total": 1900, "refunded_amount": refunded})
-        return post_hook(client, payload)
+    def refund(refunded, status="partially_refunded"):
+        return post_hook(client, order(p, order_id="77", event="order.refunded", status=status, refunded=refunded))
 
     refund(950)  # half: 3 credits back
     refund(950)  # replay: nothing more

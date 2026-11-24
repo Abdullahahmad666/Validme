@@ -59,8 +59,8 @@ export default function TermsPage() {
             <h2>Credits and paid plans</h2>
             <p>
               Research uses credits, charged once per report. Prices and allowances are on the{" "}
-              <Link href="/pricing">pricing page</Link> and are shown again before you pay. Payments are taken by Lemon
-              Squeezy, our merchant of record, whose checkout terms apply to the purchase. Plans renew each month or year
+              <Link href="/pricing">pricing page</Link> and are shown again before you pay. Payments are taken by Polar,
+              our merchant of record, whose checkout terms apply to the purchase. Plans renew each month or year
               until you cancel; you can cancel any time and keep the plan until the end of the period you&apos;ve paid for.
             </p>
 

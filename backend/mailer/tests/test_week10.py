@@ -210,34 +210,61 @@ def test_new_candidates_notify_once_a_week(project, user, monkeypatch):
     assert n.title == "Monitored: 2 possible new competitors" and n.link.endswith("/monitoring#candidates")
 
 
-# --- subscriptions -------------------------------------------------------------------------------------
+# --- subscriptions (Polar) ----------------------------------------------------------------------------
 
-PLANS = [{"id": "founder", "monthly_variant_id": "501", "yearly_variant_id": "502", "monthly_credits": 4}]
+PLANS = [{"id": "founder", "monthly_product_id": "prod-founder-m", "yearly_product_id": "prod-founder-y", "monthly_credits": 4}]
 
 
-def _sub_event(user, event="subscription_created", status="active", variant=501, ends_at=None, sub_id="sub_1", at=0, sig=None):
+def _sub_event(
+    user,
+    event="subscription.created",
+    status="active",
+    product="prod-founder-m",
+    sub_id="sub_1",
+    at=0,
+    sig=None,
+    cancel_at_period_end=False,
+    ends_at=None,
+    ended_at=None,
+):
     from billing.services import checkout_sig
 
-    custom = {"user_id": str(user.pk), "kind": "subscription", "plan": "founder"}
-    custom["sig"] = checkout_sig(user.pk, "founder") if sig is None else sig
-    updated = (timezone.now() - timedelta(days=30) + timedelta(minutes=at)).isoformat()
+    meta = {"user_id": str(user.pk), "kind": "subscription", "plan": "founder"}
+    meta["sig"] = checkout_sig(user.pk, "founder") if sig is None else sig
+    modified = (timezone.now() - timedelta(days=30) + timedelta(minutes=at)).isoformat()
+    period_end = (timezone.now() + timedelta(days=20)).isoformat()
     return {
-        "meta": {"event_name": event, "test_mode": True, "custom_data": custom},
+        "type": event,
         "data": {
-            "type": "subscriptions",
             "id": sub_id,
-            "attributes": {"status": status, "variant_id": variant, "renews_at": None, "ends_at": ends_at, "updated_at": updated},
+            "status": status,
+            "product_id": product,
+            "recurring_interval": "month",
+            "current_period_end": period_end,
+            "cancel_at_period_end": cancel_at_period_end,
+            "ends_at": ends_at,
+            "ended_at": ended_at,
+            "created_at": modified,
+            "modified_at": modified,
+            "metadata": meta,
         },
     }
 
 
-def _invoice(
-    invoice_id="inv_1", sub_id="sub_1", status="paid", reason="initial", total=1900, event="subscription_payment_success", **extra
-):
-    attrs = {"status": status, "subscription_id": sub_id, "billing_reason": reason, "total": total, **extra}
+def _invoice(order_id="ord_1", sub_id="sub_1", status="paid", reason="subscription_create", total=1900, event="order.paid", **extra):
     return {
-        "meta": {"event_name": event, "test_mode": True},
-        "data": {"type": "subscription-invoices", "id": invoice_id, "attributes": attrs},
+        "type": event,
+        "data": {
+            "id": order_id,
+            "status": status,
+            "subscription_id": sub_id,
+            "billing_reason": reason,
+            "product_id": "prod-founder-m",
+            "total_amount": total,
+            "refunded_amount": 0,
+            "metadata": {},
+            **extra,
+        },
     }
 
 
@@ -250,28 +277,43 @@ def test_subscription_lifecycle_sets_the_plan(client, user, plans):
     assert plan_for(user) == "free"
     assert post_hook(client, _sub_event(user)).status_code == 200
     assert plan_for(user) == "founder"
-    future = (timezone.now() + timedelta(days=10)).isoformat()
-    post_hook(client, _sub_event(user, event="subscription_cancelled", status="cancelled", ends_at=future, at=1))
-    assert plan_for(user) == "founder"  # paid until the period ends
-    post_hook(client, _sub_event(user, event="subscription_expired", status="expired", at=2))
+    sub = Subscription.objects.get()
+    assert sub.status == "active" and sub.renews_at is not None and sub.provider == "polar"
+    # Cancelled from the portal: Polar keeps it active until the period ends.
+    post_hook(client, _sub_event(user, event="subscription.canceled", cancel_at_period_end=True, at=1))
+    sub.refresh_from_db()
+    assert plan_for(user) == "founder" and sub.status == "cancelled" and sub.ends_at > timezone.now()
+    ended = timezone.now().isoformat()
+    post_hook(client, _sub_event(user, event="subscription.revoked", status="canceled", ended_at=ended, at=2))
     assert plan_for(user) == "free"
-    post_hook(client, _sub_event(user, event="subscription_updated", status="active", at=1))  # late retry
-    assert plan_for(user) == "free"  # an older event never revives an expired plan
+    post_hook(client, _sub_event(user, event="subscription.updated", status="active", at=1))  # late retry
+    assert plan_for(user) == "free"  # an older event never revives an ended plan
+
+
+def test_uncancel_and_past_due_keep_access(client, user, plans):
+    post_hook(client, _sub_event(user))
+    post_hook(client, _sub_event(user, event="subscription.canceled", cancel_at_period_end=True, at=1))
+    post_hook(client, _sub_event(user, event="subscription.uncanceled", at=2))
+    assert Subscription.objects.get().status == "active"
+    post_hook(client, _sub_event(user, event="subscription.updated", status="past_due", at=3))
+    assert Subscription.objects.get().status == "past_due" and plan_for(user) == "founder"  # Polar is retrying payment
+    post_hook(client, _sub_event(user, event="subscription.updated", status="unpaid", at=4))
+    assert plan_for(user) == "free"
 
 
 def test_spoofed_checkout_data_cant_attach_a_subscription(client, user, plans):
-    post_hook(client, _sub_event(user, sig="0" * 32))  # e.g. a hosted buy link with ?checkout[custom][user_id]=…
+    post_hook(client, _sub_event(user, sig="0" * 32))  # e.g. a checkout link created with someone else's user id
     assert not Subscription.objects.exists() and plan_for(user) == "free"
 
 
 def test_plan_changes_and_zero_invoices_grant_nothing(client, user, plans):
     post_hook(client, _sub_event(user))
     before = user.credits
-    post_hook(client, _invoice(invoice_id="inv_u", reason="updated"))  # proration on a plan switch
-    post_hook(client, _invoice(invoice_id="inv_0", reason="renewal", total=0))
+    post_hook(client, _invoice(order_id="ord_u", reason="subscription_update"))  # proration on a plan switch
+    post_hook(client, _invoice(order_id="ord_0", reason="subscription_cycle", total=0))
     user.refresh_from_db()
     assert user.credits == before
-    post_hook(client, _invoice(invoice_id="inv_r", reason="renewal"))
+    post_hook(client, _invoice(order_id="ord_r", reason="subscription_cycle"))
     user.refresh_from_db()
     assert user.credits == before + 4
 
@@ -283,7 +325,7 @@ def test_invoice_refund_takes_back_credits_once(client, user, plans):
     user.refresh_from_db()
     user.credits -= 1  # spent one
     user.save()
-    refund = _invoice(event="subscription_payment_refunded", status="refunded", refunded_amount=1900)
+    refund = _invoice(event="order.refunded", status="refunded", refunded_amount=1900)
     for _ in range(2):
         assert post_hook(client, refund).status_code == 200
     user.refresh_from_db()
@@ -291,11 +333,9 @@ def test_invoice_refund_takes_back_credits_once(client, user, plans):
     assert user.credits == before - 1  # the 4 granted come back out; the one spent stays spent
 
 
-def test_subscription_order_refund_isnt_retried_forever(client, user, plans):
-    event = {
-        "meta": {"event_name": "order_refunded", "test_mode": True, "custom_data": {"user_id": str(user.pk), "kind": "subscription"}},
-        "data": {"type": "orders", "id": "77", "attributes": {"status": "refunded", "total": 1900, "refunded_amount": 1900}},
-    }
+def test_refund_of_an_ungranted_subscription_order_is_recorded_not_retried(client, user, plans):
+    post_hook(client, _sub_event(user))
+    event = _invoice(order_id="ord_x", event="order.refunded", status="refunded", refunded_amount=1900)
     assert post_hook(client, event).status_code == 200
 
 
@@ -310,38 +350,86 @@ def test_invoices_grant_monthly_credits_once(client, user, plans):
 
 
 def test_yearly_invoice_grants_a_year(client, user, plans):
-    post_hook(client, _sub_event(user, variant=502, sub_id="sub_y"))
+    post_hook(client, _sub_event(user, product="prod-founder-y", sub_id="sub_y"))
     before = user.credits
-    post_hook(client, _invoice(invoice_id="inv_y", sub_id="sub_y"))
+    post_hook(client, _invoice(order_id="ord_y", sub_id="sub_y", product_id="prod-founder-y"))
     user.refresh_from_db()
     assert user.credits == before + 48
 
 
-def test_unknown_variant_and_early_invoice(client, user, plans):
-    post_hook(client, _sub_event(user, variant=999))
+def test_unknown_product_and_early_invoice(client, user, plans):
+    post_hook(client, _sub_event(user, product="prod-unknown"))
     assert not Subscription.objects.exists()
     assert post_hook(client, _invoice(sub_id="sub_unknown")).status_code == 409  # retried until the subscription exists
 
 
 def test_subscribe_and_portal_endpoints(api, user, plans, monkeypatch):
-    from billing.providers import lemonsqueezy
+    from billing.providers import polar
 
-    monkeypatch.setattr(lemonsqueezy, "create_checkout", lambda **kw: ("chk", "https://store.lemonsqueezy.com/checkout/x"))
+    seen = {}
+
+    def fake_checkout(**kw):
+        seen.update(kw)
+        return "chk", "https://sandbox.polar.sh/checkout/x"
+
+    monkeypatch.setattr(polar, "create_checkout", fake_checkout)
     assert api.post("/api/billing/portal").status_code == 404
     r = api.post("/api/billing/subscribe", {"plan": "founder", "interval": "month"}, format="json")
     assert r.status_code == 200 and r.json()["url"].startswith("https://")
+    assert seen["product_id"] == "prod-founder-m" and seen["metadata"]["plan"] == "founder" and seen["metadata"]["sig"]
     Subscription.objects.create(
-        user=user, provider="lemonsqueezy", provider_subscription_id="s1", plan="founder", variant_id="501", status="active"
+        user=user, provider="polar", provider_subscription_id="s1", plan="founder", variant_id="prod-founder-m", status="active"
     )
     assert api.post("/api/billing/subscribe", {"plan": "founder", "interval": "year"}, format="json").status_code == 409
-    monkeypatch.setattr(lemonsqueezy, "customer_portal_url", lambda sid: "https://store.lemonsqueezy.com/billing?sig=1")
+    monkeypatch.setattr(polar, "customer_portal_url", lambda sid: "https://sandbox.polar.sh/portal?session=1")
     assert api.post("/api/billing/portal").json()["url"].startswith("https://")
     body = api.get("/api/billing/packs").json()
     assert body["subscription"]["plan"] == "founder" and body["limits"]["plan"] == "founder"
 
 
-def test_test_mode_mismatch_for_subscriptions_is_ignored(client, user, plans):
-    event = _sub_event(user)
-    event["meta"]["test_mode"] = False
-    post_hook(client, event)
-    assert not Subscription.objects.exists()
+def test_refund_before_the_paid_order_grants_only_the_rest(client, user, plans):
+    post_hook(client, _sub_event(user))
+    before = user.credits
+    refund = _invoice(order_id="ord_e", event="order.refunded", status="refunded", refunded_amount=1900)
+    assert post_hook(client, refund).status_code == 200
+    assert post_hook(client, _invoice(order_id="ord_e")).status_code == 200  # the paid event, retried late
+    user.refresh_from_db()
+    assert user.credits == before  # fully refunded: nothing granted
+    half = _invoice(order_id="ord_h", event="order.refunded", status="partially_refunded", refunded_amount=950)
+    post_hook(client, half)
+    post_hook(client, _invoice(order_id="ord_h", reason="subscription_cycle"))
+    user.refresh_from_db()
+    assert user.credits == before + 2
+    # Usage history doesn't show the bookkeeping rows.
+    assert all(t.credits != 0 for t in UsageTransaction.objects.filter(user=user).exclude(credits=0))
+
+
+def test_early_refund_for_an_unknown_subscription_is_retried(client, user, plans):
+    refund = _invoice(order_id="ord_z", sub_id="sub_later", event="order.refunded", status="refunded", refunded_amount=1900)
+    assert post_hook(client, refund).status_code == 409
+
+
+def test_product_we_dont_sell_still_follows_status(client, user, plans):
+    post_hook(client, _sub_event(user))
+    post_hook(client, _sub_event(user, event="subscription.updated", product="prod-retired", at=1))
+    sub = Subscription.objects.get()
+    assert sub.plan == "founder" and sub.status == "active"  # last known plan kept
+    ended = timezone.now().isoformat()
+    post_hook(client, _sub_event(user, event="subscription.revoked", product="prod-retired", status="canceled", ended_at=ended, at=2))
+    assert plan_for(user) == "free"  # a revocation always ends access
+
+
+def test_cancelled_while_past_due_ends_at_period_end(client, user, plans):
+    post_hook(client, _sub_event(user))
+    post_hook(client, _sub_event(user, event="subscription.updated", status="past_due", cancel_at_period_end=True, at=1))
+    sub = Subscription.objects.get()
+    assert sub.status == "cancelled" and sub.ends_at is not None
+
+
+def test_renewal_after_a_plan_change_grants_the_new_plans_credits(client, user, plans, settings):
+    settings.SUBSCRIPTION_PLANS = [*PLANS, {"id": "pro", "monthly_product_id": "prod-pro-m", "monthly_credits": 10}]
+    post_hook(client, _sub_event(user))
+    before = user.credits
+    post_hook(client, _invoice(order_id="ord_p", reason="subscription_cycle", product_id="prod-pro-m"))
+    user.refresh_from_db()
+    assert user.credits == before + 10

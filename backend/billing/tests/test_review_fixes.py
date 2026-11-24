@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from accounts.services import issue_api_key
 from analytics.models import AnalyticsEvent
 from billing.models import Purchase
-from billing.tests.test_billing import order, payments, post_hook  # noqa: F401 (payments is a fixture)
+from billing.tests.test_billing import order, payments, post_hook, sign  # noqa: F401 (payments is a fixture)
 from projects.models import Project
 from research.models import ResearchJob
 from research.services import create_stages
@@ -17,13 +17,11 @@ from research.services import create_stages
 
 @pytest.fixture
 def pending(user, payments):  # noqa: F811
-    return Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="starter", credits=6)
+    return Purchase.objects.create(user=user, provider="polar", pack_id="starter", credits=6)
 
 
 def refund_payload(p, refunded, status="refunded"):
-    payload = order(p, order_id="55", event="order_refunded", status=status)
-    payload["data"]["attributes"].update({"total": 1900, "refunded_amount": refunded})
-    return payload
+    return order(p, order_id="55", event="order.refunded", status=status, refunded=refunded)
 
 
 def test_full_refund_before_paid_event_grants_nothing(client, user, pending):
@@ -37,15 +35,14 @@ def test_full_refund_before_paid_event_grants_nothing(client, user, pending):
 
 def test_partial_refund_before_paid_grants_only_the_rest(client, user, pending):
     before = user.credits
-    post_hook(client, refund_payload(pending, 950, status="partial_refund"))
+    post_hook(client, refund_payload(pending, 950, status="partially_refunded"))
     post_hook(client, order(pending, order_id="55"))
     user.refresh_from_db()
     assert user.credits == before + 3
 
 
 def test_paid_delivery_that_is_already_refunded_grants_nothing(client, user, pending):
-    payload = order(pending, order_id="56", status="refunded")
-    payload["data"]["attributes"].update({"total": 1900, "refunded_amount": 1900})
+    payload = order(pending, order_id="56", status="refunded", refunded=1900)
     before = user.credits
     post_hook(client, payload)
     user.refresh_from_db()
@@ -54,21 +51,22 @@ def test_paid_delivery_that_is_already_refunded_grants_nothing(client, user, pen
 
 def test_refund_for_unknown_order_asks_for_retry(client, pending):
     payload = refund_payload(pending, 1900)
-    payload["meta"]["custom_data"] = {}
+    payload["data"]["metadata"] = {}
     assert post_hook(client, payload).status_code == 409
 
 
 def test_status_refunded_counts_as_full_even_if_amounts_differ(client, user, pending):
     post_hook(client, order(pending, order_id="57"))
-    payload = order(pending, order_id="57", event="order_refunded", status="refunded")
-    payload["data"]["attributes"].update({"total": 1900, "refunded_amount": 1800})
+    payload = order(pending, order_id="57", event="order.refunded", status="refunded", refunded=1800)
     post_hook(client, payload)
     pending.refresh_from_db()
     assert pending.status == "refunded" and pending.credits_refunded == 6
 
 
 def test_non_ascii_signature_is_rejected_not_500(client, pending):
-    r = client.post("/api/billing/webhooks/lemonsqueezy", b"{}", content_type="application/json", HTTP_X_SIGNATURE="éé")
+    headers = sign(b"{}")
+    headers["HTTP_WEBHOOK_SIGNATURE"] = "v1,éé"
+    r = client.post("/api/billing/webhooks/polar", b"{}", content_type="application/json", **headers)
     assert r.status_code == 401
 
 

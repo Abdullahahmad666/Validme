@@ -218,7 +218,7 @@ export const USE_CASES = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Pricing — numbers come from src/content/pricing.ts (the catalog that matches Lemon Squeezy).
+// Pricing — numbers come from src/content/pricing.ts (the catalog that matches Polar).
 // Features listed here must match what the backend enforces (PLAN_LIMITS) and what every plan can use today.
 // ---------------------------------------------------------------------------
 const F = PLAN_PRICES.founder;

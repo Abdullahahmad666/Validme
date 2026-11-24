@@ -132,7 +132,7 @@ def test_downgraded_daily_watch_runs_weekly(project, user, settings, monkeypatch
     settings.PLAN_LIMITS = REAL
     w = Watch.objects.create(project=project, url="https://acme.test/p", cadence="daily", next_run_at=timezone.now())
     assert engine.effective_cadence(w) == "weekly"  # free plan
-    Purchase.objects.create(user=user, provider="lemonsqueezy", pack_id="p", credits=1, status="paid")
+    Purchase.objects.create(user=user, provider="polar", pack_id="p", credits=1, status="paid")
     assert engine.effective_cadence(w) == "daily"
     monkeypatch.setattr(engine, "fetch_public_page", FakeFetch(page(PAGE_V1)))
     engine.check_watch(w.pk)

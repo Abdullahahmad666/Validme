@@ -49,7 +49,7 @@ class Purchase(models.Model):
 
 
 class Subscription(models.Model):
-    """A Lemon Squeezy subscription (Founder / Pro). Created and updated only by signed webhooks."""
+    """A Polar subscription (Founder / Pro). Created and updated only by signed webhooks."""
 
     ENTITLED = ("on_trial", "active", "past_due")  # past_due: the provider is retrying payment
 
@@ -58,7 +58,7 @@ class Subscription(models.Model):
     provider_subscription_id = models.CharField(max_length=80, unique=True)
     plan = models.CharField(max_length=20)  # founder | pro
     interval = models.CharField(max_length=10, blank=True)  # month | year
-    variant_id = models.CharField(max_length=40)
+    variant_id = models.CharField(max_length=40)  # the provider product id (one per plan and interval)
     status = models.CharField(max_length=20)  # on_trial | active | past_due | paused | unpaid | cancelled | expired
     renews_at = models.DateTimeField(null=True, blank=True)
     ends_at = models.DateTimeField(null=True, blank=True)  # set when cancelled: access continues until then
